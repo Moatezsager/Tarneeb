@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@theme {
+  --color-gold: #d4af37;
+  --color-gold-light: #f9e698;
+  --color-gold-dark: #aa8d2e;
+  --font-tajawal: 'Tajawal', sans-serif;
+  --font-cairo: 'Cairo', sans-serif;
+  --color-surface: #12121f;
+  --color-card: #faf9f6;
+  --color-kuba: #e74c3c;
+}
+
+body {
+  background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a14 100%);
+  color: #fff;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  font-family: 'Cairo', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.golden-text {
+  background: linear-gradient(to bottom, #f9e698, #aa8d2e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 5px 20px rgba(212,175,55,0.4));
+}
+
+.glass-panel {
+  background: rgba(0,0,0,0.3);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(212,175,55,0.15);
+}
+
+.table-felt {
+  background: radial-gradient(circle, #1a7a3a 0%, #0d5025 55%, #0a3018 100%);
+  border: 4px solid #3d1c00;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5), inset 0 0 30px rgba(0,0,0,0.4);
+}
+
+.particle {
+  position: absolute; pointer-events: none; z-index: 200;
+  animation: particleUp 1s ease-out forwards;
+}
+
+@keyframes particleUp {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-50px) scale(1.3); }
+}
+
+@keyframes winGlow {
+  0%,100% { box-shadow: 0 0 8px #d4af37; border-color: #d4af37; }
+  50% { box-shadow: 0 0 30px #d4af37, 0 0 50px #f9e698; border-color: #f9e698; }
+}
+
+.winner-spot {
+  animation: winGlow 0.7s ease 3;
+}
+
+@keyframes activePulse {
+  0%,100% { box-shadow: 0 0 15px rgba(212,175,55,0.3); }
+  50% { box-shadow: 0 0 30px rgba(212,175,55,0.5); }
+}
+
+.active-turn {
+  background: rgba(212,175,55,0.2) !important;
+  box-shadow: 0 0 20px rgba(212,175,55,0.3);
+  animation: activePulse 1.5s ease-in-out infinite;
+}
+
+@keyframes trapWarn {
+  0%,100% { filter: drop-shadow(0 0 6px rgba(231,76,60,0.6)); }
+  50% { filter: drop-shadow(0 0 14px rgba(231,76,60,1)); }
+}
+
+.trap-card {
+  animation: trapWarn 1.5s ease-in-out infinite;
+}
+
+@keyframes cardDrop { 
+  from { transform: translateY(-35px); opacity: 0; } 
+  to { transform: translateY(0); opacity: 1; } 
+}
+.mini-card-anim {
+  animation: cardDrop 0.3s ease;
+}
