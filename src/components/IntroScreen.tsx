@@ -136,15 +136,13 @@ export function IntroScreen() {
 
           <div className="flex flex-col items-start gap-0.5">
             <div className="flex items-center gap-1.5" dir="rtl">
-              <div className="text-white font-black text-xs md:text-sm leading-tight max-w-[100px] truncate">{profile?.name}</div>
+              <div className="text-white font-black text-xs md:text-md leading-tight max-w-[120px] truncate">{profile?.name}</div>
               {profile?.searchId === '01' && <span className="text-[var(--color-gold)] text-[10px]">👑</span>}
               <div className="text-[10px] text-[#888] font-mono tracking-tighter" dir="ltr">#{profile?.searchId}</div>
             </div>
             <div className="text-[9px] sm:text-[10px] text-[var(--color-gold)] font-bold flex items-center gap-1" dir="rtl">
               <span>{country?.flag}</span>
               <span className="truncate max-w-[60px]">{country?.name}</span>
-              <span className="opacity-30">•</span>
-              <span className="bg-[var(--color-gold)]/10 px-1 rounded text-[8px] sm:text-[10px]">PRO</span>
             </div>
           </div>
         </div>
@@ -168,24 +166,24 @@ export function IntroScreen() {
         </div>
       </div>
       
-      <div className="z-10 flex flex-col items-center w-full max-w-sm mt-10">
+      <div className="z-10 flex flex-col items-center w-full max-w-sm mt-12 sm:mt-16">
         <div className="text-8xl md:text-9xl mb-2 drop-shadow-[0_0_20px_rgba(212,175,55,0.4)] animate-bounce-subtle">🂡</div>
         <div className="text-7xl md:text-8xl font-black golden-text font-[var(--font-tajawal)] drop-shadow-2xl" style={{textShadow: "0 4px 30px rgba(212,175,55,0.4)"}}>طرنيب</div>
-        <div className="font-[var(--font-tajawal)] tracking-[10px] text-[var(--color-gold)] opacity-70 text-sm md:text-xl mt-1 font-bold uppercase">
-          Online Pro
+        <div className="font-[var(--font-tajawal)] tracking-[10px] text-[var(--color-gold)] opacity-90 text-sm md:text-md mt-2 font-black uppercase">
+          مجانية بالكامل
         </div>
         
-        <div className="flex gap-2 items-center my-4">
-           <span className="bg-black/50 border border-[var(--color-gold)]/30 text-[var(--color-gold)] px-4 py-1.5 rounded-full text-xs md:text-sm font-bold shadow-sm backdrop-blur-sm">
-             ✨ احترافية وبسيطة
+        <div className="flex gap-2 items-center my-5">
+           <span className="bg-[var(--color-gold)]/10 border border-[var(--color-gold)]/40 text-[var(--color-gold)] px-4 py-1.5 rounded-full text-xs md:text-sm font-bold shadow-sm backdrop-blur-sm">
+             ✨ مجانية لمدى الحياة
            </span>
         </div>
         
-        <p className="text-[#bbb] text-xs sm:text-sm my-2 max-w-[280px] sm:max-w-[320px] leading-relaxed font-medium">
-          العب طرنيب مع أصدقائك في أي وقت وفي أي مكان بذكاء وبساطة
+        <p className="text-[#ccc] text-sm md:text-base my-2 max-w-[280px] sm:max-w-[340px] leading-relaxed font-medium px-4">
+          العب طرنيب مع أصدقائك في أي وقت وفي أي مكان، بذكاء وبدون إعلانات.
         </p>
         
-        <div className="flex flex-col gap-3 w-full mt-4">
+        <div className="flex flex-col gap-3.5 w-full mt-6 px-2">
           <button 
             className="w-full py-4 text-base sm:text-lg bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black border border-[#f8b500]/50 rounded-2xl font-black cursor-pointer shadow-[0_5px_25px_rgba(248,181,0,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
             onClick={() => {
