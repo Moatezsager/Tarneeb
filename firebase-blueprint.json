@@ -1,0 +1,116 @@
+{
+  "entities": {
+    "Player": {
+      "title": "Player",
+      "description": "Details about a participant in a game room",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "country": { "type": "string" },
+        "index": { "type": "integer" },
+        "status": { "type": "string", "enum": ["connected", "disconnected"] }
+      },
+      "required": ["uid", "name", "index"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Personal data and preferences of a user",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "searchId": { "type": "string" },
+        "country": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "avatar": { "type": "string" },
+        "status": { "type": "string", "enum": ["online", "offline"] },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "searchId", "country", "gender", "avatar"]
+    },
+    "FriendRequest": {
+      "title": "Friend Request",
+      "description": "A request sent from one user to another",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string" },
+        "fromName": { "type": "string" },
+        "fromAvatar": { "type": "string" },
+        "toUid": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromUid", "toUid", "status", "createdAt"]
+    },
+    "Room": {
+      "title": "Game Room",
+      "description": "A tarneeb game session",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "hostId": { "type": "string" },
+        "hostName": { "type": "string" },
+        "status": { "type": "string", "enum": ["waiting", "playing", "finished"] },
+        "isPublic": { "type": "boolean" },
+        "password": { "type": "string" },
+        "players": {
+          "type": "array",
+          "items": { "$ref": "Player" }
+        },
+        "memberUids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "spectators": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "gameState": { "type": "object" },
+        "lastActionBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "hostId", "status", "players", "memberUids", "createdAt", "updatedAt"]
+    },
+    "RoomInvite": {
+      "title": "Room Invite",
+      "description": "An invitation to join a game room",
+      "type": "object",
+      "properties": {
+        "fromUid": { "type": "string" },
+        "fromName": { "type": "string" },
+        "fromAvatar": { "type": "string" },
+        "toUid": { "type": "string" },
+        "roomCode": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["fromUid", "toUid", "roomCode", "status", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Information about a user's profile"
+    },
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "A collection of game rooms"
+    },
+    "/roomInvites/{inviteId}": {
+      "schema": "RoomInvite",
+      "description": "Invitations sent to users to join rooms"
+    },
+    "/friendRequests/{requestId}": {
+      "schema": "FriendRequest",
+      "description": "Incoming and outgoing friend requests"
+    },
+    "/users/{userId}/friends/{friendId}": {
+      "schema": "UserProfile",
+      "description": "List of friends for a user"
+    }
+  }
+}

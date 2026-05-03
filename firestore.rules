@@ -1,0 +1,139 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Validation Helpers
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidRoom(data) {
+      return data.code is string && 
+             data.hostId is string && 
+             data.status in ['waiting', 'playing', 'finished'] &&
+             data.players is list &&
+             data.memberUids is list &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('spectators' in data) || data.spectators is list);
+    }
+
+    function isValidRoomInvite(data) {
+      return data.fromUid is string &&
+             data.toUid is string &&
+             data.fromName is string &&
+             data.fromAvatar is string &&
+             data.roomCode is string &&
+             data.status in ['pending', 'accepted', 'rejected'] &&
+             data.createdAt is timestamp;
+    }
+
+    function isValidUser(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 64 &&
+             data.uid is string &&
+             data.searchId is string && data.searchId.size() > 0 && data.searchId.size() <= 32 &&
+             data.country is string &&
+             data.gender in ['male', 'female', 'other'] &&
+             data.avatar is string &&
+             (data.status == 'online' || data.status == 'offline') &&
+             data.updatedAt is timestamp;
+    }
+
+    function isValidFriendRequest(data) {
+      return data.fromUid is string &&
+             data.toUid is string &&
+             data.fromName is string &&
+             data.fromAvatar is string &&
+             data.status in ['pending', 'accepted', 'rejected'] &&
+             data.createdAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow list: if isSignedIn();
+      allow write: if isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      
+      match /friends/{friendId} {
+        // Person can read their own friends list, or a friend can check if they are in the list
+        allow read: if isSignedIn() && (request.auth.uid == userId || request.auth.uid == friendId);
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        // Only the owner can add friends to their list
+        allow create: if isSignedIn() && request.auth.uid == userId;
+        // Owners or friends themselves can unfriend (delete)
+        allow delete: if isSignedIn() && (request.auth.uid == userId || request.auth.uid == friendId);
+      }
+    }
+
+    match /friendRequests/{requestId} {
+      allow read: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      
+      allow create: if isSignedIn() && 
+                    incoming().fromUid == request.auth.uid && 
+                    isValidFriendRequest(incoming()) &&
+                    incoming().status == 'pending';
+      
+      allow update: if isSignedIn() && (
+        // Only recipient can accept or reject
+        (resource.data.toUid == request.auth.uid && 
+         resource.data.status == 'pending' && 
+         incoming().status in ['accepted', 'rejected'])
+      ) && 
+      incoming().fromUid == resource.data.fromUid && 
+      incoming().toUid == resource.data.toUid &&
+      incoming().createdAt == resource.data.createdAt;
+      
+      allow delete: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+    }
+
+    match /roomInvites/{inviteId} {
+      allow read: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.toUid == request.auth.uid;
+      
+      allow create: if isSignedIn() && 
+                    incoming().fromUid == request.auth.uid && 
+                    isValidRoomInvite(incoming()) &&
+                    incoming().status == 'pending';
+      
+      allow update: if isSignedIn() && (
+        (resource.data.toUid == request.auth.uid && 
+         resource.data.status == 'pending' && 
+         incoming().status in ['accepted', 'rejected'])
+      ) && 
+      incoming().fromUid == resource.data.fromUid && 
+      incoming().toUid == resource.data.toUid &&
+      incoming().roomCode == resource.data.roomCode &&
+      incoming().createdAt == resource.data.createdAt;
+      
+      allow delete: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+    }
+
+    match /rooms/{roomId} {
+      allow create: if isSignedIn() && isValidId(roomId) && isValidRoom(incoming()) && incoming().hostId == request.auth.uid;
+      
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.isPublic == true && resource.data.status == 'waiting';
+
+      allow update: if isSignedIn() && (
+        // HOST updates everything
+        (existing().hostId == request.auth.uid)
+        ||
+        // GUEST JOINING/LEAVING: 
+        (existing().status == 'waiting')
+        ||
+        // PLAYER DISCONNECT/RECONNECT/LEAVING
+        (existing().status == 'playing' && request.auth.uid in existing().memberUids)
+        ||
+        (existing().status == 'finished' && request.auth.uid in existing().memberUids)
+      ) && isValidRoom(incoming());
+
+      // Allow any existing member to delete the room
+      allow delete: if isSignedIn() && request.auth.uid in existing().memberUids;
+    }
+  }
+}

@@ -1,56 +1,284 @@
+import React, { useState, useEffect } from "react";
 import { initAudio } from "../lib/audio";
 import { G, updateUI } from "../logic/engine";
+import { auth } from "../lib/firebase";
+import { getLocalProfile, COUNTRIES } from "../logic/userProfile";
+import { ProfileSetupScreen } from "./ProfileSetupScreen";
+import { SocialModal } from "./SocialModal";
+import { Settings, LogOut, Users, Play, Gamepad2 } from "lucide-react";
+import { 
+  listenToFriendRequests, 
+  listenToAcceptedRequests, 
+  deleteFriendRequest,
+  FriendRequest
+} from "../logic/social";
+import { listenToRoomInvites, respondToRoomInvite, joinRoom } from "../logic/multiplayer";
+import { setDoc, doc, serverTimestamp } from "firebase/firestore";
+import { db } from "../lib/firebase";
+import { motion, AnimatePresence } from "motion/react";
 
 export function IntroScreen() {
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[100dvh] p-4 text-center bg-gradient-to-b from-[#11111a] to-[#1a1a2e] relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-[var(--color-gold)] blur-[100px] opacity-10 rounded-full" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-[var(--color-kuba)] blur-[100px] opacity-10 rounded-full" />
+  const profile = getLocalProfile();
+  const country = COUNTRIES.find(c => c.code === profile?.country);
+  const [showSocial, setShowSocial] = useState(false);
+  const [requestsCount, setRequestsCount] = useState(0);
+  const [acceptedCount, setAcceptedCount] = useState(0);
+  const [invites, setInvites] = useState<any[]>([]);
+  const hasNotification = requestsCount > 0 || acceptedCount > 0 || invites.length > 0;
+  
+  useEffect(() => {
+    // Listen for room invites
+    const unsubInvites = listenToRoomInvites((newInvites) => {
+      setInvites(newInvites);
+    });
+
+    const activeRoomId = localStorage.getItem('tarneb_active_room');
+    if (activeRoomId && auth.currentUser) {
+      const profile = getLocalProfile();
+      joinRoom(activeRoomId, profile?.name || "لاعب").then(() => {
+        G.phase = 'multiplayer';
+        updateUI();
+      }).catch((e) => {
+        console.error("Auto rejoin failed", e);
+        localStorage.removeItem('tarneb_active_room');
+      });
+    }
+
+    // Listen for incoming friend requests
+    const unsubRequests = listenToFriendRequests((reqs) => {
+      setRequestsCount(reqs.length);
+    });
+
+    const processedRequests = new Set<string>();
+
+    // Also handle automatic syncing of accepted requests even when modal is closed
+    const unsubAccepted = listenToAcceptedRequests(async (accepted) => {
+      setAcceptedCount(accepted.length);
       
-      <div className="z-10 flex flex-col items-center">
-        <div className="text-6xl md:text-8xl mb-2 md:mb-4 drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">🂡</div>
-        <div className="text-5xl xs:text-6xl md:text-8xl font-black golden-text font-[var(--font-tajawal)] drop-shadow-xl" style={{textShadow: "0 4px 20px rgba(212,175,55,0.4)"}}>طرنت</div>
-        <div className="font-[var(--font-tajawal)] tracking-[8px] text-[var(--color-gold)] opacity-90 text-sm md:text-xl mt-1 md:mt-2 font-bold uppercase">
-          Libya Pro
+      const user = auth.currentUser;
+      if (!user) return;
+
+      for (const req of accepted) {
+        if (req.toUid && !processedRequests.has(req.id)) {
+          processedRequests.add(req.id);
+          try {
+            // Add to my friend list (I am the sender who got accepted)
+            // Information about the friend (the 'to' user) is in req.to*
+            const myFriendRef = doc(db, "users", user.uid, "friends", req.toUid);
+            await setDoc(myFriendRef, {
+              uid: req.toUid,
+              name: req.toName || "لاعب",
+              avatar: req.toAvatar || "👤",
+              searchId: req.toSearchId || "",
+              updatedAt: serverTimestamp()
+            });
+            
+            // Clean up the request document
+            await deleteFriendRequest(req.id);
+          } catch (err) {
+            console.error("Intro sync error:", err);
+            processedRequests.delete(req.id); // Allow retry if failed
+          }
+        }
+      }
+    });
+
+    return () => {
+      unsubRequests();
+      unsubAccepted();
+      unsubInvites();
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      // Small manual update for status before signout to ensure it hits firestore
+      const user = auth.currentUser;
+      if (user) {
+        const { doc, updateDoc, serverTimestamp } = await import("firebase/firestore");
+        const { db } = await import("../lib/firebase");
+        const userRef = doc(db, "users", user.uid);
+        await updateDoc(userRef, {
+          status: "offline",
+          lastSeen: serverTimestamp()
+        }).catch(() => {}); // ignore errors
+      }
+      await auth.signOut();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[100dvh] p-4 text-center bg-[#11111a] relative overflow-hidden" dir="rtl">
+      {/* Decorative background elements */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-gold)] blur-[120px] opacity-10 rounded-full animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--color-kuba)] blur-[120px] opacity-10 rounded-full animate-pulse" />
+      
+      {/* Profile Header */}
+      <div className="absolute top-4 right-4 left-4 z-20 flex justify-between items-center bg-black/50 backdrop-blur-md p-3 rounded-[24px] border border-white/10 shadow-2xl">
+        
+        {/* Profile (Right side) */}
+        <div className="flex items-center gap-3">
+          <div 
+            className={`w-11 h-11 sm:w-12 sm:h-12 ${profile?.searchId === '01' ? 'bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 p-0.5' : 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/40'} rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-inner cursor-pointer active:scale-95 transition-all hover:border-[var(--color-gold)] relative`}
+            onClick={() => { G.phase = 'profile'; updateUI(); }}
+          >
+            <div className="bg-[#1a1a1a] w-full h-full rounded-full flex items-center justify-center">
+              {profile?.avatar || "👤"}
+            </div>
+            {profile?.searchId === '01' && (
+              <div className="absolute -top-1 -right-1 bg-[var(--color-gold)] p-0.5 rounded-full border border-black shadow-lg">
+                <span className="text-[10px] block leading-none">👑</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col items-start gap-0.5">
+            <div className="flex items-center gap-1.5" dir="rtl">
+              <div className="text-white font-black text-xs md:text-sm leading-tight max-w-[100px] truncate">{profile?.name}</div>
+              {profile?.searchId === '01' && <span className="text-[var(--color-gold)] text-[10px]">👑</span>}
+              <div className="text-[10px] text-[#888] font-mono tracking-tighter" dir="ltr">#{profile?.searchId}</div>
+            </div>
+            <div className="text-[9px] sm:text-[10px] text-[var(--color-gold)] font-bold flex items-center gap-1" dir="rtl">
+              <span>{country?.flag}</span>
+              <span className="truncate max-w-[60px]">{country?.name}</span>
+              <span className="opacity-30">•</span>
+              <span className="bg-[var(--color-gold)]/10 px-1 rounded text-[8px] sm:text-[10px]">PRO</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Buttons (Left side) */}
+        <div className="flex gap-2">
+           <button 
+             onClick={() => { G.phase = 'profile'; updateUI(); }}
+             className="p-2 sm:p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/80 hover:text-white transition-colors border border-white/5 active:scale-90"
+             title="إعدادات الحساب"
+           >
+             <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+           </button>
+           <button 
+             onClick={handleLogout}
+             className="p-2 sm:p-2.5 bg-red-900/20 hover:bg-red-900/40 rounded-[14px] text-red-500 transition-colors border border-red-500/10 active:scale-90"
+             title="خروج"
+           >
+             <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+           </button>
+        </div>
+      </div>
+      
+      <div className="z-10 flex flex-col items-center w-full max-w-sm mt-10">
+        <div className="text-8xl md:text-9xl mb-2 drop-shadow-[0_0_20px_rgba(212,175,55,0.4)] animate-bounce-subtle">🂡</div>
+        <div className="text-7xl md:text-8xl font-black golden-text font-[var(--font-tajawal)] drop-shadow-2xl" style={{textShadow: "0 4px 30px rgba(212,175,55,0.4)"}}>طرنيب</div>
+        <div className="font-[var(--font-tajawal)] tracking-[10px] text-[var(--color-gold)] opacity-70 text-sm md:text-xl mt-1 font-bold uppercase">
+          Online Pro
         </div>
         
-        <div className="flex gap-2 items-center my-4 md:my-6">
-          <span className="bg-black/40 border border-[var(--color-gold)]/30 text-[var(--color-gold)] px-4 py-1.5 rounded-full text-xs md:text-sm font-bold shadow-sm backdrop-blur-sm">
-            ✨ الإصدار 3.0
-          </span>
-          <span className="bg-[var(--color-kuba)]/20 border border-[var(--color-kuba)]/40 text-[var(--color-kuba)] px-4 py-1.5 rounded-full text-xs md:text-sm font-bold shadow-sm backdrop-blur-sm">
-            ♥ كبة حاكمة
-          </span>
+        <div className="flex gap-2 items-center my-4">
+           <span className="bg-black/50 border border-[var(--color-gold)]/30 text-[var(--color-gold)] px-4 py-1.5 rounded-full text-xs md:text-sm font-bold shadow-sm backdrop-blur-sm">
+             ✨ احترافية وبسيطة
+           </span>
         </div>
         
-        <p className="text-[#bbb] text-xs md:text-sm my-2 max-w-[320px] md:max-w-[400px] leading-relaxed font-medium">
-          طاولة الجواكر • نظام الكنق • الذكاء الاصطناعي المتقدم والمزيد
+        <p className="text-[#bbb] text-xs sm:text-sm my-2 max-w-[280px] sm:max-w-[320px] leading-relaxed font-medium">
+          العب طرنيب مع أصدقائك في أي وقت وفي أي مكان بذكاء وبساطة
         </p>
         
-        <button 
-          className="mt-8 px-10 py-3.5 md:px-14 md:py-4 text-lg md:text-xl bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black border-none rounded-full font-black cursor-pointer shadow-[0_5px_25px_rgba(248,181,0,0.4)] transition-all hover:scale-105 hover:shadow-[0_8px_30px_rgba(248,181,0,0.6)] active:scale-95 flex items-center gap-2"
-          onClick={() => {
-            initAudio();
-            G.phase = 'setup';
-            updateUI();
-          }}
-        >
-          <span>دخول الغرفة</span>
-          <span className="text-xl">🎲</span>
-        </button>
+        <div className="flex flex-col gap-3 w-full mt-4">
+          <button 
+            className="w-full py-4 text-base sm:text-lg bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black border border-[#f8b500]/50 rounded-2xl font-black cursor-pointer shadow-[0_5px_25px_rgba(248,181,0,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
+            onClick={() => {
+              initAudio();
+              G.phase = 'multiplayer';
+              updateUI();
+            }}
+          >
+            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-black group-hover:-translate-x-1 transition-transform" />
+            <span className="translate-y-[1px]">اللعب أونلاين</span>
+          </button>
 
-        <button 
-          className="mt-3 px-6 py-2 text-sm bg-black/40 border border-white/10 text-white rounded-full font-bold cursor-pointer transition-colors hover:bg-white/10 active:scale-95 flex items-center gap-2"
-          onClick={() => {
-            G.phase = 'stats';
-            updateUI();
-          }}
-        >
-          <span>الإحصائيات</span>
-          <span className="text-base">📊</span>
-        </button>
+          <button 
+            className="w-full py-4 text-base sm:text-lg bg-white/5 border border-white/10 text-white rounded-2xl font-bold cursor-pointer shadow-lg transition-all hover:bg-white/10 active:scale-[0.98] flex items-center justify-center gap-2 group"
+            onClick={() => {
+              initAudio();
+              G.phase = 'setup';
+              updateUI();
+            }}
+          >
+            <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6 text-white/80 group-hover:text-white transition-colors" />
+            <span className="translate-y-[1px]">اللعب المحلي (أوفلاين)</span>
+          </button>
+
+          <button 
+            className="w-full py-3.5 text-sm sm:text-base bg-black/40 border border-white/5 text-[#ccc] rounded-2xl font-bold cursor-pointer transition-all hover:bg-white/10 flex items-center justify-center gap-2 relative group mt-2 shadow-inner"
+            onClick={() => setShowSocial(true)}
+          >
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#aaa] group-hover:text-white transition-colors" />
+            <span className="translate-y-[1px]">الأصدقاء والمجتمع</span>
+            
+            {hasNotification && (
+              <span className="absolute top-2.5 right-2.5 flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
+              </span>
+            )}
+          </button>
+        </div>
       </div>
+
+        <SocialModal 
+          isOpen={showSocial} 
+          onClose={() => setShowSocial(false)} 
+          myProfile={profile}
+        />
+
+        {/* Room Invite Notification */}
+        <AnimatePresence>
+          {invites.length > 0 && (
+            <motion.div 
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-6 left-6 right-6 z-[600] pointer-events-none"
+            >
+              <div className="bg-black/90 backdrop-blur-xl border-2 border-[var(--color-gold)] p-4 rounded-3xl shadow-2xl flex items-center justify-between pointer-events-auto max-w-[400px] mx-auto overflow-hidden relative group">
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)]/10 to-transparent" />
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-white/5">
+                    {invites[0].fromAvatar}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-white font-black text-sm">{invites[0].fromName}</div>
+                    <div className="text-[var(--color-gold)] text-[10px] font-bold">دعوة للانضمام لغرفة: {invites[0].roomCode}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2 relative z-10">
+                  <button 
+                    onClick={async () => {
+                      const req = invites[0];
+                      const accepted = await respondToRoomInvite(req.id, req.roomCode, 'accepted');
+                      if (accepted) {
+                        await joinRoom(req.roomCode, profile?.name || "لاعب");
+                        G.phase = 'multiplayer';
+                        updateUI();
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-500 text-black font-black text-xs rounded-xl active:scale-95 transition-transform"
+                  >
+                    قبول
+                  </button>
+                  <button 
+                    onClick={() => respondToRoomInvite(invites[0].id, invites[0].roomCode, 'rejected')}
+                    className="px-4 py-2 bg-white/10 text-white font-bold text-xs rounded-xl active:scale-95 transition-transform"
+                  >
+                    رفض
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
     </div>
   );
 }

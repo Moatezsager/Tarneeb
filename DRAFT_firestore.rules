@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Validation Helpers
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isSignedIn() { return request.auth != null; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    function isValidPlayer(p) {
+      return p.uid is string && p.name is string && p.index is int;
+    }
+
+    function isValidRoom(data) {
+      return data.code is string && 
+             data.hostId is string && 
+             data.status in ['waiting', 'playing', 'finished'] &&
+             data.players is list &&
+             data.createdAt is timestamp &&
+             data.updatedAt == request.time;
+    }
+
+    match /rooms/{roomId} {
+      allow create: if isSignedIn() && isValidId(roomId) && isValidRoom(incoming()) && incoming().hostId == request.auth.uid;
+      
+      allow get: if isSignedIn();
+      allow list: if false; // Room discovery should be via code, not listing
+
+      allow update: if isSignedIn() && (
+        // JOINING: Add self to players list if status is waiting
+        (existing().status == 'waiting' && 
+         incoming().players.size() == existing().players.size() + 1 &&
+         incoming().players[incoming().players.size() - 1].uid == request.auth.uid) 
+        ||
+        // PLAYING: Host or current player (logic enforced by app, basic check here)
+        (existing().status == 'playing' && (
+          request.auth.uid == existing().hostId || 
+          request.auth.uid in existing().players.map(p => p.uid)
+        ))
+      ) && isValidRoom(incoming());
+    }
+  }
+}

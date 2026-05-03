@@ -1,7 +1,10 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useGameState } from "./common";
-import { getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame } from "../logic/engine";
+import { getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex } from "../logic/engine";
+import { multiplayerState } from "../logic/multiplayer";
+import { UserProfileModal } from "./UserProfileModal";
+import { UserProfile } from "../logic/userProfile";
 
 function getCardImageUrl(card: Card) {
   const suitMap: Record<string, string> = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
@@ -57,7 +60,7 @@ function DealingAnimation() {
   )
 }
 
-function PlayerBadge({ index, positionClass }: { index: number, positionClass: string }) {
+function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, positionClass: string, onProfileClick: (index: number) => void }) {
   const gs = useGameState();
   const name = gs.playerNames[index];
   const isDealer = gs.dealerIdx === index;
@@ -66,11 +69,16 @@ function PlayerBadge({ index, positionClass }: { index: number, positionClass: s
   const bid = gs.bids[index];
   const taken = gs.tricksTaken[index];
   const cardCount = gs.hands[index].length;
-  const isYou = index === 0;
+  const isYou = index === myPlayerIndex && myPlayerIndex !== -1;
   const exposedCard = gs.exposedCards[index];
 
+  const showHand = isYou; // Spectators see no hands
+
   return (
-    <div className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isActive ? 'border-[var(--color-gold)] shadow-[0_0_15px_rgba(212,175,55,0.4)] z-30 scale-105 ring-1 ring-[var(--color-gold)]/50' : 'border-[#333] shadow-xl z-20'} overflow-hidden transition-all min-w-[70px] sm:min-w-[85px] max-w-[90px]`}>
+    <div 
+      onClick={() => onProfileClick(index)}
+      className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isActive ? 'border-[var(--color-gold)] shadow-[0_0_15px_rgba(212,175,55,0.4)] z-30 scale-105 ring-1 ring-[var(--color-gold)]/50' : 'border-[#333] shadow-xl z-20'} overflow-hidden transition-all min-w-[70px] sm:min-w-[85px] max-w-[90px] cursor-pointer hover:border-[var(--color-gold)]/50 active:scale-95`}
+    >
       
       {/* Header (Name) */}
       <div className={`w-full text-center py-1 px-1.5 relative ${isActive ? 'bg-[var(--color-gold)] text-black' : 'bg-[#222] text-white'}`}>
@@ -78,6 +86,19 @@ function PlayerBadge({ index, positionClass }: { index: number, positionClass: s
           {name}
         </span>
         {isDealer && <span className={`absolute left-1.5 top-1 ${isActive ? 'text-black' : 'text-[var(--color-gold)]'} text-[0.55rem] sm:text-[0.6rem] leading-none animate-pulse`}>●</span>}
+        
+        {/* Turn Timer Progress Bar */}
+        {isActive && !gs.playerNames[index].includes("كمبيوتر") && (gs.phase === 'playing' || gs.phase === 'bidding') && (
+          <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black/20 overflow-hidden">
+             <motion.div 
+               initial={{ width: "100%" }}
+               animate={{ width: "0%" }}
+               transition={{ duration: gs.turnTimeout, ease: "linear" }}
+               key={gs.turnStartTime} // Restart animation when turn changes
+               className={`h-full ${isActive ? 'bg-black' : 'bg-[var(--color-gold)]'}`}
+             />
+          </div>
+        )}
       </div>
       
       {/* Body (Score & Bid) */}
@@ -114,7 +135,7 @@ function PlayerBadge({ index, positionClass }: { index: number, positionClass: s
 
 function Spot({ index, position }: { index: number, position: string }) {
   const gs = useGameState();
-  const isYou = index === 0;
+  const isYou = index === myPlayerIndex && myPlayerIndex !== -1;
   
   const playedCard = gs.trickCards[index];
   const isWinner = gs.winnerSlot === index;
@@ -146,20 +167,34 @@ function Spot({ index, position }: { index: number, position: string }) {
   );
 }
 
-function TableArea() {
+function TableArea({ onProfileClick }: { onProfileClick: (index: number) => void }) {
+  const gs = useGameState();
+  const baseIdx = myPlayerIndex !== -1 ? myPlayerIndex : 0;
+  const pIdx = (offset: number) => (baseIdx + offset) % 4;
+
+  const bottomIdx = pIdx(0);
+  const rightIdx = pIdx(1);
+  const topIdx = pIdx(2);
+  const leftIdx = pIdx(3);
+
   return (
     <div className="flex-1 relative flex items-center justify-center min-h-0 py-1 w-full my-2">
-      <PlayerBadge index={2} positionClass="top-1 sm:top-2 left-1 sm:left-2 z-20" />
-      <PlayerBadge index={1} positionClass="top-1 sm:top-2 right-1 sm:right-2 z-20" />
-      <PlayerBadge index={3} positionClass="bottom-1 sm:bottom-2 left-1 sm:left-2 z-20" />
-      <PlayerBadge index={0} positionClass="bottom-1 sm:bottom-2 right-1 sm:right-2 z-20" />
+      <PlayerBadge index={topIdx} positionClass="top-1 sm:top-2 left-1 sm:left-2 z-20" onProfileClick={onProfileClick} />
+      <PlayerBadge index={rightIdx} positionClass="top-1 sm:top-2 right-1 sm:right-2 z-20" onProfileClick={onProfileClick} />
+      <PlayerBadge index={leftIdx} positionClass="bottom-1 sm:bottom-2 left-1 sm:left-2 z-20" onProfileClick={onProfileClick} />
+      <PlayerBadge index={bottomIdx} positionClass="bottom-1 sm:bottom-2 right-1 sm:right-2 z-20" onProfileClick={onProfileClick} />
       
       <div className="relative w-[190px] xs:w-[230px] sm:w-[320px] aspect-square flex items-center justify-center">
-        <div className="absolute inset-[8%] sm:inset-[10%] table-felt rounded-full shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]" />
-        <Spot index={2} position="-top-[20px] sm:-top-[30px] left-1/2 -translate-x-1/2" />
-        <Spot index={1} position="-right-[20px] sm:-right-[30px] top-1/2 -translate-y-1/2" />
-        <Spot index={0} position="-bottom-[20px] sm:-bottom-[30px] left-1/2 -translate-x-1/2" />
-        <Spot index={3} position="-left-[20px] sm:-left-[30px] top-1/2 -translate-y-1/2" />
+        <div className="absolute inset-[8%] sm:inset-[10%] table-felt rounded-full shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] flex items-center justify-center">
+           <div className="text-center opacity-10 pointer-events-none select-none">
+              <div className="text-[var(--color-gold)] text-[10px] font-black uppercase tracking-widest leading-none mb-1">الهدف</div>
+              <div className="text-[var(--color-gold)] text-4xl sm:text-5xl font-black leading-none">{gs.target}</div>
+           </div>
+        </div>
+        <Spot index={topIdx} position="-top-[20px] sm:-top-[30px] left-1/2 -translate-x-1/2" />
+        <Spot index={rightIdx} position="-right-[20px] sm:-right-[30px] top-1/2 -translate-y-1/2" />
+        <Spot index={bottomIdx} position="-bottom-[20px] sm:-bottom-[30px] left-1/2 -translate-x-1/2" />
+        <Spot index={leftIdx} position="-left-[20px] sm:-left-[30px] top-1/2 -translate-y-1/2" />
       </div>
     </div>
   );
@@ -169,7 +204,8 @@ function TableArea() {
 
 function PlayerHand() {
   const gs = useGameState();
-  const hand = gs.hands[0];
+  if (myPlayerIndex === -1) return null;
+  const hand = gs.hands[myPlayerIndex];
   
   return (
     <div className="bg-black/50 rounded-t-2xl p-1 border-t-2 border-[var(--color-gold)]/30 mx-1">
@@ -181,14 +217,14 @@ function PlayerHand() {
           {hand.map((card, i) => {
             const isSelected = gs.selectedCardIdx === i;
             let notPlayable = false;
-            if (gs.phase === 'playing' && gs.currentPlayer === 0) {
+            if (gs.phase === 'playing' && gs.currentPlayer === myPlayerIndex) {
               // Need to check playability based on trick leader
               const isLeading = gs.trickCards.every(c => c === null);
               const leadSuit = isLeading ? null : gs.trickCards[gs.leadPlayer]?.suit;
               const hasLeadSuit = leadSuit ? hand.some(c => c.suit === leadSuit) : false;
               if (leadSuit && hasLeadSuit && card.suit !== leadSuit) notPlayable = true;
               if (isLeading && card.suit === '♥' && hand.some(c => c.suit !== '♥')) notPlayable = true; // Can't lead Kuba normally unless all Kuba
-            } else if (gs.phase === 'playing' && gs.currentPlayer !== 0) {
+            } else if (gs.phase === 'playing' && gs.currentPlayer !== myPlayerIndex) {
               notPlayable = true;
             }
             
@@ -231,7 +267,7 @@ function PlayerHand() {
       <div className="text-center mt-1 flex gap-2 justify-center items-center h-[30px]">
         <button 
           className="px-4 py-1.5 rounded-full font-black text-[0.65rem] disabled:bg-[#555] disabled:text-[#888] disabled:scale-100 transition-transform active:scale-95 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black"
-          disabled={gs.selectedCardIdx < 0 || gs.currentPlayer !== 0 || gs.phase !== 'playing'}
+          disabled={gs.selectedCardIdx < 0 || gs.currentPlayer !== myPlayerIndex || gs.phase !== 'playing'}
           onClick={executePlay}
         >
           🎯 العب
@@ -244,8 +280,8 @@ function PlayerHand() {
 
 function BiddingOverlay() {
   const gs = useGameState();
-  if (!gs.bidOverlayVisible) return null;
-  const avail = getAvailableBids(0);
+  if (!gs.bidOverlayVisible || myPlayerIndex === -1) return null;
+  const avail = getAvailableBids(myPlayerIndex);
   
   return (
     <div className="absolute bottom-[110px] sm:bottom-[120px] left-1/2 -translate-x-1/2 z-50 flex items-center justify-center p-1 w-full pointer-events-none">
@@ -331,7 +367,7 @@ function RoundEndOverlay() {
         )}
         <div className="mt-1.5 text-[#aaa] text-[0.55rem] min-h-[14px]">
           {gs.gameWinner !== null 
-            ? (gs.gameWinner === 0 ? '🏆 مبروك! أنت بطل الطرنت! 🏆' : `🏆 ${gs.playerNames[gs.gameWinner]} فاز باللعبة!`)
+            ? (gs.gameWinner === myPlayerIndex && myPlayerIndex !== -1 ? '🏆 مبروك! أنت بطل الطرنت! 🏆' : `🏆 ${gs.playerNames[gs.gameWinner]} فاز باللعبة!`)
             : (results[0]?.change > 0 ? '🎉 نقاط إيجابية!' : '💔 خسارة نقاط')
           }
         </div>
@@ -376,6 +412,45 @@ export function GameScreen() {
   const gs = useGameState();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [aboutOpen, setAboutOpen] = React.useState(false);
+  const [profileModalUser, setProfileModalUser] = React.useState<UserProfile | null>(null);
+
+  const handleProfileClick = (index: number) => {
+     const name = gs.playerNames[index];
+     if (name.includes("كمبيوتر")) {
+         setProfileModalUser({
+             uid: "bot-" + index,
+             name: name,
+             searchId: "BOT",
+             country: "LY",
+             gender: "male",
+             avatar: "🤖",
+             status: "online"
+         });
+     } else {
+         const realPlayer = multiplayerState.players.find(p => p.index === index);
+         if (realPlayer) {
+             setProfileModalUser({
+                 uid: realPlayer.uid,
+                 name: realPlayer.name,
+                 searchId: "----",
+                 country: realPlayer.country,
+                 gender: "male",
+                 avatar: realPlayer.avatar,
+                 status: "online"
+             });
+         } else {
+             setProfileModalUser({
+                 uid: "local-" + index,
+                 name: name,
+                 searchId: "LOCAL",
+                 country: "LY",
+                 gender: "male",
+                 avatar: "👤",
+                 status: "online"
+             });
+         }
+     }
+  };
 
   return (
     <div className="flex flex-col h-[100dvh] pt-1 pb-1 px-1 overflow-hidden gap-[4px] relative">
@@ -395,7 +470,7 @@ export function GameScreen() {
         </button>
       </div>
 
-      <TableArea />
+      <TableArea onProfileClick={handleProfileClick} />
 
       <div className={`text-center py-1 font-black text-[0.7rem] sm:text-[0.8rem] min-h-[22px] leading-[1.3] shrink-0 drop-shadow-md z-10 relative ${gs.gameMsgClass === 'tarneb-msg' ? 'text-[var(--color-kuba)]' : 'text-[var(--color-gold)]'}`}>
         {gs.gameMsg}
@@ -408,6 +483,13 @@ export function GameScreen() {
       <RoundEndOverlay />
       <ParticlesRenderer />
       <DealingAnimation />
+      
+      <UserProfileModal 
+         isOpen={!!profileModalUser} 
+         onClose={() => setProfileModalUser(null)} 
+         user={profileModalUser} 
+         isFriend={false} 
+      />
 
       <AnimatePresence>
         {menuOpen && (
@@ -468,7 +550,7 @@ import { humanSwap, humanSkipSwap } from "../logic/engine";
 
 function SwapOverlay() {
   const gs = useGameState();
-  if (gs.phase !== "swapping" || gs.playerWithHighestScore !== 0) return null;
+  if (gs.phase !== "swapping" || gs.playerWithHighestScore !== myPlayerIndex || myPlayerIndex === -1) return null;
   
   return (
     <div className="absolute inset-0 z-50 flex items-center justify-center p-2 bg-black/40 pointer-events-auto backdrop-blur-[1px]">
@@ -479,21 +561,22 @@ function SwapOverlay() {
         <div className="flex justify-center gap-2 mb-4">
           <div className="flex flex-col items-center">
             <span className="text-[0.6rem] text-[var(--color-gold)] mb-1">ورقتك</span>
-            {gs.exposedCards[0] && <MiniCard card={gs.exposedCards[0]} isKuba={gs.exposedCards[0].suit === '♥'} />}
+            {gs.exposedCards[myPlayerIndex] && <MiniCard card={gs.exposedCards[myPlayerIndex]} isKuba={gs.exposedCards[myPlayerIndex].suit === '♥'} />}
           </div>
         </div>
 
         <div className="text-xs text-white mb-2">اختر ورقة للتبديل معها:</div>
         <div className="flex justify-center gap-4 mb-5">
-          {[1,2,3].map(p => (
-            gs.exposedCards[p] ? (
+          {[1,2,3].map(offset => {
+            const p = (myPlayerIndex + offset) % 4;
+            return gs.exposedCards[p] ? (
               <div key={p} className="flex flex-col items-center cursor-pointer transform transition-transform hover:scale-110 active:scale-95" onClick={() => humanSwap(p)}>
                 <span className="text-[0.55rem] text-[#aaa] mb-1">{gs.playerNames[p]}</span>
                 <MiniCard card={gs.exposedCards[p]!} isKuba={gs.exposedCards[p]?.suit === '♥'} />
                 <div className="mt-1 px-2 py-0.5 bg-[var(--color-gold)]/20 rounded text-[0.5rem] text-[var(--color-gold)]">تبديل</div>
               </div>
-            ) : null
-          ))}
+            ) : null;
+          })}
         </div>
 
         <button 
