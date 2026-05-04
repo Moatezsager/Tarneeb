@@ -26,6 +26,9 @@ export function IntroScreen() {
   const [invites, setInvites] = useState<any[]>([]);
   const hasNotification = requestsCount > 0 || acceptedCount > 0 || invites.length > 0;
   
+  const [rejoinRoomId, setRejoinRoomId] = useState<string | null>(null);
+  const [rejoining, setRejoining] = useState(false);
+
   useEffect(() => {
     // Listen for room invites
     const unsubInvites = listenToRoomInvites((newInvites) => {
@@ -34,14 +37,7 @@ export function IntroScreen() {
 
     const activeRoomId = localStorage.getItem('tarneb_active_room');
     if (activeRoomId && auth.currentUser) {
-      const profile = getLocalProfile();
-      joinRoom(activeRoomId, profile?.name || "لاعب").then(() => {
-        G.phase = 'multiplayer';
-        updateUI();
-      }).catch((e) => {
-        console.error("Auto rejoin failed", e);
-        localStorage.removeItem('tarneb_active_room');
-      });
+      setRejoinRoomId(activeRoomId);
     }
 
     // Listen for incoming friend requests
@@ -184,6 +180,46 @@ export function IntroScreen() {
         </p>
         
         <div className="flex flex-col gap-3.5 w-full mt-6 px-2">
+          {rejoinRoomId && (
+            <div className="flex gap-2 mb-2 w-full">
+              <button 
+                className="flex-1 py-4 text-base sm:text-lg bg-green-600/90 text-white border border-green-500 rounded-2xl font-black cursor-pointer shadow-[0_5px_25px_rgba(34,197,94,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
+                onClick={() => {
+                  setRejoining(true);
+                  initAudio();
+                  joinRoom(rejoinRoomId, profile?.name || "لاعب").then(() => {
+                    G.phase = 'multiplayer';
+                    updateUI();
+                  }).catch((e) => {
+                    console.error("Auto rejoin failed", e);
+                    localStorage.removeItem('tarneb_active_room');
+                    setRejoinRoomId(null);
+                    alert(e.message || "عذراً تعذر العودة للمباراة أو أن المباراة قد انتهت");
+                  }).finally(() => {
+                    setRejoining(false);
+                  });
+                }}
+                disabled={rejoining}
+              >
+                <div className="text-xl group-hover:rotate-180 transition-transform duration-500">🔄</div>
+                <span className="translate-y-[1px]">
+                  {rejoining ? "جاري العودة..." : "العودة للمباراة السابقة"}
+                </span>
+              </button>
+              <button
+                className="p-4 bg-red-900/30 text-red-500 rounded-2xl border border-red-500/20 active:scale-95 transition-all w-14 shrink-0 flex items-center justify-center hover:bg-red-900/50"
+                onClick={() => {
+                  localStorage.removeItem('tarneb_active_room');
+                  setRejoinRoomId(null);
+                }}
+                disabled={rejoining}
+                title="تجاهل"
+              >
+                ✖
+              </button>
+            </div>
+          )}
+
           <button 
             className="w-full py-4 text-base sm:text-lg bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black border border-[#f8b500]/50 rounded-2xl font-black cursor-pointer shadow-[0_5px_25px_rgba(248,181,0,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
             onClick={() => {
