@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { multiplayerState, createRoom, joinRoom, leaveRoom, startGame, fetchPublicRooms, RoomData, sendRoomInvite, swapPlayerWithSpectator } from "../logic/multiplayer";
+import { multiplayerState, createRoom, joinRoom, leaveRoom, startGame, fetchPublicRooms, RoomData, sendRoomInvite, swapPlayerWithSpectator, listenToRoomInvites, respondToRoomInvite } from "../logic/multiplayer";
 import { G, updateUI, subscribe } from "../logic/engine";
 import { auth, db } from "../lib/firebase";
 import { getLocalProfile, COUNTRIES } from "../logic/userProfile";
 import { collection, onSnapshot, query, where, getDoc, doc } from "firebase/firestore";
 import { ShieldAlert, ShieldCheck, Lock, Unlock, Users, Plus, Share2, Play, Eye, Home, Send, X, ArrowRight, UserPlus, EyeOff } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface FriendInvite {
   uid: string;
@@ -31,6 +32,7 @@ export function MultiplayerScreen() {
   
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [onlineFriends, setOnlineFriends] = useState<FriendInvite[]>([]);
+  const [invites, setInvites] = useState<any[]>([]);
 
   useEffect(() => {
     if (showInviteModal && auth.currentUser) {
@@ -59,6 +61,11 @@ export function MultiplayerScreen() {
   }, [showInviteModal]);
 
   useEffect(() => {
+    // Listen for incoming invites
+    const unsubInvites = listenToRoomInvites((newInvites) => {
+      setInvites(newInvites);
+    });
+
     const unsubG = subscribe(() => {
       setTick(t => t + 1);
       setInRoom(multiplayerState.isMultiplayer);
@@ -73,6 +80,7 @@ export function MultiplayerScreen() {
     const lobbyInterval = setInterval(fetchRooms, 10000); // Poll lobby every 10s
 
     return () => {
+      unsubInvites();
       unsubG();
       clearInterval(lobbyInterval);
     };
@@ -99,11 +107,14 @@ export function MultiplayerScreen() {
     try {
       await joinRoom(code, profile?.name || "لاعب", pass || joinPassword, asSpectator);
       setInRoom(true);
+      setShowPasswordInput(null);
     } catch (e: any) {
       setError(e.message);
+      if (e.message === "كلمة المرور غير صحيحة") {
+        setShowPasswordInput({code, asSpectator});
+      }
     } finally {
       setLoading(false);
-      setShowPasswordInput(null);
     }
   };
 
@@ -221,6 +232,46 @@ export function MultiplayerScreen() {
               مغادرة الغرفة
             </button>
          </div>
+
+        {/* Invite Friends Modal */}
+        {showInviteModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+            <div className="w-full max-w-[320px] bg-[#1a1a2e] border border-[var(--color-gold)] rounded-3xl p-6 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+              <div className="flex justify-between items-center mb-6 shrink-0">
+                <button onClick={() => setShowInviteModal(false)} className="text-white/40 hover:text-white transition-colors">×</button>
+                <h3 className="text-white font-bold">دعوة أصدقاء متصلين</h3>
+              </div>
+              
+              <div className="space-y-3 overflow-y-auto pr-1 flex-1 min-h-[100px] custom-scrollbar">
+                {onlineFriends.length === 0 ? (
+                  <div className="text-center py-8 text-[#555] text-xs">لا يوجد أصدقاء متصلين حالياً...</div>
+                ) : (
+                  onlineFriends.map(f => (
+                    <div key={f.uid} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{f.avatar}</span>
+                        <span className="text-white font-bold text-sm">{f.name}</span>
+                      </div>
+                      <button 
+                        onClick={() => handleInvite(f.uid)}
+                        className="p-2 bg-[var(--color-gold)] text-black rounded-xl text-[10px] font-black active:scale-95 transition-transform"
+                      >
+                        إرسال 📩
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+              
+              <button 
+                onClick={() => setShowInviteModal(false)}
+                className="w-full mt-6 py-3 bg-[#222] text-white/50 font-bold rounded-xl active:scale-95 transition-transform shrink-0"
+              >
+                إغلاق
+              </button>
+            </div>
+          </div>
+        )}
        </div>
      );
   }
@@ -395,45 +446,53 @@ export function MultiplayerScreen() {
         </div>
       </div>
 
-        {/* Invite Friends Modal */}
-        {showInviteModal && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
-            <div className="w-full max-w-[320px] bg-[#1a1a2e] border border-[var(--color-gold)] rounded-3xl p-6 shadow-2xl">
-              <div className="flex justify-between items-center mb-6">
-                <button onClick={() => setShowInviteModal(false)} className="text-white/40 hover:text-white transition-colors">×</button>
-                <h3 className="text-white font-bold">دعوة أصدقاء متصلين</h3>
+        {/* Room Invite Notification */}
+        <AnimatePresence>
+          {invites.length > 0 && (
+            <motion.div 
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="fixed bottom-6 left-6 right-6 z-[600] pointer-events-none"
+            >
+              <div className="bg-black/90 backdrop-blur-xl border-2 border-[var(--color-gold)] p-4 rounded-3xl shadow-2xl flex flex-col md:flex-row items-center justify-between pointer-events-auto max-w-[400px] mx-auto overflow-hidden relative group gap-4">
+                <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)]/10 to-transparent" />
+                <div className="flex items-center gap-3 relative z-10 w-full md:w-auto overflow-hidden">
+                  <div className="w-12 h-12 shrink-0 bg-white/10 rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-white/5">
+                    {invites[0].fromAvatar}
+                  </div>
+                  <div className="text-right overflow-hidden pr-2">
+                    <div className="text-white font-black text-sm truncate">{invites[0].fromName}</div>
+                    <div className="text-[var(--color-gold)] text-[10px] font-bold truncate">دعوة للانضمام لغرفة: {invites[0].roomCode}</div>
+                  </div>
+                </div>
+                <div className="flex gap-2 relative z-10 shrink-0 w-full md:w-auto">
+                  <button 
+                    onClick={async () => {
+                      const req = invites[0];
+                      const accepted = await respondToRoomInvite(req.id, req.roomCode, 'accepted');
+                      if (accepted) {
+                         if (multiplayerState.isMultiplayer) { // Leave current room if in one
+                            leaveRoom();
+                         }
+                         await handleJoin(req.roomCode); // Using handleJoin handles password modal / spectator state
+                      }
+                    }}
+                    className="flex-1 md:flex-none px-4 py-2 bg-green-500 hover:bg-green-400 text-black font-black text-xs rounded-xl active:scale-95 transition-all text-center"
+                  >
+                    قبول
+                  </button>
+                  <button 
+                    onClick={() => respondToRoomInvite(invites[0].id, invites[0].roomCode, 'rejected')}
+                    className="flex-1 md:flex-none px-4 py-2 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl active:scale-95 transition-all text-center"
+                  >
+                    رفض
+                  </button>
+                </div>
               </div>
-              
-              <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
-                {onlineFriends.length === 0 ? (
-                  <div className="text-center py-8 text-[#555] text-xs">لا يوجد أصدقاء متصلين حالياً...</div>
-                ) : (
-                  onlineFriends.map(f => (
-                    <div key={f.uid} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{f.avatar}</span>
-                        <span className="text-white font-bold text-sm">{f.name}</span>
-                      </div>
-                      <button 
-                        onClick={() => handleInvite(f.uid)}
-                        className="p-2 bg-[var(--color-gold)] text-black rounded-xl text-[10px] font-black active:scale-95 transition-transform"
-                      >
-                        إرسال 📩
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-              
-              <button 
-                onClick={() => setShowInviteModal(false)}
-                className="w-full mt-6 py-3 bg-[#222] text-white/50 font-bold rounded-xl active:scale-95 transition-transform"
-              >
-                إغلاق
-              </button>
-            </div>
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Password Modal (Simple) */}
         {showPasswordInput && (

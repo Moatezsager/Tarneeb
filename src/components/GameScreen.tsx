@@ -446,6 +446,7 @@ export function GameScreen() {
   const gs = useGameState();
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [aboutOpen, setAboutOpen] = React.useState(false);
+  const [confirmAction, setConfirmAction] = React.useState<"leave" | "reset" | null>(null);
   const [profileModalUser, setProfileModalUser] = React.useState<UserProfile | null>(null);
 
   const handleProfileClick = (index: number) => {
@@ -535,10 +536,10 @@ export function GameScreen() {
                <button onClick={() => { setMenuOpen(false); setAboutOpen(true); }} className="p-3.5 bg-[#222]/80 border border-white/10 text-white rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-white/10">
                    <span className="text-xl">ℹ️</span> حول اللعبة
                </button>
-               <button onClick={() => { setMenuOpen(false); resetGame(); }} className="p-3.5 bg-[#222]/80 border border-white/10 text-white rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-white/10 mt-2">
+               <button onClick={() => { setMenuOpen(false); setConfirmAction('reset'); }} className="p-3.5 bg-[#222]/80 border border-white/10 text-white rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-white/10 mt-2">
                    <span className="text-xl">🔄</span> إعادة المباراة
                </button>
-               <button onClick={() => { setMenuOpen(false); returnToMenu(); }} className="p-3.5 bg-red-900/30 border border-red-500/30 text-red-400 rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-red-900/50 mt-4">
+               <button onClick={() => { setMenuOpen(false); setConfirmAction('leave'); }} className="p-3.5 bg-red-900/30 border border-red-500/30 text-red-400 rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-red-900/50 mt-4">
                    <span className="text-xl">🚪</span> خروج للقائمة الرئيسية
                </button>
                <button onClick={() => setMenuOpen(false)} className="mt-4 p-3 bg-transparent text-[#aaa] font-bold w-full text-center hover:text-white transition-colors">
@@ -572,6 +573,50 @@ export function GameScreen() {
                  <button onClick={() => setAboutOpen(false)} className="px-10 py-2.5 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black font-black rounded-full active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.3)] transition-transform hover:scale-105 w-full">
                    حسناً
                  </button>
+             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmAction && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[600] flex justify-center items-center p-4 bg-black/90 backdrop-blur-md pointer-events-auto" 
+            onClick={() => setConfirmAction(null)}
+          >
+             <motion.div 
+               initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+               className="bg-[#1a1a2e] border border-[var(--color-gold)] p-6 md:p-8 rounded-3xl w-full max-w-[320px] text-center shadow-[0_20px_60px_rgba(0,0,0,0.8)]" 
+               onClick={e => e.stopPropagation()}
+             >
+                 <div className="text-4xl mb-3 drop-shadow-md">⚠️</div>
+                 <h2 className="text-lg sm:text-xl font-black text-white mb-2">
+                   {confirmAction === 'leave' ? 'هل أنت متأكد من الخروج؟' : 'هل أنت متأكد من إعادة المباراة؟'}
+                 </h2>
+                 <p className="text-xs sm:text-sm text-[#aaa] mb-6">
+                   {confirmAction === 'leave' 
+                     ? 'سيتم الخروج من الغرفة والعودة للقائمة الرئيسية.'
+                     : 'سيتم تقديم طلب إعادة المباراة لجميع اللاعبين.'}
+                 </p>
+                 <div className="flex gap-3">
+                   <button 
+                     onClick={() => setConfirmAction(null)} 
+                     className="flex-1 py-2.5 bg-[#333] hover:bg-[#444] text-white font-bold rounded-xl transition-colors"
+                   >
+                     إلغاء
+                   </button>
+                   <button 
+                     onClick={() => {
+                       if (confirmAction === 'leave') returnToMenu();
+                       else if (confirmAction === 'reset') resetGame();
+                       setConfirmAction(null);
+                     }} 
+                     className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-xl transition-colors shadow-[0_0_15px_rgba(220,38,38,0.4)]"
+                   >
+                     تأكيد
+                   </button>
+                 </div>
              </motion.div>
           </motion.div>
         )}

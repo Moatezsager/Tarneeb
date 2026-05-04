@@ -42,15 +42,60 @@ function startHostTimer() {
     const now = Date.now();
     const elapsed = (now - G.turnStartTime) / 1000;
     
-    // Only force AI move for REAL players who timed out
-    const currentPlayerIsBot = G.playerNames[G.currentPlayer].includes("كمبيوتر");
+    const currentPlayerIsBot = Object.values(G.playerNames).length > G.currentPlayer && G.playerNames[G.currentPlayer] && G.playerNames[G.currentPlayer].includes("كمبيوتر");
     
-    if (!currentPlayerIsBot && elapsed > G.turnTimeout) {
-       console.log(`Player ${G.currentPlayer} (${G.playerNames[G.currentPlayer]}) timed out. Forcing AI move.`);
-       forceAiAction(G.currentPlayer);
-       updateGameState();
+    if (currentPlayerIsBot) {
+       // If it's a bot and it's stuck for > 5 seconds (bots normally play in 1.5s), fix it
+       // This handles the case where a player disconnects mid-turn and becomes a bot, losing the delayed timeout
+       if (elapsed > 6) {
+          console.log(`Bot ${G.currentPlayer} seems stuck. Forcing AI move.`);
+          // Adjust turnStartTime so we don't spam if it takes a bit
+          G.turnStartTime = Date.now();
+          forceAiAction(G.currentPlayer);
+          updateGameState();
+       }
+    } else {
+       if (elapsed > G.turnTimeout) {
+          console.log(`Player ${G.currentPlayer} (${G.playerNames[G.currentPlayer]}) timed out. Forcing AI move.`);
+          convertPlayerToBot(G.currentPlayer);
+          // forceAiAction and updateGameState will be triggered on next loop or we can do it now. 
+          // Best to do it now.
+          G.turnStartTime = Date.now();
+          forceAiAction(G.currentPlayer);
+          updateGameState();
+       }
     }
   }, 500);
+}
+
+async function convertPlayerToBot(playerIndex: number) {
+  if (!activeRoomId || !multiplayerState.isHost) return;
+  const botName = `كمبيوتر ${playerIndex + 1}`;
+  G.playerNames[playerIndex] = botName;
+  updateUI();
+  try {
+    const roomRef = doc(db, "rooms", activeRoomId);
+    const roomSnap = await getDoc(roomRef);
+    if (roomSnap.exists()) {
+       const data = roomSnap.data() as RoomData;
+       const updatedPlayers = data.players.map(p => {
+         if (p.index === playerIndex) {
+           return {
+             ...p,
+             uid: `bot_${playerIndex}_${Date.now()}`,
+             name: botName,
+             avatar: "🤖",
+             country: "AI",
+             isBot: true
+           } as Player;
+         }
+         return p;
+       });
+       await updateDoc(roomRef, { players: updatedPlayers });
+    }
+  } catch(e) {
+    console.error("Error converting player to bot:", e);
+  }
 }
 
 function stopHostTimer() {
@@ -158,6 +203,89 @@ function deserializeGameState(state: any): any {
   return state;
 }
 
+function startAntiHostFreezeTimer() {
+  setInterval(() => {
+    if (multiplayerState.isHost || !multiplayerState.isMultiplayer) return;
+    if (G.phase !== "playing" && G.phase !== "bidding") return;
+    if (!G.gameStarted) return;
+    if (!activeRoomId) return;
+
+    const now = Date.now();
+    const elapsed = (now - G.turnStartTime) / 1000;
+    
+    // If the host hasn't done anything (turn is stuck for > turnTimeout + 15 seconds)
+    // We assume host is dead and take over.
+    if (elapsed > G.turnTimeout + 15) {
+      console.log("Host seems dead. Taking over...");
+      takeOverHost();
+    }
+  }, 5000);
+}
+
+startAntiHostFreezeTimer();
+
+async function takeOverHost() {
+  if (!activeRoomId || multiplayerState.isHost) return;
+  const user = auth.currentUser;
+  if (!user) return;
+  
+  try {
+    const roomRef = doc(db, "rooms", activeRoomId);
+    const roomSnap = await getDoc(roomRef);
+    if (!roomSnap.exists()) return;
+    const data = roomSnap.data() as RoomData;
+    
+    // Safety check: Maybe someone else just took over?
+    if (!data.memberUids.includes(data.hostId)) {
+        // host is already leaving?
+    }
+    
+    // Only the first available non-bot member should take over. 
+    // We can rely on memberUids order.
+    const activeMembers = data.memberUids;
+    if (activeMembers[0] === user.uid || (activeMembers[0] === data.hostId && activeMembers[1] === user.uid)) {
+        console.log("I am taking over as host!");
+        const newHostName = data.players.find(p => p.uid === user.uid)?.name || "لاعب";
+        
+        // Also convert the old host to a bot immediately since they are dead
+        const deadHostId = data.hostId;
+        const deadHostPlayer = data.players.find(p => p.uid === deadHostId);
+        
+        const updatedPlayers = data.players.map(p => {
+            if (p.uid === deadHostId) {
+                return {
+                    ...p,
+                    uid: `bot_${p.index}_${Date.now()}`,
+                    name: `كمبيوتر ${p.index + 1}`,
+                    avatar: "🤖",
+                    country: "AI",
+                    isBot: true
+                } as Player;
+            }
+            return p;
+        });
+
+        let updatedGameState = data.gameState;
+        if (deadHostPlayer && updatedGameState && updatedGameState.playerNames) {
+            updatedGameState.playerNames[deadHostPlayer.index] = `كمبيوتر ${deadHostPlayer.index + 1}`;
+        }
+
+        const newMembers = activeMembers.filter(id => id !== deadHostId);
+
+        await updateDoc(roomRef, {
+            hostId: user.uid,
+            hostName: newHostName,
+            memberUids: newMembers,
+            players: updatedPlayers,
+            gameState: updatedGameState,
+            updatedAt: serverTimestamp()
+        });
+    }
+  } catch (e) {
+    console.error("Take over host failed", e);
+  }
+}
+
 export async function createRoom(playerName: string, isPublic = true, password = "", winLimit = 31) {
   if (!auth.currentUser) throw new Error("يجب تسجيل الدخول أولاً");
 
@@ -260,7 +388,47 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
       }
 
       // Check if already in room as player
-      const existingPlayer = data.players.find(p => p.uid === user.uid);
+      let existingPlayer = data.players.find(p => p.uid === user.uid);
+
+      if (!existingPlayer && data.status !== "waiting") {
+         // Try to take over a bot slot
+         const botToReplace = data.players.find(p => p.isBot || p.uid.startsWith('bot_'));
+         if (botToReplace) {
+             const updatedPlayers = data.players.map(p => {
+                 if (p.index === botToReplace.index) {
+                     return {
+                         ...p,
+                         uid: user.uid,
+                         name: profile?.name || playerName,
+                         avatar: profile?.avatar || "👨‍💼",
+                         country: profile?.country || "LY",
+                         isBot: false,
+                         status: "connected"
+                     } as Player;
+                 }
+                 return p;
+             });
+             
+             let updatedGameState = data.gameState || G;
+             if (updatedGameState && updatedGameState.playerNames) {
+                 updatedGameState.playerNames[botToReplace.index] = profile?.name || playerName;
+             }
+
+             const newUids = data.memberUids.includes(user.uid) ? data.memberUids : [...data.memberUids, user.uid];
+
+             await updateDoc(roomRef, {
+                 players: updatedPlayers,
+                 memberUids: newUids,
+                 gameState: updatedGameState,
+                 updatedAt: serverTimestamp()
+             });
+             
+             existingPlayer = updatedPlayers.find(p => p.uid === user.uid);
+             // use the updated players instead of the old data.players below
+             data.players = updatedPlayers;
+         }
+      }
+
       if (existingPlayer) {
          multiplayerState.myPlayerIndex = existingPlayer.index;
       } else {
@@ -344,6 +512,26 @@ export function listenToRoom(roomId: string) {
     }
     
     G.spectators = data.spectators || [];
+    
+    if (auth.currentUser) {
+        const myPlayerRecord = data.players.find(p => p.uid === auth.currentUser?.uid);
+        if (myPlayerRecord) {
+            if (multiplayerState.myPlayerIndex !== myPlayerRecord.index) {
+                multiplayerState.myPlayerIndex = myPlayerRecord.index;
+                setMyPlayerIndex(myPlayerRecord.index);
+            }
+        } else {
+            if (multiplayerState.myPlayerIndex !== -1) {
+                multiplayerState.myPlayerIndex = -1;
+                setMyPlayerIndex(-1);
+            }
+        }
+    }
+    
+    for (let i = 0; i < 4; i++) {
+       const p = data.players.find(x => x.index === i);
+       if (p && G.playerNames) G.playerNames[i] = p.name;
+    }
     
     // Sync Game State
     if (data.lastActionBy !== auth.currentUser?.uid || !hasSyncedInitialState) {
@@ -439,10 +627,32 @@ export async function leaveRoom(destroy = false) {
                  updatedAt: serverTimestamp()
                });
              } else {
+               const leavingPlayer = data.players.find(p => p.uid === uid);
+               const updatedPlayers = data.players.map(p => {
+                 if (p.uid === uid) {
+                   return {
+                     ...p,
+                     uid: `bot_${p.index}_${Date.now()}`,
+                     name: `كمبيوتر ${p.index + 1}`,
+                     avatar: "🤖",
+                     country: "AI",
+                     isBot: true
+                   } as Player;
+                 }
+                 return p;
+               });
+
+               let updatedGameState = data.gameState;
+               if (leavingPlayer && updatedGameState && updatedGameState.playerNames) {
+                  updatedGameState.playerNames[leavingPlayer.index] = `كمبيوتر ${leavingPlayer.index + 1}`;
+               }
+
                await updateDoc(roomRef, {
                  hostId: newHostId,
                  memberUids: newMembers,
+                 players: updatedPlayers,
                  spectators: newSpectators,
+                 gameState: updatedGameState,
                  updatedAt: serverTimestamp()
                });
              }
