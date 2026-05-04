@@ -60,6 +60,33 @@ function DealingAnimation() {
   )
 }
 
+function useTurnTimer(turnStartTime: number, turnTimeout: number) {
+  const [timeLeft, setTimeLeft] = React.useState(turnTimeout);
+  
+  React.useEffect(() => {
+    // Save local start time when turnStartTime from server changes, but account for real elapsed if reasonable
+    const estimatedElapsed = (Date.now() - turnStartTime) / 1000;
+    const validElapsed = (estimatedElapsed >= 0 && estimatedElapsed <= turnTimeout) ? estimatedElapsed : 0;
+    const localStart = Date.now() - (validElapsed * 1000);
+
+    let frameId: number;
+    const update = () => {
+      const elapsed = (Date.now() - localStart) / 1000;
+      let remaining = Math.ceil(turnTimeout - elapsed);
+      if (remaining < 0) remaining = 0;
+      if (remaining > turnTimeout) remaining = turnTimeout;
+      setTimeLeft(remaining);
+      if (remaining > 0) {
+        frameId = requestAnimationFrame(update);
+      }
+    };
+    update();
+    return () => cancelAnimationFrame(frameId);
+  }, [turnStartTime, turnTimeout]);
+  
+  return timeLeft;
+}
+
 function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, positionClass: string, onProfileClick: (index: number) => void }) {
   const gs = useGameState();
   const name = gs.playerNames[index];
@@ -71,8 +98,9 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
   const cardCount = gs.hands[index].length;
   const isYou = index === myPlayerIndex && myPlayerIndex !== -1;
   const exposedCard = gs.exposedCards[index];
-
-  const showHand = isYou; // Spectators see no hands
+  
+  const showTimer = isActive && !gs.playerNames[index].includes("كمبيوتر") && (gs.phase === 'playing' || gs.phase === 'bidding');
+  const timeLeft = useTurnTimer(gs.turnStartTime, gs.turnTimeout);
 
   return (
     <div 
@@ -88,7 +116,7 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
         {isDealer && <span className={`absolute left-1.5 top-1 ${isActive ? 'text-black' : 'text-[var(--color-gold)]'} text-[0.55rem] sm:text-[0.6rem] leading-none animate-pulse`}>●</span>}
         
         {/* Turn Timer Progress Bar */}
-        {isActive && !gs.playerNames[index].includes("كمبيوتر") && (gs.phase === 'playing' || gs.phase === 'bidding') && (
+        {showTimer && (
           <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black/20 overflow-hidden">
              <motion.div 
                initial={{ width: "100%" }}
@@ -111,6 +139,12 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
         <div className={`z-10 text-xl sm:text-2xl font-black leading-none drop-shadow-md my-0.5 ${score < 0 ? 'text-[var(--color-kuba)]' : 'text-[var(--color-gold)]'}`}>
           {score}
         </div>
+        
+        {showTimer && (
+          <div className={`absolute top-0 right-1 font-mono font-black text-xs sm:text-sm drop-shadow-md z-20 ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-[var(--color-gold)]'}`}>
+            {timeLeft}
+          </div>
+        )}
         
         <div className="z-10 flex w-full mt-1.5 bg-black/80 rounded-[4px] border border-[#555] overflow-hidden text-[0.55rem] sm:text-[0.65rem] font-black">
           <div className="flex-1 py-0.5 text-center text-[#bbb] border-l border-[#555]">
@@ -151,7 +185,7 @@ function Spot({ index, position }: { index: number, position: string }) {
         <AnimatePresence mode="popLayout">
           {playedCard ? (
             <motion.div
-              key={`${playedCard.suit}${playedCard.rank}`}
+              key={playedCard.uid || `${playedCard.suit}${playedCard.rank}`}
               initial={{ scale: 0, opacity: 0, y: 30, rotate: isYou ? 0 : Math.random() * 20 - 10 }}
               animate={{ scale: 1, opacity: 1, y: 0, rotate: 0 }}
               exit={{ scale: 0, opacity: 0 }}
@@ -230,7 +264,7 @@ function PlayerHand() {
             
             return (
               <motion.div 
-                key={`${card.suit}${card.rank}`} 
+                key={card.uid || `${card.suit}${card.rank}-${i}`} 
                 layout
                 initial={{ opacity: 0, y: 50, scale: 0.8 }}
                 animate={{ 

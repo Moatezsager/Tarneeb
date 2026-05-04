@@ -70,6 +70,8 @@ export function AuthWrapper({ children }: Props) {
             <div className="w-full p-4 mb-6 bg-red-900/30 text-red-300 rounded-2xl text-xs sm:text-sm border border-red-500/20 leading-relaxed font-medium">
               {error.includes("auth/unauthorized-domain") 
                 ? "يبدو أنك تستخدم رابطاً جديداً. لحماية حسابك، يجب إضافة رابط الموقع إلى إعدادات Firebase (Authorized Domains)." 
+                : error.includes("auth/network-request-failed")
+                ? "فشل الاتصال بالشبكة. يرجى التأكد من عدم وجود مانع إعلانات (Ad-blocker) يحجب Firebase، أو جرب فتح الرابط في متصفح خارجي/وضع التصفح المتخفي."
                 : error}
             </div>
           )}

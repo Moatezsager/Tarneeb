@@ -41,6 +41,7 @@ export type Rank = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | 
 export interface Card {
   suit: Suit;
   rank: Rank;
+  uid: string;
 }
 
 export const SUITS: Suit[] = ["♠", "♥", "♦", "♣"];
@@ -152,7 +153,7 @@ export function initGame(
 
 function shuffleDeck(): Card[] {
   let deck: Card[] = [];
-  SUITS.forEach((s) => RANKS.forEach((r) => deck.push({ suit: s, rank: r })));
+  SUITS.forEach((s) => RANKS.forEach((r) => deck.push({ suit: s, rank: r, uid: `${s}${r}-${Math.random().toString(36).substring(2, 9)}` })));
 
   for (let round = 0; round < 4; round++) {
     for (let i = deck.length - 1; i > 0; i--) {
@@ -163,7 +164,11 @@ function shuffleDeck(): Card[] {
   return deck;
 }
 
+export let isDealingAnimationRunning = false;
 export async function dealCardsAnimation(): Promise<void> {
+  if (isDealingAnimationRunning) return;
+  isDealingAnimationRunning = true;
+  
   return new Promise((resolve) => {
     // We'll create a reproduction of the distribution order
     const distribution: { card: Card; player: number }[] = [];
@@ -172,6 +177,7 @@ export async function dealCardsAnimation(): Promise<void> {
     // Flatten hands into distribution order
     const tempHands = G.hands.map(h => [...h]);
     G.hands = [[], [], [], []]; // Clear for animation
+    G.dealingCards = [];
     
     for (let i = 0; i < 52; i++) {
         const p = playerIdx;
@@ -186,6 +192,7 @@ export async function dealCardsAnimation(): Promise<void> {
         if (current >= distribution.length) {
             clearInterval(interval);
             isSyncLocked = false;
+            isDealingAnimationRunning = false;
             setTimeout(() => {
                 G.dealingCards = [];
                 for (let p = 0; p < 4; p++) {

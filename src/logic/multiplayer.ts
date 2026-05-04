@@ -12,7 +12,7 @@ import {
   getDoc
 } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
-import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction } from "./engine";
+import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning } from "./engine";
 import { getLocalProfile } from "./userProfile";
 
 let timerInterval: any = null;
@@ -50,7 +50,7 @@ function startHostTimer() {
        forceAiAction(G.currentPlayer);
        updateGameState();
     }
-  }, 2000);
+  }, 500);
 }
 
 function stopHostTimer() {
@@ -351,7 +351,15 @@ export function listenToRoom(roomId: string) {
           const newState = deserializeGameState(data.gameState);
           const oldPhase = G.phase;
           
-          Object.assign(G, newState);
+          if (isDealingAnimationRunning) {
+             const currentHands = G.hands;
+             const currentDealing = G.dealingCards;
+             Object.assign(G, newState);
+             G.hands = currentHands;
+             G.dealingCards = currentDealing;
+          } else {
+             Object.assign(G, newState);
+          }
           
           if (G.phase === "dealing" && oldPhase !== "dealing") {
              dealCardsAnimation();
