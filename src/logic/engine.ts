@@ -11,31 +11,6 @@ import {
 
 import { recordGameResult } from "./stats";
 
-export let myPlayerIndex = 0;
-export const setMyPlayerIndex = (idx: number) => { myPlayerIndex = idx; };
-
-let isMultiplayerMode = false;
-let isHostMode = false;
-export const setMultiplayerMode = (multi: boolean, host: boolean) => {
-  isMultiplayerMode = multi;
-  isHostMode = host;
-};
-
-// Responsible identifies if THIS client should handle autonomous state transitions (AI, timers, etc)
-export function isMyTurnToProcess(targetPlayer?: number): boolean {
-  if (!isMultiplayerMode) return true;
-  const p = targetPlayer ?? G.currentPlayer;
-  // If it's my turn, I process
-  if (p === myPlayerIndex) return true;
-  // If it's an AI turn (nobody joined at that slot), Host processes
-  const isAI = !G.playerNames[p] || G.playerNames[p].includes("كمبيوتر");
-  if (isAI && isHostMode) return true;
-  return false;
-}
-
-let onSyncNeeded: (() => void) | null = null;
-export const setOnSyncNeeded = (fn: () => void) => { onSyncNeeded = fn; };
-
 export type Suit = "♠" | "♥" | "♦" | "♣";
 export type Rank = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K" | "A";
 export interface Card {
@@ -43,27 +18,6 @@ export interface Card {
   rank: Rank;
   uid: string;
 }
-
-export const SUITS: Suit[] = ["♠", "♥", "♦", "♣"];
-export const RANKS: Rank[] = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
-export const RANK_VAL: Record<string, number> = {
-  "2": 2,
-  "3": 3,
-  "4": 4,
-  "5": 5,
-  "6": 6,
-  "7": 7,
-  "8": 8,
-  "9": 9,
-  "10": 10,
-  J: 11,
-  Q: 12,
-  K: 13,
-  A: 14,
-};
-export const VALID_BIDS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 13];
-export const PLAYER_NAMES = ["أنت", "كمبيوتر 1", "كمبيوتر 2", "كمبيوتر 3"];
-export const SUIT_ORDER: Record<string, number> = { "♥": 10, "♠": 3, "♦": 2, "♣": 1 };
 
 export type Phase = "intro" | "setup" | "stats" | "multiplayer" | "profile" | "dealing" | "swapping" | "bidding" | "playing" | "roundEnd";
 
@@ -99,17 +53,67 @@ export const G = {
   gameWinner: null as number | null,
   particles: [] as { id: number; type: "tarneb" | "trap"; key: number }[],
   spectators: [] as any[],
+  savedPhase: null as Phase | null,
   turnStartTime: 0,
   turnTimeout: 20, // 20 seconds per turn
   playHint: "",
   roundPhase: "",
   bidOverlayVisible: false,
   bidWarning: "",
-  roundEndOverlayVisible: false,
   winnerSlot: null as number | null,
   playedCards: [] as Card[],
   dealingCards: [] as { id: number; card: Card; player: number; rotate: number }[],
+  roundEndOverlayVisible: false,
 };
+
+export let myPlayerIndex = 0;
+export const setMyPlayerIndex = (idx: number) => { myPlayerIndex = idx; };
+
+let isMultiplayerMode = false;
+let isHostMode = false;
+export const setMultiplayerMode = (multi: boolean, host: boolean) => {
+  isMultiplayerMode = multi;
+  isHostMode = host;
+};
+
+// Responsible identifies if THIS client should handle autonomous state transitions (AI, timers, etc)
+export function isMyTurnToProcess(targetPlayer?: number): boolean {
+  if (!isMultiplayerMode) return true;
+  const p = targetPlayer ?? G.currentPlayer;
+  // If it's my turn, I process
+  if (p === myPlayerIndex) return true;
+  // If it's an AI turn (nobody joined at that slot), Host processes
+  const isAI = !G.playerNames[p] || G.playerNames[p].includes("كمبيوتر");
+  if (isAI && isHostMode) return true;
+  return false;
+}
+
+let onSyncNeeded: (() => void) | null = null;
+export let justPlayedLocalAction = false;
+export const setJustPlayedLocalAction = (val: boolean) => { justPlayedLocalAction = val; };
+
+export const setOnSyncNeeded = (fn: () => void) => { onSyncNeeded = fn; };
+
+export const SUITS: Suit[] = ["♠", "♥", "♦", "♣"];
+export const RANKS: Rank[] = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+export const RANK_VAL: Record<string, number> = {
+  "2": 2,
+  "3": 3,
+  "4": 4,
+  "5": 5,
+  "6": 6,
+  "7": 7,
+  "8": 8,
+  "9": 9,
+  "10": 10,
+  J: 11,
+  Q: 12,
+  K: 13,
+  A: 14,
+};
+export const VALID_BIDS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 13];
+export const PLAYER_NAMES = ["أنت", "كمبيوتر 1", "كمبيوتر 2", "كمبيوتر 3"];
+export const SUIT_ORDER: Record<string, number> = { "♥": 10, "♠": 3, "♦": 2, "♣": 1 };
 
 type Listener = () => void;
 const listeners: Listener[] = [];
@@ -146,6 +150,7 @@ export function initGame(
   G.dealerIdx = Math.floor(Math.random() * 4);
   G.roundNumber = 0;
   G.gameStarted = true;
+  G.savedPhase = null;
   G.phase = "dealing";
   // For single player, we just start
   startNewRound();
@@ -380,6 +385,7 @@ export function swapCards(p1: number, p2: number) {
 
 export function humanSwap(target: number) {
   if (G.phase !== "swapping" || G.playerWithHighestScore !== myPlayerIndex) return;
+  justPlayedLocalAction = true;
   let c1 = G.exposedCards[myPlayerIndex];
   let c2 = G.exposedCards[target];
   swapCards(myPlayerIndex, target);
@@ -391,16 +397,21 @@ export function humanSwap(target: number) {
   setTimeout(() => {
     startBidding();
   }, 3500);
+
+  setTimeout(() => { justPlayedLocalAction = false; }, 100);
 }
 
 export function humanSkipSwap() {
   if (G.phase !== "swapping" || G.playerWithHighestScore !== myPlayerIndex) return;
+  justPlayedLocalAction = true;
   G.gameMsg = `الكنق 👑 قرر عدم التبديل (محتفظ بورقته)`;
   updateUI();
   
   setTimeout(() => {
     startBidding();
   }, 2500);
+
+  setTimeout(() => { justPlayedLocalAction = false; }, 100);
 }
 
 function startBidding() {
@@ -427,13 +438,16 @@ export function forceAiAction(playerIdx: number) {
       processNextBid();
   } else if (G.phase === "playing") {
       const hand = G.hands[playerIdx];
+      if (!hand || hand.length === 0) return;
       const isLeading = G.trickCards.every((c) => c === null);
       let leadSuit: Suit | null = null;
       if (!isLeading) {
           leadSuit = G.trickCards[G.leadPlayer]?.suit || null;
       }
       const valid = getValidCards(hand, leadSuit, isLeading, G.anyoneTarnebThisTrick);
+      if (valid.length === 0) return;
       const card = selectBestCardAI(playerIdx, valid, leadSuit, isLeading);
+      if (!card) return;
       
       const idx = hand.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
       if (idx >= 0) {
@@ -508,11 +522,13 @@ export function selectBid(bid: number) {
 
 export function confirmBid() {
   if (G.pendingBid !== null) {
+    justPlayedLocalAction = true;
     G.bids[myPlayerIndex] = G.pendingBid;
     G.bidOverlayVisible = false;
     sfxBid();
     G.currentPlayer = (myPlayerIndex + 1) % 4;
     processNextBid();
+    setTimeout(() => { justPlayedLocalAction = false; }, 100);
   }
 }
 
@@ -637,6 +653,8 @@ export function handleSelectCard(idx: number) {
 
 export function executePlay() {
   if (G.selectedCardIdx < 0 || G.currentPlayer !== myPlayerIndex) return;
+  
+  justPlayedLocalAction = true;
 
   let card = G.hands[myPlayerIndex][G.selectedCardIdx];
   let isLeading = G.trickCards.every((c) => c === null);
@@ -663,6 +681,8 @@ export function executePlay() {
   updateUI();
 
   advanceTurn();
+
+  setTimeout(() => { justPlayedLocalAction = false; }, 100);
 }
 
 function triggerParticle(type: "tarneb" | "trap") {
@@ -712,6 +732,7 @@ function computerPlay(p: number) {
 
 function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | null, isLeading: boolean): Card {
   const tarnebSuit: Suit = "♥";
+  if (!valid || valid.length === 0) return G.hands[playerIdx][0]; // Fallback if valid is empty for some reason
   
   if (isLeading) {
     const nonTarneb = valid.filter(c => c.suit !== tarnebSuit);
@@ -719,37 +740,45 @@ function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | nul
        const high = nonTarneb.filter(c => ['A', 'K', 'Q'].includes(c.rank));
        if (high.length > 0) return high[0];
        const suitCounts: Record<string, number> = {};
-       nonTarneb.forEach(c => suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1);
-       const bestSuit = Object.keys(suitCounts).sort((a,b) => suitCounts[b] - suitCounts[a])[0];
-       return nonTarneb.filter(c => c.suit === bestSuit).sort((a,b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+       nonTarneb.forEach(c => {
+         if (c && c.suit) suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
+       });
+       const sortedSuits = Object.keys(suitCounts).sort((a,b) => suitCounts[b] - suitCounts[a]);
+       const bestSuit = sortedSuits[0];
+       if (bestSuit) {
+         return nonTarneb.filter(c => c.suit === bestSuit).sort((a,b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0] || nonTarneb[0];
+       }
+       return nonTarneb[0];
     }
-    return valid.sort((a,b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+    return valid.sort((a,b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0] || valid[0];
   }
 
   const leadCards = G.trickCards.filter(c => c !== null) as Card[];
-  const mySuitCards = valid.filter(c => c.suit === leadSuit);
+  const mySuitCards = valid.filter(c => c && c.suit === leadSuit);
   
   if (mySuitCards.length > 0) {
     const currentBest = leadCards.reduce((best, curr) => {
-        if (curr.suit === leadSuit && RANK_VAL[curr.rank] > RANK_VAL[best.rank]) return curr;
+        if (curr && best && curr.suit === leadSuit && RANK_VAL[curr.rank] > RANK_VAL[best.rank]) return curr;
         return best;
     }, leadCards[0]);
 
-    const canWin = mySuitCards.filter(c => RANK_VAL[c.rank] > RANK_VAL[currentBest.rank]);
-    if (canWin.length > 0) return canWin.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
-    return mySuitCards.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+    if (currentBest) {
+      const canWin = mySuitCards.filter(c => RANK_VAL[c.rank] > RANK_VAL[currentBest.rank]);
+      if (canWin.length > 0) return canWin.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+    }
+    return mySuitCards.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0] || mySuitCards[0];
   }
 
-  const tarnebs = valid.filter(c => c.suit === tarnebSuit);
+  const tarnebs = valid.filter(c => c && c.suit === tarnebSuit);
   if (tarnebs.length > 0) {
-     const currentBestTarneb = leadCards.filter(c => c.suit === tarnebSuit).sort((a,b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
-     if (!currentBestTarneb || tarnebs.some(t => RANK_VAL[t.rank] > RANK_VAL[currentBestTarneb.rank])) {
-        const potential = currentBestTarneb ? tarnebs.filter(t => RANK_VAL[t.rank] > RANK_VAL[currentBestTarneb.rank]) : tarnebs;
-        return potential.sort((a,b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+     const currentBestTarneb = leadCards.filter(c => c && c.suit === tarnebSuit).sort((a,b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+     if (!currentBestTarneb || tarnebs.some(t => t && currentBestTarneb && RANK_VAL[t.rank] > RANK_VAL[currentBestTarneb.rank])) {
+        const potential = currentBestTarneb ? tarnebs.filter(t => t && currentBestTarneb && RANK_VAL[t.rank] > RANK_VAL[currentBestTarneb.rank]) : tarnebs;
+        if (potential.length > 0) return potential.sort((a,b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
      }
   }
 
-  return valid.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+  return valid.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0] || valid[0];
 }
 
 export function isBot(playerIdx: number) {
@@ -758,18 +787,28 @@ export function isBot(playerIdx: number) {
 
 function getTrickWinner() {
   let li = G.leadPlayer;
-  if (!G.trickCards[li]) return -1;
-  let leadSuit = G.trickCards[li]!.suit;
-  let winner = li,
-    highest = RANK_VAL[G.trickCards[li]!.rank];
+  if (!G.trickCards[li]) {
+    // Lead player card missing. Find first played card.
+    li = G.trickCards.findIndex((c) => c !== null);
+    if (li === -1) return -1;
+  }
+  
+  let leadSuit = G.trickCards[li]?.suit;
+  if (!leadSuit) return li;
+
+  let winner = li;
+  let highest = RANK_VAL[G.trickCards[li]?.rank || '2'];
 
   for (let i = 0; i < 4; i++) {
     if (i === li || !G.trickCards[i]) continue;
     let card = G.trickCards[i]!;
-    if (card.suit === "♥" && G.trickCards[winner]!.suit !== "♥") {
+    let currentWinnerCard = G.trickCards[winner];
+    if (!card || !currentWinnerCard) continue;
+
+    if (card.suit === "♥" && currentWinnerCard.suit !== "♥") {
       winner = i;
       highest = RANK_VAL[card.rank];
-    } else if (card.suit === G.trickCards[winner]!.suit && RANK_VAL[card.rank] > highest) {
+    } else if (card.suit === currentWinnerCard.suit && RANK_VAL[card.rank] > highest) {
       winner = i;
       highest = RANK_VAL[card.rank];
     }

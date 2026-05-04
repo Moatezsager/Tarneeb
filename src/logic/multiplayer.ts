@@ -12,10 +12,25 @@ import {
   getDoc
 } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
-import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning } from "./engine";
+import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning, justPlayedLocalAction, setJustPlayedLocalAction } from "./engine";
 import { getLocalProfile } from "./userProfile";
 
 let timerInterval: any = null;
+
+let lastSyncedCoreState = "";
+function getCoreState() {
+   return JSON.stringify({
+       phase: G.phase,
+       cp: G.currentPlayer,
+       bids: G.bids,
+       hands: G.hands.map(h => h ? h.length : 0),
+       tricks: G.trickCards ? G.trickCards.map(c => c ? `${c.suit}${c.rank}` : null) : [],
+       taken: G.tricksTaken,
+       scores: G.scores,
+       exposed: G.exposedCards ? G.exposedCards.map(c => c ? `${c.suit}${c.rank}` : null) : [],
+       round: G.roundNumber
+   });
+}
 
 window.addEventListener('tarneb-leave-room-end', () => {
    leaveRoom(multiplayerState.isHost);
@@ -26,8 +41,14 @@ window.addEventListener('tarneb-leave-room', () => {
 });
 
 setOnSyncNeeded(() => {
-  if (multiplayerState.isMultiplayer && multiplayerState.isHost) {
-    updateGameState();
+  if (multiplayerState.isMultiplayer) {
+    const coreState = getCoreState();
+    if (coreState !== lastSyncedCoreState) {
+      lastSyncedCoreState = coreState;
+      if (multiplayerState.isHost || justPlayedLocalAction) {
+         updateGameState();
+      }
+    }
   }
 });
 
@@ -142,8 +163,10 @@ export const multiplayerState = {
   isMultiplayer: false,
   roomCode: "",
   players: [] as Player[],
+  spectators: [] as Spectator[],
   myPlayerIndex: -1,
   isHost: false,
+  isPublic: true,
 };
 
 function generateCode() {
@@ -344,6 +367,7 @@ export async function createRoom(playerName: string, isPublic = true, password =
 export async function joinRoom(code: string, playerName: string, passwordAttempt = "", asSpectator = false) {
   if (!auth.currentUser) throw new Error("يجب تسجيل الدخول أولاً");
   
+  G.savedPhase = null;
   const roomId = code.toUpperCase();
   const user = auth.currentUser;
 
@@ -554,6 +578,7 @@ export function listenToRoom(roomId: string) {
           }
         }
         hasSyncedInitialState = true;
+        lastSyncedCoreState = getCoreState();
         updateUI();
     }
   }, (error) => {
@@ -721,12 +746,75 @@ export async function startGame() {
   }
 }
 
+/**
+ * Clean up old room invites (e.g., older than 1 hour)
+ * This helps keep the database performant.
+ */
+export async function cleanupOldInvites() {
+  try {
+    // Stricter than 1h to avoid clock sync issues (using 65 mins)
+    const sixtyFiveMinsAgo = new Date(Date.now() - 65 * 60 * 1000);
+    const q = query(
+      collection(db, "roomInvites"),
+      where("createdAt", "<", sixtyFiveMinsAgo)
+    );
+    const snapshot = await getDocs(q);
+    for (const docSnap of snapshot.docs) {
+      try {
+        await deleteDoc(docSnap.ref);
+      } catch (err) {
+        // Silently skip if we still don't have permission
+      }
+    }
+    if (snapshot.docs.length > 0) console.log(`Cleaned up ${snapshot.docs.length} old invites.`);
+  } catch (error) {
+    // This often happens if the query logic doesn't perfectly match security rules
+    // or if we have no permissions for these docs yet.
+  }
+}
+
+/**
+ * Clean up empty or stale rooms (host not seen for > 20 mins)
+ */
+export async function cleanupStaleRooms() {
+  try {
+    // Stricter than 15m to avoid clock sync issues (using 20 mins)
+    const twentyMinsAgo = new Date(Date.now() - 20 * 60 * 1000);
+    const q = query(
+      collection(db, "rooms"),
+      where("updatedAt", "<", twentyMinsAgo)
+    );
+    const snapshot = await getDocs(q);
+    
+    for (const docSnap of snapshot.docs) {
+      try {
+        await deleteDoc(docSnap.ref);
+      } catch (err) {
+        // Skip individual errors
+      }
+    }
+    if (snapshot.docs.length > 0) console.log(`Cleaned up ${snapshot.docs.length} stale rooms.`);
+  } catch (error) {
+    // Silent catch for background task
+  }
+}
+
 export async function sendRoomInvite(friendUid: string, roomCode: string) {
   const user = auth.currentUser;
   const profile = getLocalProfile();
   if (!user) return;
 
   try {
+    // Basic rate limiting/check: see if an invite already exists
+    const existingQ = query(
+      collection(db, "roomInvites"),
+      where("fromUid", "==", user.uid),
+      where("toUid", "==", friendUid),
+      where("status", "==", "pending")
+    );
+    const existingSnap = await getDocs(existingQ);
+    if (!existingSnap.empty) return true; // Already sent
+
     const inviteId = `${user.uid}_${friendUid}_${roomCode}`;
     await setDoc(doc(db, "roomInvites", inviteId), {
       fromUid: user.uid,

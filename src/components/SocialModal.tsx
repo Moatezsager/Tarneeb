@@ -12,6 +12,7 @@ import {
   listenToAcceptedRequests,
   deleteFriendRequest
 } from "../logic/social";
+import { multiplayerState, sendRoomInvite } from "../logic/multiplayer";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { UserProfileModal, formatLastSeen } from "./UserProfileModal";
@@ -32,6 +33,7 @@ interface FriendCardProps {
 
 function FriendCard({ friend, onSelect }: FriendCardProps) {
   const [liveProfile, setLiveProfile] = useState<UserProfile>(friend);
+  const [isInviting, setIsInviting] = useState(false);
 
   useEffect(() => {
     // Fetch live profile to stay updated with name/avatar/lastSeen changes
@@ -75,13 +77,23 @@ function FriendCard({ friend, onSelect }: FriendCardProps) {
         </div>
       </div>
       <button 
-        onClick={(e) => {
+        onClick={async (e) => {
           e.stopPropagation();
-          // Future: startChallenge(f);
+          if (!multiplayerState.isMultiplayer || !multiplayerState.roomCode) {
+            alert("يجب إنشاء غرفة أولاً لكي تتمكن من دعوة الأصدقاء!");
+            return;
+          }
+          setIsInviting(true);
+          const success = await sendRoomInvite(f.uid, multiplayerState.roomCode);
+          if (success) {
+            alert(`تم إرسال الدعوة إلى ${f.name}`);
+          }
+          setIsInviting(false);
         }}
-        className="px-4 py-1.5 bg-[var(--color-gold)]/10 text-[var(--color-gold)] text-xs font-black rounded-lg border border-[var(--color-gold)]/20 hover:bg-[var(--color-gold)] hover:text-black transition-all"
+        disabled={isInviting || f.status !== 'online'}
+        className={`px-4 py-1.5 ${f.status === 'online' ? 'bg-[var(--color-gold)]/10 text-[var(--color-gold)] hover:bg-[var(--color-gold)] hover:text-black' : 'bg-gray-800 text-gray-500'} text-xs font-black rounded-lg border border-[var(--color-gold)]/20 transition-all disabled:opacity-50`}
       >
-        تحدي
+        {isInviting ? "جاري الإرسال..." : "تحدي ⚔️"}
       </button>
     </div>
   );

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { UserProfile, fetchUserProfile, COUNTRIES } from "../logic/userProfile";
+import { UserProfile, fetchUserProfile, COUNTRIES, getLocalProfile } from "../logic/userProfile";
 import { unfriend } from "../logic/social";
-import { Clock, Mars, Venus, User, Calendar, Crown } from "lucide-react";
+import { Clock, Mars, Venus, User, Calendar, Crown, Sword } from "lucide-react";
+import { multiplayerState, sendRoomInvite, createRoom } from "../logic/multiplayer";
+import { G, updateUI } from "../logic/engine";
 
 export function formatLastSeen(lastSeen: any): string {
   if (!lastSeen) return "غير متوفر";
@@ -75,6 +77,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
   const [loading, setLoading] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [unfriending, setUnfriending] = useState(false);
+  const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
     if (isOpen && user) {
@@ -93,6 +96,38 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
 
   const displayUser = fullProfile || user;
   const country = COUNTRIES.find(c => c.code === displayUser.country);
+
+  const handleChallenge = async () => {
+    setInviting(true);
+    try {
+      let roomCode = multiplayerState.roomCode;
+      if (!multiplayerState.isMultiplayer) {
+        // Create a private room automatically
+        const profile = getLocalProfile();
+        const success = await createRoom(profile?.name || "لاعب", false, "", 31);
+        if (success) {
+          roomCode = multiplayerState.roomCode;
+        } else {
+          throw new Error("فشل إنشاء الغرفة");
+        }
+      }
+
+      if (roomCode) {
+        const sent = await sendRoomInvite(user.uid, roomCode);
+        if (sent) {
+          alert(`تم إرسال طلب التحدي إلى ${displayUser.name}`);
+          // Switch to multiplayer screen to wait
+          G.phase = 'multiplayer';
+          updateUI();
+          onClose();
+        }
+      }
+    } catch (err: any) {
+      alert("تعذر إرسال التحدي: " + err.message);
+    } finally {
+      setInviting(false);
+    }
+  };
 
   const handleUnfriend = async () => {
     setUnfriending(true);
@@ -192,6 +227,16 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
 
               {!showConfirm ? (
                 <div className="space-y-3">
+                  {isFriend && displayUser.status === 'online' && (
+                    <button 
+                      onClick={handleChallenge}
+                      disabled={inviting}
+                      className="w-full py-4 bg-[var(--color-gold)] text-black text-sm font-black rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_5px_15px_rgba(212,175,55,0.3)]"
+                    >
+                      <Sword className="w-4 h-4" />
+                      {inviting ? "جاري الإرسال..." : "تحدي ⚔️"}
+                    </button>
+                  )}
                   {isFriend && (
                     <button 
                       onClick={() => setShowConfirm(true)}

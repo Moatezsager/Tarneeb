@@ -29,3 +29,4 @@ export const sfxTrap = () => beep(180, 0.35, 'sawtooth', 0.12);
 export const sfxTarneb = () => { beep(600, 0.15, 'triangle', 0.08); setTimeout(() => beep(800, 0.2, 'triangle', 0.1), 150); };
 export const sfxDeal = () => beep(800 + Math.random() * 400, 0.03 + Math.random() * 0.02, 'sine', 0.02);
 export const sfxRoundEnd = () => [500, 600, 700, 900].forEach((f, i) => setTimeout(() => beep(f, 0.15, 'triangle', 0.07), i * 120));
+export const sfxNotify = () => { beep(880, 0.1, 'sine', 0.1); setTimeout(() => beep(1046, 0.1, 'sine', 0.1), 100); };

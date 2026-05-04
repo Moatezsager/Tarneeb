@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { initAudio } from "../lib/audio";
+import { initAudio, sfxNotify } from "../lib/audio";
 import { G, updateUI } from "../logic/engine";
 import { auth } from "../lib/firebase";
 import { getLocalProfile, COUNTRIES } from "../logic/userProfile";
@@ -10,9 +10,10 @@ import {
   listenToFriendRequests, 
   listenToAcceptedRequests, 
   deleteFriendRequest,
+  cleanupOldFriendRequests,
   FriendRequest
 } from "../logic/social";
-import { listenToRoomInvites, respondToRoomInvite, joinRoom } from "../logic/multiplayer";
+import { listenToRoomInvites, respondToRoomInvite, joinRoom, cleanupOldInvites, cleanupStaleRooms } from "../logic/multiplayer";
 import { setDoc, doc, serverTimestamp } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
@@ -24,14 +25,27 @@ export function IntroScreen() {
   const [requestsCount, setRequestsCount] = useState(0);
   const [acceptedCount, setAcceptedCount] = useState(0);
   const [invites, setInvites] = useState<any[]>([]);
+  const [toast, setToast] = useState<{message: string, icon: string} | null>(null);
   const hasNotification = requestsCount > 0 || acceptedCount > 0 || invites.length > 0;
   
   const [rejoinRoomId, setRejoinRoomId] = useState<string | null>(null);
   const [rejoining, setRejoining] = useState(false);
 
   useEffect(() => {
+    // Run cleanup logic
+    if (auth.currentUser) {
+      cleanupOldInvites();
+      cleanupStaleRooms();
+      cleanupOldFriendRequests();
+    }
+
     // Listen for room invites
+    let prevInviteCount = 0;
     const unsubInvites = listenToRoomInvites((newInvites) => {
+      if (newInvites.length > prevInviteCount) {
+        sfxNotify();
+      }
+      prevInviteCount = newInvites.length;
       setInvites(newInvites);
     });
 
@@ -59,16 +73,24 @@ export function IntroScreen() {
           processedRequests.add(req.id);
           try {
             // Add to my friend list (I am the sender who got accepted)
-            // Information about the friend (the 'to' user) is in req.to*
             const myFriendRef = doc(db, "users", user.uid, "friends", req.toUid);
             await setDoc(myFriendRef, {
               uid: req.toUid,
               name: req.toName || "لاعب",
               avatar: req.toAvatar || "👤",
               searchId: req.toSearchId || "",
+              status: "online", // optimistic
               updatedAt: serverTimestamp()
             });
             
+            // Show toast
+            sfxNotify();
+            setToast({
+              message: `أصبح ${req.toName} صديقك الآن!`,
+              icon: req.toAvatar || "🤝"
+            });
+            setTimeout(() => setToast(null), 5000);
+
             // Clean up the request document
             await deleteFriendRequest(req.id);
           } catch (err) {
@@ -220,6 +242,21 @@ export function IntroScreen() {
             </div>
           )}
 
+          {G.savedPhase && (
+            <button 
+              className="w-full py-4 text-base sm:text-lg bg-green-600/90 text-white border border-green-500 rounded-2xl font-black cursor-pointer shadow-[0_5px_25px_rgba(34,197,94,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group mb-1"
+              onClick={() => {
+                initAudio();
+                G.phase = G.savedPhase!;
+                G.savedPhase = null;
+                updateUI();
+              }}
+            >
+              <div className="text-xl group-hover:rotate-12 transition-transform">🃏</div>
+              <span className="translate-y-[1px]">متابعة اللعب المحلي</span>
+            </button>
+          )}
+
           <button 
             className="w-full py-4 text-base sm:text-lg bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black border border-[#f8b500]/50 rounded-2xl font-black cursor-pointer shadow-[0_5px_25px_rgba(248,181,0,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
             onClick={() => {
@@ -233,15 +270,17 @@ export function IntroScreen() {
           </button>
 
           <button 
-            className="w-full py-4 text-base sm:text-lg bg-white/5 border border-white/10 text-white rounded-2xl font-bold cursor-pointer shadow-lg transition-all hover:bg-white/10 active:scale-[0.98] flex items-center justify-center gap-2 group"
+            className={`w-full py-4 text-base sm:text-lg border rounded-2xl font-bold cursor-pointer shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 group ${G.savedPhase ? 'bg-white/5 border-white/10 text-white/50 py-3 text-sm' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
             onClick={() => {
               initAudio();
               G.phase = 'setup';
               updateUI();
             }}
           >
-            <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6 text-white/80 group-hover:text-white transition-colors" />
-            <span className="translate-y-[1px]">اللعب المحلي (أوفلاين)</span>
+            <Gamepad2 className={`w-5 h-5 sm:w-6 sm:h-6 group-hover:text-white transition-colors ${G.savedPhase ? 'text-white/30' : 'text-white/80'}`} />
+            <span className="translate-y-[1px]">
+              {G.savedPhase ? "بدء مباراة محلية جديدة" : "اللعب المحلي (أوفلاين)"}
+            </span>
           </button>
 
           <button 
@@ -267,46 +306,76 @@ export function IntroScreen() {
           myProfile={profile}
         />
 
+        {/* Generic Toast Notification */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              initial={{ y: -50, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: -50, opacity: 0 }}
+              className="fixed top-24 left-4 right-4 z-[700] pointer-events-none"
+            >
+              <div className="bg-black/80 backdrop-blur-xl border border-green-500/30 p-3 px-5 rounded-full shadow-2xl flex items-center gap-3 w-fit mx-auto pointer-events-auto">
+                <span className="text-xl">{toast.icon}</span>
+                <span className="text-white text-sm font-bold">{toast.message}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Room Invite Notification */}
         <AnimatePresence>
           {invites.length > 0 && (
             <motion.div 
-              initial={{ y: 100, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              className="fixed bottom-6 left-6 right-6 z-[600] pointer-events-none"
+              initial={{ y: 50, opacity: 0, scale: 0.9 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 50, opacity: 0, scale: 0.9 }}
+              className="fixed bottom-8 left-4 right-4 z-[600] pointer-events-none"
             >
-              <div className="bg-black/90 backdrop-blur-xl border-2 border-[var(--color-gold)] p-4 rounded-3xl shadow-2xl flex items-center justify-between pointer-events-auto max-w-[400px] mx-auto overflow-hidden relative group">
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)]/10 to-transparent" />
-                <div className="flex items-center gap-3 relative z-10">
-                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center text-3xl shadow-inner border border-white/5">
-                    {invites[0].fromAvatar}
+              <div className="bg-[#1a1a2e]/95 backdrop-blur-2xl border-2 border-[var(--color-gold)] p-5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-4 pointer-events-auto max-w-[400px] mx-auto overflow-hidden relative group">
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-50" />
+                
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="w-16 h-16 bg-[var(--color-gold)]/10 rounded-2xl flex items-center justify-center text-4xl shadow-inner border border-[var(--color-gold)]/20">
+                      {invites[0].fromAvatar}
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-[#1a1a2e]" title="متصل الآن" />
                   </div>
-                  <div className="text-right">
-                    <div className="text-white font-black text-sm">{invites[0].fromName}</div>
-                    <div className="text-[var(--color-gold)] text-[10px] font-bold">دعوة للانضمام لغرفة: {invites[0].roomCode}</div>
+                  
+                  <div className="text-right flex-1">
+                    <div className="text-white font-black text-lg">{invites[0].fromName}</div>
+                    <div className="text-[var(--color-gold)] text-xs font-bold flex items-center gap-1 mt-1">
+                       <span className="animate-pulse">⚔️</span>
+                       يدعوك لتحدٍ في غرفة: <span className="font-mono bg-white/5 px-2 py-0.5 rounded text-white">{invites[0].roomCode}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-2 relative z-10">
+
+                <div className="flex gap-3 mt-1">
                   <button 
                     onClick={async () => {
                       const req = invites[0];
                       const accepted = await respondToRoomInvite(req.id, req.roomCode, 'accepted');
                       if (accepted) {
-                        await joinRoom(req.roomCode, profile?.name || "لاعب");
-                        G.phase = 'multiplayer';
-                        updateUI();
+                        try {
+                          await joinRoom(req.roomCode, profile?.name || "لاعب");
+                          G.phase = 'multiplayer';
+                          updateUI();
+                        } catch (err: any) {
+                          alert(err.message || "عذراً تعذر الانضمام للغرفة");
+                        }
                       }
                     }}
-                    className="px-4 py-2 bg-green-500 text-black font-black text-xs rounded-xl active:scale-95 transition-transform"
+                    className="flex-[2] py-3.5 bg-[var(--color-gold)] text-black font-black text-sm rounded-xl active:scale-95 transition-all shadow-[0_5px_15px_rgba(212,175,55,0.3)] hover:brightness-110"
                   >
-                    قبول
+                    قبول التحدي
                   </button>
                   <button 
                     onClick={() => respondToRoomInvite(invites[0].id, invites[0].roomCode, 'rejected')}
-                    className="px-4 py-2 bg-white/10 text-white font-bold text-xs rounded-xl active:scale-95 transition-transform"
+                    className="flex-1 py-3.5 bg-white/5 text-white/60 font-bold text-sm rounded-xl active:scale-95 transition-all hover:bg-white/10 hover:text-white"
                   >
-                    رفض
+                    تجاهل
                   </button>
                 </div>
               </div>

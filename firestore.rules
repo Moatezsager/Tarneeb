@@ -70,8 +70,18 @@ service cloud.firestore {
     }
 
     match /friendRequests/{requestId} {
-      allow read: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
-      allow list: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow read: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid || 
+        resource.data.toUid == request.auth.uid ||
+        request.time > resource.data.createdAt + duration.value(168, 'h') ||
+        (resource.data.status != 'pending' && request.time > resource.data.createdAt + duration.value(24, 'h'))
+      );
+      allow list: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid || 
+        resource.data.toUid == request.auth.uid ||
+        request.time > resource.data.createdAt + duration.value(168, 'h') ||
+        (resource.data.status != 'pending' && request.time > resource.data.createdAt + duration.value(24, 'h'))
+      );
       
       allow create: if isSignedIn() && 
                     incoming().fromUid == request.auth.uid && 
@@ -88,12 +98,26 @@ service cloud.firestore {
       incoming().toUid == resource.data.toUid &&
       incoming().createdAt == resource.data.createdAt;
       
-      allow delete: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow delete: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid || 
+        resource.data.toUid == request.auth.uid ||
+        // Stale cleanup: older than 7 days (168h), or non-pending older than 1 day (24h)
+        request.time > resource.data.createdAt + duration.value(168, 'h') ||
+        (resource.data.status != 'pending' && request.time > resource.data.createdAt + duration.value(24, 'h'))
+      );
     }
 
     match /roomInvites/{inviteId} {
-      allow read: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
-      allow list: if isSignedIn() && resource.data.toUid == request.auth.uid;
+      allow read: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid || 
+        resource.data.toUid == request.auth.uid ||
+        request.time > resource.data.createdAt + duration.value(1, 'h')
+      );
+      allow list: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid || 
+        resource.data.toUid == request.auth.uid ||
+        request.time > resource.data.createdAt + duration.value(1, 'h')
+      );
       
       allow create: if isSignedIn() && 
                     incoming().fromUid == request.auth.uid && 
@@ -110,14 +134,22 @@ service cloud.firestore {
       incoming().roomCode == resource.data.roomCode &&
       incoming().createdAt == resource.data.createdAt;
       
-      allow delete: if isSignedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow delete: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid || 
+        resource.data.toUid == request.auth.uid ||
+        // Stale cleanup: older than 1 hour
+        request.time > resource.data.createdAt + duration.value(1, 'h')
+      );
     }
 
     match /rooms/{roomId} {
       allow create: if isSignedIn() && isValidId(roomId) && isValidRoom(incoming()) && incoming().hostId == request.auth.uid;
       
       allow get: if isSignedIn();
-      allow list: if isSignedIn() && resource.data.isPublic == true && resource.data.status == 'waiting';
+      allow list: if isSignedIn() && (
+        (resource.data.isPublic == true && resource.data.status == 'waiting') ||
+        request.time > resource.data.updatedAt + duration.value(15, 'm')
+      );
 
       allow update: if isSignedIn() && (
         // HOST updates everything
@@ -132,8 +164,11 @@ service cloud.firestore {
         (existing().status == 'finished' && request.auth.uid in existing().memberUids)
       ) && isValidRoom(incoming());
 
-      // Allow any existing member to delete the room
-      allow delete: if isSignedIn() && request.auth.uid in existing().memberUids;
+      // Allow any existing member to delete the room, or anyone if its stale (> 30 mins)
+      allow delete: if isSignedIn() && (
+        request.auth.uid in existing().memberUids ||
+        request.time > existing().updatedAt + duration.value(15, 'm')
+      );
     }
   }
 }

@@ -1,10 +1,11 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useGameState } from "./common";
-import { getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex } from "../logic/engine";
+import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex } from "../logic/engine";
 import { multiplayerState } from "../logic/multiplayer";
 import { UserProfileModal } from "./UserProfileModal";
 import { UserProfile } from "../logic/userProfile";
+import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut } from "lucide-react";
 
 function getCardImageUrl(card: Card) {
   const suitMap: Record<string, string> = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
@@ -15,7 +16,8 @@ function getCardImageUrl(card: Card) {
   return `https://deckofcardsapi.com/static/img/${rankMap[card.rank]}${suitMap[card.suit]}.png`;
 }
 
-function MiniCard({ card, isKuba }: { card: Card, isKuba: boolean }) {
+function MiniCard({ card, isKuba }: { card: Card | null, isKuba: boolean }) {
+  if (!card) return <div className="w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] bg-black/20 rounded-sm animate-pulse" />;
   return (
     <div className={`w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] relative min-w-0 flex-shrink-0 ${isKuba ? 'drop-shadow-[0_0_8px_rgba(231,76,60,0.6)]' : 'drop-shadow-sm'}`}>
       <img src={getCardImageUrl(card)} className="w-full h-full object-contain" draggable={false} alt={`${card.rank}${card.suit}`} />
@@ -448,6 +450,12 @@ export function GameScreen() {
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"leave" | "reset" | null>(null);
   const [profileModalUser, setProfileModalUser] = React.useState<UserProfile | null>(null);
+  const [showSpectators, setShowSpectators] = React.useState(false);
+
+  const team1Score = gs.scores[0] + gs.scores[2];
+  const team2Score = gs.scores[1] + gs.scores[3];
+  const myTeamScore = myPlayerIndex % 2 === 0 ? team1Score : team2Score;
+  const oppTeamScore = myPlayerIndex % 2 === 0 ? team2Score : team1Score;
 
   const handleProfileClick = (index: number) => {
      const name = gs.playerNames[index];
@@ -489,19 +497,45 @@ export function GameScreen() {
 
   return (
     <div className="flex flex-col h-[100dvh] pt-1 pb-1 px-1 overflow-hidden gap-[4px] relative">
-      <div className="flex justify-between items-center py-1.5 px-3 mx-1 bg-black/40 backdrop-blur-sm rounded-xl border border-[var(--color-gold)]/20 shadow-md shrink-0 mt-1">
-        <div className="flex gap-2 items-center flex-wrap shrink-0">
-          <span className="text-[var(--color-gold)] font-black text-[0.75rem] bg-[var(--color-gold)]/10 px-2 py-0.5 rounded opacity-90">{gs.roundPhase}</span>
-          <span className="text-[var(--color-kuba)] text-[0.75rem] font-black bg-[var(--color-kuba)]/15 px-2 py-0.5 rounded-[10px] border border-[var(--color-kuba)]/30 drop-shadow-sm">
-            ♥ الحاكم: الكبة
-          </span>
-          <span className="text-[#888] font-bold text-[0.65rem] hidden xs:inline">الجولة {gs.roundNumber} | الموزع: <span className="text-white">{gs.playerNames[gs.dealerIdx]}</span></span>
+      <div className="flex justify-between items-center py-2 px-3 mx-1 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl shrink-0 mt-1 z-50 overflow-hidden relative">
+        <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)]/5 to-transparent pointer-events-none" />
+        
+        <div className="flex gap-3 items-center relative z-10">
+           <button 
+             onClick={() => { 
+                G.savedPhase = G.phase;
+                G.phase = 'intro'; 
+                updateUI(); 
+             }}
+             className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
+             title="القائمة الرئيسية"
+           >
+             <Home className="w-5 h-5" />
+           </button>
+           <div className="w-[1px] h-4 bg-white/10" />
+           <div className="flex flex-col">
+              <div className="flex items-center gap-2">
+                 <span className="text-[var(--color-gold)] font-black text-[0.6rem] bg-[var(--color-gold)]/10 px-1.5 py-0.5 rounded uppercase tracking-tighter">{gs.roundPhase}</span>
+                 <div className="flex items-center gap-1.5 text-[0.7rem] font-black">
+                   <span className="text-white/40">نحن:</span> <span className="text-white">{myTeamScore}</span>
+                   <span className="text-white/20 mx-0.5">|</span>
+                   <span className="text-red-400/60">هم:</span> <span className="text-white">{oppTeamScore}</span>
+                 </div>
+              </div>
+              <div className="text-[10px] text-[#555] font-bold mt-0.5 flex items-center gap-1.5">
+                 <Users className="w-2.5 h-2.5" />
+                 <span>{G.spectators?.length || 0}</span>
+                 <span className="opacity-30">•</span>
+                 <span>الجولة {gs.roundNumber}</span>
+              </div>
+           </div>
         </div>
+
         <button 
-          className="text-white hover:text-[var(--color-gold)] p-1 hover:bg-[var(--color-gold)]/10 rounded-full transition-colors flex-shrink-0"
+          className="text-white/60 hover:text-[var(--color-gold)] p-1.5 hover:bg-[var(--color-gold)]/10 rounded-lg transition-all"
           onClick={() => setMenuOpen(true)}
         >
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+          <Settings className="w-5 h-5" />
         </button>
       </div>
 

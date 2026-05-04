@@ -125,8 +125,31 @@ export function MultiplayerScreen() {
 
   if (inRoom) {
      return (
-       <div className="flex flex-col items-center justify-center min-h-[100dvh] p-4 bg-[#0a0a0f] text-center" dir="rtl">
-         <div className="w-full max-w-[420px] p-6 bg-[#151522] border-2 border-[var(--color-gold)]/30 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden">
+       <div className="flex flex-col items-center min-h-[100dvh] bg-[#0a0a0f]" dir="rtl">
+         {/* Improved Header */}
+         <div className="w-full bg-[#151522]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+            <button 
+              onClick={() => { G.phase = 'intro'; updateUI(); }}
+              className="p-2 hover:bg-white/5 rounded-xl transition-all group"
+            >
+              <ArrowRight className="w-6 h-6 text-white/40 group-hover:text-white" />
+            </button>
+            <div className="flex flex-col items-center">
+              <h2 className="text-[var(--color-gold)] font-black text-lg">غرفة الانتظار</h2>
+              <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest">{multiplayerState.isPublic ? "غرفة عامة" : "غرفة خاصة"}</div>
+            </div>
+            <div className="flex items-center gap-3">
+               <div className="flex -space-x-2 flex-row-reverse border border-white/10 p-1 rounded-full bg-black/20">
+                  {multiplayerState.players.slice(0, 3).map(p => (
+                    <div key={p.uid} className="w-6 h-6 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[10px] shadow-sm">{p.avatar}</div>
+                  ))}
+                  {multiplayerState.players.length > 3 && <div className="w-6 h-6 rounded-full bg-[var(--color-gold)] text-black border border-white/20 flex items-center justify-center text-[8px] font-black">+1</div>}
+               </div>
+            </div>
+         </div>
+
+         <div className="w-full max-w-[420px] p-6 mt-4">
+            <div className="p-6 bg-[#151522] border-2 border-[var(--color-gold)]/30 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden mb-6">
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-50" />
             
             <h2 className="text-2xl font-black text-[var(--color-gold)] mb-6 drop-shadow-md">غرفة اللعب</h2>
@@ -273,6 +296,7 @@ export function MultiplayerScreen() {
           </div>
         )}
        </div>
+      </div>
      );
   }
 
