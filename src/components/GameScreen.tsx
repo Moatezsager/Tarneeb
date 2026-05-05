@@ -1,11 +1,11 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useGameState } from "./common";
-import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex } from "../logic/engine";
+import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex, getTrickWinner } from "../logic/engine";
 import { multiplayerState } from "../logic/multiplayer";
 import { UserProfileModal } from "./UserProfileModal";
 import { UserProfile } from "../logic/userProfile";
-import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut, Wifi, WifiOff } from "lucide-react";
 
 function getCardImageUrl(card: Card) {
   const suitMap: Record<string, string> = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
@@ -100,9 +100,13 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
   const cardCount = gs.hands[index].length;
   const isYou = index === myPlayerIndex && myPlayerIndex !== -1;
   const exposedCard = gs.exposedCards[index];
+  const isBot = name.includes("كمبيوتر");
   
-  const showTimer = isActive && !gs.playerNames[index].includes("كمبيوتر") && (gs.phase === 'playing' || gs.phase === 'bidding');
+  const showTimer = isActive && !isBot && (gs.phase === 'playing' || gs.phase === 'bidding' || gs.phase === 'swapping');
   const timeLeft = useTurnTimer(gs.turnStartTime, gs.turnTimeout);
+
+  const realPlayer = multiplayerState.players.find(p => p.index === index);
+  const isDisconnected = realPlayer && realPlayer.status === "disconnected";
 
   return (
     <div 
@@ -112,9 +116,20 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
       
       {/* Header (Name) */}
       <div className={`w-full text-center py-1 px-1.5 relative ${isActive ? 'bg-[var(--color-gold)] text-black' : 'bg-[#222] text-white'}`}>
-        <span className="text-[0.6rem] sm:text-[0.7rem] font-black block truncate px-1">
-          {name}
-        </span>
+        <div className="flex items-center justify-center relative">
+          <span className="text-[0.6rem] sm:text-[0.7rem] font-black block truncate px-1">
+            {name}
+          </span>
+          {multiplayerState.isMultiplayer && !isBot && (
+            <span className="absolute -right-1 top-0">
+              {isDisconnected ? (
+                 <WifiOff size={10} className="text-red-500 bg-black/50 rounded-full p-[1px]" />
+              ) : (
+                 <Wifi size={10} className="text-green-400 opacity-80" />
+              )}
+            </span>
+          )}
+        </div>
         {isDealer && <span className={`absolute left-1.5 top-1 ${isActive ? 'text-black' : 'text-[var(--color-gold)]'} text-[0.55rem] sm:text-[0.6rem] leading-none animate-pulse`}>●</span>}
         
         {/* Turn Timer Progress Bar */}
@@ -175,6 +190,12 @@ function Spot({ index, position }: { index: number, position: string }) {
   
   const playedCard = gs.trickCards[index];
   const isWinner = gs.winnerSlot === index;
+  
+  let isCurrentWinner = false;
+  if (gs.phase === "playing" && !gs.isGatheringTrick && !isWinner && playedCard) {
+     isCurrentWinner = getTrickWinner() === index;
+  }
+
   const hasTrap = gs.trapHolder === index && (isYou || gs.phase === "roundEnd");
 
   return (
@@ -183,6 +204,7 @@ function Spot({ index, position }: { index: number, position: string }) {
         ${playedCard ? 'border-[var(--color-gold)] bg-[var(--color-gold)]/10' : 'border-dashed border-white/10 bg-black/20 text-[#888]'}
         ${playedCard && playedCard.suit === '♥' && gs.trickCards.some(c=>c?.suit!=='♥') ? 'border-[var(--color-kuba)] bg-[var(--color-kuba)]/15 shadow-[0_0_15px_rgba(231,76,60,0.4)]' : ''}
         ${isWinner ? 'winner-spot' : ''}
+        ${isCurrentWinner ? 'shadow-[0_0_20px_rgba(241,196,15,0.5)] border-[var(--color-gold)] z-20 scale-105 transition-all duration-300' : ''}
       `}>
         <AnimatePresence mode="popLayout">
           {playedCard ? (
@@ -190,7 +212,7 @@ function Spot({ index, position }: { index: number, position: string }) {
               key={playedCard.uid || `${playedCard.suit}${playedCard.rank}`}
               initial={{ scale: 0, opacity: 0, y: 30, rotate: isYou ? 0 : Math.random() * 20 - 10 }}
               animate={{ scale: 1, opacity: 1, y: 0, rotate: 0 }}
-              exit={{ scale: 0, opacity: 0 }}
+              exit={{ scale: 0.5, opacity: 0, transition: { duration: 0.05 } }}
               transition={{ type: "spring", stiffness: 350, damping: 25 }}
             >
               <MiniCard card={playedCard} isKuba={playedCard.suit === '♥'} />
@@ -231,6 +253,44 @@ function TableArea({ onProfileClick }: { onProfileClick: (index: number) => void
         <Spot index={rightIdx} position="-right-[20px] sm:-right-[30px] top-1/2 -translate-y-1/2" />
         <Spot index={bottomIdx} position="-bottom-[20px] sm:-bottom-[30px] left-1/2 -translate-x-1/2" />
         <Spot index={leftIdx} position="-left-[20px] sm:-left-[30px] top-1/2 -translate-y-1/2" />
+        
+        {gs.isGatheringTrick && gs.lastTrickWinnerIndex !== -1 && (
+          <div className="absolute inset-0 z-[100] pointer-events-none">
+            {gs.lastTrickCards.map((c, i) => {
+              if (!c) return null;
+              
+              // Map index to position string
+              const posStr = i === topIdx ? "-top-[20px] sm:-top-[30px] left-1/2 -translate-x-1/2" :
+                             i === rightIdx ? "-right-[20px] sm:-right-[30px] top-1/2 -translate-y-1/2" :
+                             i === bottomIdx ? "-bottom-[20px] sm:-bottom-[30px] left-1/2 -translate-x-1/2" :
+                             "-left-[20px] sm:-left-[30px] top-1/2 -translate-y-1/2";
+              
+              const isWinner = i === gs.lastTrickWinnerIndex;
+              const winPosStr = gs.lastTrickWinnerIndex === topIdx ? "top" :
+                                gs.lastTrickWinnerIndex === rightIdx ? "right" :
+                                gs.lastTrickWinnerIndex === bottomIdx ? "bottom" : "left";
+                                
+              return (
+                <motion.div
+                  key={c.uid}
+                  className={`absolute flex flex-col items-center gap-[2px] z-[100] ${posStr}`}
+                  initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+                  animate={{ 
+                    x: winPosStr === 'right' ? 80 : winPosStr === 'left' ? -80 : 0, 
+                    y: winPosStr === 'bottom' ? 80 : winPosStr === 'top' ? -80 : 0,
+                    scale: 0.3, 
+                    opacity: 0,
+                  }}
+                  transition={{ duration: 0.5, ease: "easeIn" }}
+                >
+                   <div className="w-[40px] h-[56px] sm:w-[52px] sm:h-[72px] shrink-0 drop-shadow-2xl">
+                     <MiniCard card={c} isKuba={c.suit === '♥'} />
+                   </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -407,12 +467,19 @@ function RoundEndOverlay() {
             : (results[0]?.change > 0 ? '🎉 نقاط إيجابية!' : '💔 خسارة نقاط')
           }
         </div>
-        <button 
-          className="mt-3 px-6 py-2 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black rounded-full font-black text-sm active:scale-95"
-          onClick={closeRoundEnd}
-        >
-          {gs.gameWinner !== null ? 'بداية جديدة' : '✅ متابعة'}
-        </button>
+        {(!multiplayerState.isMultiplayer || multiplayerState.isHost) ? (
+          <button 
+            className="mt-3 px-6 py-2 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black rounded-full font-black text-sm active:scale-95"
+            onClick={closeRoundEnd}
+          >
+            {gs.gameWinner !== null ? 'بداية جديدة' : '✅ متابعة'}
+          </button>
+        ) : (
+          <div className="mt-4 px-6 py-2 bg-white/5 border border-white/10 text-white/60 rounded-full font-black text-xs flex justify-center items-center gap-2 max-w-[200px] mx-auto">
+            <span className="w-3.5 h-3.5 border-2 border-[var(--color-gold)]/20 border-t-[var(--color-gold)] rounded-full animate-spin"></span>
+            في انتظار الكنق...
+          </div>
+        )}
       </div>
     </div>
   );
@@ -444,8 +511,46 @@ function ParticlesRenderer() {
   );
 }
 
+function useHaptics(gs: any) {
+  const prevGs = React.useRef(gs);
+
+  React.useEffect(() => {
+    const pGs = prevGs.current;
+    
+    // 1. My turn started
+    if (gs.currentPlayer === myPlayerIndex && pGs.currentPlayer !== myPlayerIndex && (gs.phase === 'playing' || gs.phase === 'swapping' || gs.phase === 'bidding')) {
+       if (navigator.vibrate) navigator.vibrate(15);
+    }
+    
+    // 2. I played a card
+    if (myPlayerIndex !== -1 && gs.hands[myPlayerIndex]?.length < (pGs.hands[myPlayerIndex]?.length || 0)) {
+       if (navigator.vibrate) navigator.vibrate(25);
+    }
+
+    // 3. Won trick
+    if (gs.isGatheringTrick && !pGs.isGatheringTrick) {
+       if (gs.lastTrickWinnerIndex === myPlayerIndex) {
+          const hasQueen = gs.lastTrickCards.some((c: Card) => c?.suit === '♥' && c?.rank === 'Q');
+          if (hasQueen) {
+             if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+          } else {
+             if (navigator.vibrate) navigator.vibrate([40, 30, 40]);
+          }
+       }
+    }
+
+    // 4. Round end Win
+    if (gs.phase === 'roundEnd' && pGs.phase !== 'roundEnd') {
+       if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+
+    prevGs.current = gs;
+  }, [gs]);
+}
+
 export function GameScreen() {
   const gs = useGameState();
+  useHaptics(gs);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const [confirmAction, setConfirmAction] = React.useState<"leave" | "reset" | null>(null);

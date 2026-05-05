@@ -64,6 +64,10 @@ export const G = {
   playedCards: [] as Card[],
   dealingCards: [] as { id: number; card: Card; player: number; rotate: number }[],
   roundEndOverlayVisible: false,
+  isGatheringTrick: false,
+  lastTrickWinnerIndex: -1,
+  lastTrickCards: [null, null, null, null] as (Card | null)[],
+  isMuted: localStorage.getItem('tarneb_muted') === 'true',
 };
 
 export let myPlayerIndex = 0;
@@ -196,8 +200,6 @@ export async function dealCardsAnimation(): Promise<void> {
     const interval = setInterval(() => {
         if (current >= distribution.length) {
             clearInterval(interval);
-            isSyncLocked = false;
-            isDealingAnimationRunning = false;
             setTimeout(() => {
                 G.dealingCards = [];
                 for (let p = 0; p < 4; p++) {
@@ -215,6 +217,8 @@ export async function dealCardsAnimation(): Promise<void> {
                     break;
                   }
                 }
+                isSyncLocked = false;
+                isDealingAnimationRunning = false;
                 updateUI();
                 resolve();
             }, 500);
@@ -264,8 +268,11 @@ export async function startNewRound() {
       playerIdx = (playerIdx + 1) % 4;
     }
   }
-  
+
   updateUI();
+  if (isMultiplayerMode && isHostMode && onSyncNeeded && !isSyncLocked) {
+     onSyncNeeded();
+  }
 
   await dealCardsAnimation();
 
@@ -317,7 +324,7 @@ function getCardValue(c: Card) {
   return val;
 }
 
-function executeAISwap() {
+export function executeAISwap() {
   let p = G.playerWithHighestScore;
   let myVal = getCardValue(G.exposedCards[p]!);
   let bestTarget = -1;
@@ -785,7 +792,7 @@ export function isBot(playerIdx: number) {
   return G.playerNames[playerIdx]?.includes("كمبيوتر");
 }
 
-function getTrickWinner() {
+export function getTrickWinner() {
   let li = G.leadPlayer;
   if (!G.trickCards[li]) {
     // Lead player card missing. Find first played card.
@@ -821,7 +828,13 @@ function advanceTurn() {
   if (G.phase !== "playing") return;
   
   if (G.trickCards.every((c) => c !== null)) {
-    setTimeout(resolveTrick, 700);
+    G.isGatheringTrick = true;
+    let w = getTrickWinner();
+    G.lastTrickWinnerIndex = w >= 0 ? w : 0;
+    G.lastTrickCards = [...G.trickCards];
+    updateUI();
+
+    setTimeout(resolveTrick, 900);
     return;
   }
 
@@ -834,6 +847,28 @@ function advanceTurn() {
   
   updateUI();
   processNextPlay();
+}
+
+export function resumeGameLoop() {
+  if (!isMyTurnToProcess()) return;
+  if (G.phase === "bidding") {
+    processNextBid();
+  } else if (G.phase === "playing") {
+    // Make sure we resolve the trick if it's full, else process next play
+    if (G.trickCards.every((c) => c !== null)) {
+      setTimeout(resolveTrick, 700);
+    } else {
+      processNextPlay();
+    }
+  } else if (G.phase === "swapping") {
+    if (G.playerWithHighestScore === myPlayerIndex) {
+      // It's me
+    } else if (isBot(G.playerWithHighestScore)) {
+      setTimeout(() => {
+        executeAISwap();
+      }, 1000);
+    }
+  }
 }
 
 function processNextPlay() {
@@ -877,6 +912,9 @@ function processNextPlay() {
 function resolveTrick() {
   if (!isMyTurnToProcess()) return;
   if (G.phase !== "playing") return;
+
+  G.isGatheringTrick = false;
+
   let winner = getTrickWinner();
   if (winner < 0) winner = 0;
 
@@ -909,23 +947,30 @@ function resolveTrick() {
 
   sfxWin();
   G.winnerSlot = winner;
+  G.lastTrickWinnerIndex = winner;
+  G.lastTrickCards = [...G.trickCards];
   updateUI();
 
   setTimeout(() => {
     G.winnerSlot = null;
     G.trickCards = [null, null, null, null];
     G.anyoneTarnebThisTrick = false;
+    G.isGatheringTrick = true;
 
     G.leadPlayer = winner;
     G.currentPlayer = winner;
     updateUI();
 
-    if (G.totalTricksPlayed >= 13) {
-      endRound();
-    } else {
-      processNextPlay();
-    }
-  }, 1200);
+    setTimeout(() => {
+       G.isGatheringTrick = false;
+       updateUI();
+       if (G.totalTricksPlayed >= 13) {
+         endRound();
+       } else {
+         processNextPlay();
+       }
+    }, 600);
+  }, 1000); // reduced from 1200 since we have 600ms gather anim
 }
 
 function endRound() {

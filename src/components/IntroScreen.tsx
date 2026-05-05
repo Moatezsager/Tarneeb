@@ -210,7 +210,9 @@ export function IntroScreen() {
                   setRejoining(true);
                   initAudio();
                   joinRoom(rejoinRoomId, profile?.name || "لاعب").then(() => {
-                    G.phase = 'multiplayer';
+                    if (G.phase === 'intro') {
+                       G.phase = 'multiplayer';
+                    }
                     updateUI();
                   }).catch((e) => {
                     console.error("Auto rejoin failed", e);

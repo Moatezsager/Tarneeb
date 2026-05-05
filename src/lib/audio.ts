@@ -1,3 +1,5 @@
+import { G } from "../logic/engine";
+
 const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
 let audioCtx: AudioContext | null = null;
 
@@ -6,7 +8,7 @@ export function initAudio() {
 }
 
 export function beep(f: number, d: number, t: OscillatorType = 'sine', v = 0.05) {
-  if (!audioCtx) return;
+  if (!audioCtx || G.isMuted) return;
   try {
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();

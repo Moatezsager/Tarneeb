@@ -12,10 +12,46 @@ import {
   getDoc
 } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
-import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning, justPlayedLocalAction, setJustPlayedLocalAction } from "./engine";
+import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning, justPlayedLocalAction, setJustPlayedLocalAction, resumeGameLoop, executeAISwap } from "./engine";
 import { getLocalProfile } from "./userProfile";
 
 let timerInterval: any = null;
+let pingInterval: any = null;
+
+function startHeartbeat() {
+  if (pingInterval) clearInterval(pingInterval);
+  pingInterval = setInterval(async () => {
+    if (!activeRoomId || !auth.currentUser) return;
+    try {
+       const roomRef = doc(db, "rooms", activeRoomId);
+       const roomSnap = await getDoc(roomRef);
+       if (roomSnap.exists()) {
+          const data = roomSnap.data() as RoomData;
+          const updatedPlayers = data.players.map(p => {
+             if (p.uid === auth.currentUser!.uid) {
+                return { ...p, lastPing: Date.now(), status: "connected" };
+             }
+             // Also check if others haven't pinged in > 30s
+             if (!p.isBot && p.lastPing && Date.now() - p.lastPing > 30000) {
+                return { ...p, status: "disconnected" as const };
+             }
+             return p;
+          });
+          // Only write if we are modifying our own or another's status
+          await updateDoc(roomRef, { players: updatedPlayers });
+       }
+    } catch (e) {
+       console.error("Heartbeat failed", e);
+    }
+  }, 10000); // 10 seconds
+}
+
+function stopHeartbeat() {
+  if (pingInterval) {
+    clearInterval(pingInterval);
+    pingInterval = null;
+  }
+}
 
 let lastSyncedCoreState = "";
 function getCoreState() {
@@ -40,6 +76,12 @@ window.addEventListener('tarneb-leave-room', () => {
    leaveRoom(false);
 });
 
+window.addEventListener('beforeunload', () => {
+   if (activeRoomId) {
+       leaveRoom(false);
+   }
+});
+
 setOnSyncNeeded(() => {
   if (multiplayerState.isMultiplayer) {
     const coreState = getCoreState();
@@ -56,33 +98,34 @@ function startHostTimer() {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     if (!multiplayerState.isHost || !multiplayerState.isMultiplayer) return;
-    if (G.phase !== "playing" && G.phase !== "bidding") return;
+    if (G.phase !== "playing" && G.phase !== "bidding" && G.phase !== "swapping") return;
     if (!G.gameStarted) return;
     
     // Check if turn timeout reached
     const now = Date.now();
     const elapsed = (now - G.turnStartTime) / 1000;
     
-    const currentPlayerIsBot = Object.values(G.playerNames).length > G.currentPlayer && G.playerNames[G.currentPlayer] && G.playerNames[G.currentPlayer].includes("كمبيوتر");
+    const actingPlayer = G.phase === "swapping" ? G.playerWithHighestScore : G.currentPlayer;
+    const currentPlayerIsBot = Object.values(G.playerNames).length > actingPlayer && G.playerNames[actingPlayer] && G.playerNames[actingPlayer].includes("كمبيوتر");
     
     if (currentPlayerIsBot) {
        // If it's a bot and it's stuck for > 5 seconds (bots normally play in 1.5s), fix it
        // This handles the case where a player disconnects mid-turn and becomes a bot, losing the delayed timeout
        if (elapsed > 6) {
-          console.log(`Bot ${G.currentPlayer} seems stuck. Forcing AI move.`);
+          console.log(`Bot ${actingPlayer} seems stuck. Forcing AI move.`);
           // Adjust turnStartTime so we don't spam if it takes a bit
           G.turnStartTime = Date.now();
-          forceAiAction(G.currentPlayer);
+          if (G.phase === "swapping") executeAISwap();
+          else forceAiAction(actingPlayer);
           updateGameState();
        }
     } else {
        if (elapsed > G.turnTimeout) {
-          console.log(`Player ${G.currentPlayer} (${G.playerNames[G.currentPlayer]}) timed out. Forcing AI move.`);
-          convertPlayerToBot(G.currentPlayer);
-          // forceAiAction and updateGameState will be triggered on next loop or we can do it now. 
-          // Best to do it now.
+          console.log(`Player ${actingPlayer} (${G.playerNames[actingPlayer]}) timed out. AFK Bot taking over for this turn.`);
+          // DO NOT convertPlayerToBot(actingPlayer) so they can return!
           G.turnStartTime = Date.now();
-          forceAiAction(G.currentPlayer);
+          if (G.phase === "swapping") executeAISwap();
+          else forceAiAction(actingPlayer);
           updateGameState();
        }
     }
@@ -132,6 +175,7 @@ export interface Player {
   index: number;
   status: "connected" | "disconnected";
   isBot?: boolean;
+  lastPing?: number;
 }
 
 export interface Spectator {
@@ -356,6 +400,7 @@ export async function createRoom(playerName: string, isPublic = true, password =
     setMyPlayerIndex(0);
     setMultiplayerMode(true, true);
     
+    startHeartbeat();
     listenToRoom(roomId);
     startHostTimer();
     return code;
@@ -488,6 +533,7 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
     setMyPlayerIndex(multiplayerState.myPlayerIndex);
     setMultiplayerMode(true, multiplayerState.isHost);
     
+    startHeartbeat();
     listenToRoom(roomId);
     if (multiplayerState.isHost) startHostTimer();
     return roomId;
@@ -528,6 +574,10 @@ export function listenToRoom(roomId: string) {
     const wasHost = multiplayerState.isHost;
     multiplayerState.players = data.players;
     multiplayerState.isHost = data.hostId === auth.currentUser?.uid;
+    
+    if (wasHost !== multiplayerState.isHost) {
+      setMultiplayerMode(true, multiplayerState.isHost);
+    }
     
     if (!wasHost && multiplayerState.isHost) {
       startHostTimer();
@@ -580,6 +630,11 @@ export function listenToRoom(roomId: string) {
         hasSyncedInitialState = true;
         lastSyncedCoreState = getCoreState();
         updateUI();
+        
+        // Host should resume game loop if it's an AI's turn or needs autonomous processing
+        if (multiplayerState.isHost && !isDealingAnimationRunning && !justPlayedLocalAction) {
+           resumeGameLoop();
+        }
     }
   }, (error) => {
     handleFirestoreError(error, OperationType.GET, `rooms/${roomId}`);
@@ -606,6 +661,7 @@ export async function leaveRoom(destroy = false) {
   
   if (roomUnsubscribe) roomUnsubscribe();
   roomUnsubscribe = null;
+  stopHeartbeat();
   stopHostTimer();
   activeRoomId = null;
   multiplayerState.isMultiplayer = false;
@@ -729,9 +785,9 @@ export async function startGame() {
   G.dealerIdx = Math.floor(Math.random() * 4);
   G.roundNumber = 0;
   
-  // Start the first round (includes shuffling and dealing animation)
-  // This will transition G.phase to "dealing"
-  await startNewRound();
+  // Do not await here so the room status and basic state update immediately
+  // and clients can join the dealing phase. startNewRound triggers onSyncNeeded internally.
+  startNewRound();
   
   try {
     await updateDoc(roomRef, {
