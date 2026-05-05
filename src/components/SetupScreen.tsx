@@ -11,6 +11,7 @@ export function SetupScreen() {
   const [name, setName] = useState(profile?.name || "البطل");
   const [target, setTarget] = useState("51");
   const [diff, setDiff] = useState<"easy" | "medium" | "hard">("medium");
+  const [mode, setMode] = useState<"FFA" | "Teams" | "1v1">("Teams");
   const [aiNames, setAiNames] = useState<string[]>(["", "", ""]);
 
   useEffect(() => {
@@ -92,15 +93,40 @@ export function SetupScreen() {
                   </button>
                 </div>
                 <div className="grid grid-cols-3 gap-2.5">
-                  {[0, 1, 2].map(idx => (
-                    <div key={idx} className="relative group">
+                  {[0, 1, 2].map(idx => {
+                    const isDisabled = (mode === "1v1" && idx >= 1);
+                    return (
+                    <div key={idx} className={`relative group ${isDisabled ? 'opacity-30 pointer-events-none' : ''}`}>
                       <input 
                         className="w-full p-4 rounded-2xl border border-white/5 bg-white/5 text-white text-xs text-center focus:outline-none focus:border-[var(--color-gold)]/40 focus:bg-white/10 transition-all font-black placeholder:text-white/10" 
                         value={aiNames[idx]} 
                         onChange={(e) => updateAiName(idx, e.target.value)} 
-                        placeholder={`خصم ${idx+1}`} 
+                        placeholder={isDisabled ? "غير متاح" : `خصم ${idx+1}`}
+                        disabled={isDisabled}
                       />
                     </div>
+                  )})}
+                </div>
+            </div>
+
+            <div className="mb-6">
+                <label className="text-white/50 text-[10px] font-black mb-3 flex items-center gap-2 uppercase tracking-widest mr-1">
+                    <Users className="w-3.5 h-3.5 text-[var(--color-gold)]" /> نظام اللعب
+                </label>
+                <div className="flex gap-2.5 bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-inner">
+                  {[
+                    { val: "Teams", label: "فرق 2v2", icon: "👥" },
+                    { val: "FFA", label: "فردي", icon: "🥷" },
+                    { val: "1v1", label: "لعب ثنائي", icon: "⚔️" }
+                  ].map(({val, label, icon}) => (
+                    <button 
+                      key={val}
+                      onClick={() => setMode(val as "FFA" | "Teams" | "1v1")}
+                      className={`flex-1 py-2.5 px-1 flex flex-col items-center gap-1 rounded-xl text-[10px] font-black transition-all ${mode === val ? 'bg-gradient-to-b from-[var(--color-gold)] to-yellow-600 text-black shadow-lg shadow-[var(--color-gold)]/20 scale-[1.03] z-10' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
+                    >
+                      <span className="text-sm">{icon}</span>
+                      {label}
+                    </button>
                   ))}
                 </div>
             </div>
@@ -154,7 +180,7 @@ export function SetupScreen() {
             <button 
               className="w-full py-4.5 bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black rounded-[22px] font-black text-lg transition-all hover:scale-[1.02] active:scale-[0.96] shadow-[0_15px_40px_rgba(248,181,0,0.3)] flex justify-center items-center gap-3 relative group overflow-hidden"
               onClick={() => {
-                initGame(name, parseInt(target), diff, aiNames.map((n, i) => n || `كمبيوتر ${i+1}`));
+                initGame(name, parseInt(target), diff, aiNames.map((n, i) => n || `كمبيوتر ${i+1}`), mode);
               }}
             >
               <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 skew-x-12" />

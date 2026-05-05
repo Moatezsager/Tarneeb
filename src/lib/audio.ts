@@ -32,3 +32,10 @@ export const sfxTarneb = () => { beep(600, 0.15, 'triangle', 0.08); setTimeout((
 export const sfxDeal = () => beep(800 + Math.random() * 400, 0.03 + Math.random() * 0.02, 'sine', 0.02);
 export const sfxRoundEnd = () => [500, 600, 700, 900].forEach((f, i) => setTimeout(() => beep(f, 0.15, 'triangle', 0.07), i * 120));
 export const sfxNotify = () => { beep(880, 0.1, 'sine', 0.1); setTimeout(() => beep(1046, 0.1, 'sine', 0.1), 100); };
+export const sfxValidPlay = () => beep(650, 0.1, 'sine', 0.06);
+export const sfxKubaCapture = () => {
+    [1000, 1200, 1400].forEach((f, i) => setTimeout(() => beep(f, 0.05, 'sine', 0.04), i * 40));
+};
+export const sfxRoundSuccess = () => {
+    [700, 900, 1100, 1300].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.08), i * 100));
+};

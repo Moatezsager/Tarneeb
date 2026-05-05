@@ -353,7 +353,7 @@ async function takeOverHost() {
   }
 }
 
-export async function createRoom(playerName: string, isPublic = true, password = "", winLimit = 31) {
+export async function createRoom(playerName: string, isPublic = true, password = "", winLimit = 31, mode: "FFA" | "Teams" | "1v1" = "Teams") {
   if (!auth.currentUser) throw new Error("يجب تسجيل الدخول أولاً");
 
   const profile = getLocalProfile();
@@ -380,13 +380,14 @@ export async function createRoom(playerName: string, isPublic = true, password =
     ],
     spectators: [],
     memberUids: [user.uid],
-    gameState: serializeGameState({ ...G, phase: "intro", target: winLimit }),
+    gameState: serializeGameState({ ...G, phase: "intro", target: winLimit, gameMode: mode }),
     lastActionBy: user.uid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
 
   G.target = winLimit;
+  G.gameMode = mode;
 
   try {
     await setDoc(doc(db, "rooms", roomId), room);

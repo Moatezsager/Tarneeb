@@ -227,20 +227,21 @@ function Spot({ index, position }: { index: number, position: string }) {
 
 function TableArea({ onProfileClick }: { onProfileClick: (index: number) => void }) {
   const gs = useGameState();
+  const numPlayers = gs.gameMode === "1v1" ? 2 : 4;
   const baseIdx = myPlayerIndex !== -1 ? myPlayerIndex : 0;
-  const pIdx = (offset: number) => (baseIdx + offset) % 4;
+  const pIdx = (offset: number) => (baseIdx + offset) % numPlayers;
 
   const bottomIdx = pIdx(0);
-  const rightIdx = pIdx(1);
-  const topIdx = pIdx(2);
-  const leftIdx = pIdx(3);
+  const rightIdx = numPlayers === 4 ? pIdx(1) : -1;
+  const topIdx = numPlayers === 4 ? pIdx(2) : pIdx(1);
+  const leftIdx = numPlayers === 4 ? pIdx(3) : -1;
 
   return (
     <div className="flex-1 relative flex items-center justify-center min-h-0 py-1 w-full my-2">
-      <PlayerBadge index={topIdx} positionClass="top-1 sm:top-2 left-1 sm:left-2 z-20" onProfileClick={onProfileClick} />
-      <PlayerBadge index={rightIdx} positionClass="top-1 sm:top-2 right-1 sm:right-2 z-20" onProfileClick={onProfileClick} />
-      <PlayerBadge index={leftIdx} positionClass="bottom-1 sm:bottom-2 left-1 sm:left-2 z-20" onProfileClick={onProfileClick} />
-      <PlayerBadge index={bottomIdx} positionClass="bottom-1 sm:bottom-2 right-1 sm:right-2 z-20" onProfileClick={onProfileClick} />
+      {topIdx !== -1 && <PlayerBadge index={topIdx} positionClass="top-1 sm:top-2 left-1 sm:left-2 z-20" onProfileClick={onProfileClick} />}
+      {rightIdx !== -1 && <PlayerBadge index={rightIdx} positionClass="top-1 sm:top-2 right-1 sm:right-2 z-20" onProfileClick={onProfileClick} />}
+      {leftIdx !== -1 && <PlayerBadge index={leftIdx} positionClass="bottom-1 sm:bottom-2 left-1 sm:left-2 z-20" onProfileClick={onProfileClick} />}
+      {bottomIdx !== -1 && <PlayerBadge index={bottomIdx} positionClass="bottom-1 sm:bottom-2 right-1 sm:right-2 z-20" onProfileClick={onProfileClick} />}
       
       <div className="relative w-[190px] xs:w-[230px] sm:w-[320px] aspect-square flex items-center justify-center">
         <div className="absolute inset-[8%] sm:inset-[10%] table-felt rounded-full shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] flex items-center justify-center">
@@ -249,10 +250,10 @@ function TableArea({ onProfileClick }: { onProfileClick: (index: number) => void
               <div className="text-[var(--color-gold)] text-4xl sm:text-5xl font-black leading-none">{gs.target}</div>
            </div>
         </div>
-        <Spot index={topIdx} position="-top-[20px] sm:-top-[30px] left-1/2 -translate-x-1/2" />
-        <Spot index={rightIdx} position="-right-[20px] sm:-right-[30px] top-1/2 -translate-y-1/2" />
-        <Spot index={bottomIdx} position="-bottom-[20px] sm:-bottom-[30px] left-1/2 -translate-x-1/2" />
-        <Spot index={leftIdx} position="-left-[20px] sm:-left-[30px] top-1/2 -translate-y-1/2" />
+        {topIdx !== -1 && <Spot index={topIdx} position="-top-[20px] sm:-top-[30px] left-1/2 -translate-x-1/2" />}
+        {rightIdx !== -1 && <Spot index={rightIdx} position="-right-[20px] sm:-right-[30px] top-1/2 -translate-y-1/2" />}
+        {bottomIdx !== -1 && <Spot index={bottomIdx} position="-bottom-[20px] sm:-bottom-[30px] left-1/2 -translate-x-1/2" />}
+        {leftIdx !== -1 && <Spot index={leftIdx} position="-left-[20px] sm:-left-[30px] top-1/2 -translate-y-1/2" />}
         
         {gs.isGatheringTrick && gs.lastTrickWinnerIndex !== -1 && (
           <div className="absolute inset-0 z-[100] pointer-events-none">
@@ -421,7 +422,13 @@ function RoundEndOverlay() {
   const gs = useGameState();
   if (!gs.roundEndOverlayVisible) return null;
   
-  const results = gs.results || [];
+  let results = gs.results || [];
+  if (gs.gameMode === "Teams" && results.length >= 2) {
+    results = [
+      { ...results[0], playerLabel: "فريقنا" },
+      { ...results[1], playerLabel: "الخصم" }
+    ];
+  }
   
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
@@ -445,7 +452,7 @@ function RoundEndOverlay() {
           <tbody>
             {results.map((r, i) => (
               <tr key={i}>
-                <td className="p-1 border-b border-white/5">{gs.playerNames[r.player]} {r.player === gs.bestInRound?.player ? '⭐' : ''}</td>
+                <td className="p-1 border-b border-white/5 font-black text-white/70">{(r as any).playerLabel || gs.playerNames[r.player]} {r.player === gs.bestInRound?.player ? '⭐' : ''}</td>
                 <td className="p-1 border-b border-white/5">{r.bid}</td>
                 <td className="p-1 border-b border-white/5">{r.taken} {r.bid === "-" ? '' : (r.taken >= r.bid ? '✅' : '❌')}</td>
                 <td className="p-1 border-b border-white/5">{r.multiplier || '-'}</td>
@@ -456,14 +463,17 @@ function RoundEndOverlay() {
             ))}
           </tbody>
         </table>
-        {gs.bestInRound && (
+        {gs.bestInRound && gs.gameMode !== "Teams" && (
           <div className="mt-1.5 text-[#2ecc71] text-[0.6rem]">
             ⭐ أفضل لاعب: {gs.playerNames[gs.bestInRound.player]} ({gs.bestInRound.change > 0 ? '+' : ''}{gs.bestInRound.change})
           </div>
         )}
         <div className="mt-1.5 text-[#aaa] text-[0.55rem] min-h-[14px]">
           {gs.gameWinner !== null 
-            ? (gs.gameWinner === myPlayerIndex && myPlayerIndex !== -1 ? '🏆 مبروك! أنت بطل الطرنت! 🏆' : `🏆 ${gs.playerNames[gs.gameWinner]} فاز باللعبة!`)
+            ? (gs.gameMode === "Teams" 
+                ? (gs.gameWinner === (myPlayerIndex % 2) ? '🏆 مبروك! فريقك بطل الطرنيب! 🏆' : `🏆 فريق ${gs.gameWinner === 0 ? 'نحن' : 'الخصم'} فاز باللعبة!`)
+                : (gs.gameWinner === myPlayerIndex && myPlayerIndex !== -1 ? '🏆 مبروك! أنت بطل الطرنيب! 🏆' : `🏆 ${gs.playerNames[gs.gameWinner]} فاز باللعبة!`)
+              )
             : (results[0]?.change > 0 ? '🎉 نقاط إيجابية!' : '💔 خسارة نقاط')
           }
         </div>
@@ -557,10 +567,24 @@ export function GameScreen() {
   const [profileModalUser, setProfileModalUser] = React.useState<UserProfile | null>(null);
   const [showSpectators, setShowSpectators] = React.useState(false);
 
-  const team1Score = gs.scores[0] + gs.scores[2];
-  const team2Score = gs.scores[1] + gs.scores[3];
-  const myTeamScore = myPlayerIndex % 2 === 0 ? team1Score : team2Score;
-  const oppTeamScore = myPlayerIndex % 2 === 0 ? team2Score : team1Score;
+  let headerScores = null;
+  if (gs.gameMode === "Teams") {
+    const myTeamIdx = myPlayerIndex % 2 === 0 ? 0 : 1;
+    const oppTeamIdx = myTeamIdx === 0 ? 1 : 0;
+    headerScores = (
+      <div className="flex items-center gap-1.5 text-[0.7rem] font-black">
+        <span className="text-white/40">فريقنا:</span> <span className="text-white">{gs.teamScores[myTeamIdx]}</span>
+        <span className="text-white/20 mx-0.5">|</span>
+        <span className="text-red-400/60">الخصم:</span> <span className="text-white">{gs.teamScores[oppTeamIdx]}</span>
+      </div>
+    );
+  } else {
+    headerScores = (
+      <div className="flex items-center gap-1.5 text-[0.7rem] font-black">
+        <span className="text-white/40">نقاطي:</span> <span className="text-[var(--color-gold)]">{gs.scores[myPlayerIndex === -1 ? 0 : myPlayerIndex]}</span>
+      </div>
+    );
+  }
 
   const handleProfileClick = (index: number) => {
      const name = gs.playerNames[index];
@@ -621,11 +645,7 @@ export function GameScreen() {
            <div className="flex flex-col">
               <div className="flex items-center gap-2">
                  <span className="text-[var(--color-gold)] font-black text-[0.6rem] bg-[var(--color-gold)]/10 px-1.5 py-0.5 rounded uppercase tracking-tighter">{gs.roundPhase}</span>
-                 <div className="flex items-center gap-1.5 text-[0.7rem] font-black">
-                   <span className="text-white/40">نحن:</span> <span className="text-white">{myTeamScore}</span>
-                   <span className="text-white/20 mx-0.5">|</span>
-                   <span className="text-red-400/60">هم:</span> <span className="text-white">{oppTeamScore}</span>
-                 </div>
+                 {headerScores}
               </div>
               <div className="text-[10px] text-[#555] font-bold mt-0.5 flex items-center gap-1.5">
                  <Users className="w-2.5 h-2.5" />

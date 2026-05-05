@@ -27,6 +27,7 @@ export function MultiplayerScreen() {
   const [isPublic, setIsPublic] = useState(true);
   const [roomPassword, setRoomPassword] = useState("");
   const [winLimit, setWinLimit] = useState(31);
+  const [mode, setMode] = useState<"FFA" | "Teams" | "1v1">("Teams");
   const [joinPassword, setJoinPassword] = useState("");
   const [showPasswordInput, setShowPasswordInput] = useState<{code: string, asSpectator: boolean} | null>(null);
   
@@ -90,7 +91,7 @@ export function MultiplayerScreen() {
     setLoading(true);
     setError("");
     try {
-      await createRoom(profile?.name || "لاعب", isPublic, roomPassword, winLimit);
+      await createRoom(profile?.name || "لاعب", isPublic, roomPassword, winLimit, mode);
       setInRoom(true);
     } catch (e: any) {
       setError(e.message);
@@ -396,6 +397,28 @@ export function MultiplayerScreen() {
                      className={`flex-1 py-2.5 rounded-xl text-sm font-black border transition-all ${winLimit === limit ? 'bg-[var(--color-gold)] text-black border-[var(--color-gold)] shadow-md' : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'}`}
                    >
                      {limit}
+                   </button>
+                 ))}
+              </div>
+           </div>
+
+           <div className="mb-6">
+              <label className="text-white/40 text-[10px] font-bold mb-2 flex items-center justify-between px-1 uppercase tracking-widest">
+                 <span>نظام اللعب</span>
+                 <span className="text-[var(--color-gold)]">{mode === "Teams" ? "فرق 2v2" : mode === "FFA" ? "فردي 4" : "ثنائي 1v1"}</span>
+              </label>
+              <div className="flex gap-2">
+                 {[
+                   { val: "Teams", icon: "👥" },
+                   { val: "FFA", icon: "🥷" },
+                   { val: "1v1", icon: "⚔️" }
+                 ].map(({val, icon}) => (
+                   <button 
+                     key={val}
+                     onClick={() => setMode(val as any)}
+                     className={`flex-1 py-2.5 rounded-xl text-lg font-black border transition-all ${mode === val ? 'bg-[var(--color-gold)] text-black border-[var(--color-gold)] shadow-md' : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'}`}
+                   >
+                     {icon}
                    </button>
                  ))}
               </div>
