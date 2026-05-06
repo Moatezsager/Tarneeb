@@ -5,7 +5,8 @@ import { auth } from "../lib/firebase";
 import { getLocalProfile, COUNTRIES } from "../logic/userProfile";
 import { ProfileSetupScreen } from "./ProfileSetupScreen";
 import { SocialModal } from "./SocialModal";
-import { Settings, LogOut, Users, Play, Gamepad2 } from "lucide-react";
+import { SettingsModal } from "./SettingsModal";
+import { Settings, LogOut, Users, Play, Gamepad2, UserCircle } from "lucide-react";
 import { 
   listenToFriendRequests, 
   listenToAcceptedRequests, 
@@ -22,6 +23,7 @@ export function IntroScreen() {
   const profile = getLocalProfile();
   const country = COUNTRIES.find(c => c.code === profile?.country);
   const [showSocial, setShowSocial] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [requestsCount, setRequestsCount] = useState(0);
   const [acceptedCount, setAcceptedCount] = useState(0);
   const [invites, setInvites] = useState<any[]>([]);
@@ -150,8 +152,12 @@ export function IntroScreen() {
             className={`w-11 h-11 sm:w-12 sm:h-12 ${profile?.searchId === '01' ? 'bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 p-0.5' : 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/40'} rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-inner cursor-pointer active:scale-95 transition-all hover:border-[var(--color-gold)] relative`}
             onClick={() => { G.phase = 'profile'; updateUI(); }}
           >
-            <div className="bg-[#1a1a1a] w-full h-full rounded-full flex items-center justify-center">
-              {profile?.avatar || "👤"}
+            <div className="bg-[#1a1a1a] w-full h-full rounded-full flex items-center justify-center overflow-hidden">
+              {profile?.avatar?.startsWith('http') ? (
+                <img src={profile.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+              ) : (
+                profile?.avatar || "👤"
+              )}
             </div>
             {profile?.searchId === '01' && (
               <div className="absolute -top-1 -right-1 bg-[var(--color-gold)] p-0.5 rounded-full border border-black shadow-lg">
@@ -178,7 +184,14 @@ export function IntroScreen() {
            <button 
              onClick={() => { G.phase = 'profile'; updateUI(); }}
              className="p-2 sm:p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/80 hover:text-white transition-colors border border-white/5 active:scale-90"
-             title="إعدادات الحساب"
+             title="تعديل الملف الشخصي"
+           >
+             <UserCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+           </button>
+           <button 
+             onClick={() => setShowSettings(true)}
+             className="p-2 sm:p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/80 hover:text-white transition-colors border border-white/5 active:scale-90"
+             title="إعدادات اللعبة"
            >
              <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
            </button>
@@ -316,6 +329,11 @@ export function IntroScreen() {
           myProfile={profile}
         />
 
+        <SettingsModal 
+          isOpen={showSettings} 
+          onClose={() => setShowSettings(false)} 
+        />
+
         {/* Generic Toast Notification */}
         <AnimatePresence>
           {toast && (
@@ -347,8 +365,12 @@ export function IntroScreen() {
                 
                 <div className="flex items-center gap-3">
                   <div className="relative shrink-0">
-                    <div className="w-12 h-12 bg-[var(--color-gold)]/10 rounded-xl flex items-center justify-center text-3xl shadow-inner border border-[var(--color-gold)]/20">
-                      {invites[0].fromAvatar}
+                    <div className="w-12 h-12 bg-[var(--color-gold)]/10 rounded-xl flex items-center justify-center text-3xl shadow-inner border border-[var(--color-gold)]/20 overflow-hidden">
+                      {invites[0].fromAvatar?.startsWith('http') ? (
+                        <img src={invites[0].fromAvatar} alt="Invite Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      ) : (
+                        invites[0].fromAvatar
+                      )}
                     </div>
                     <div className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 rounded-full border-2 border-[#1a1a2e]" />
                   </div>

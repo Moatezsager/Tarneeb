@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { UserProfile, fetchUserProfile, COUNTRIES, getLocalProfile } from "../logic/userProfile";
 import { unfriend } from "../logic/social";
-import { Clock, Mars, Venus, User, Calendar, Crown, Sword } from "lucide-react";
+import { Clock, Mars, Venus, User, Calendar, Crown, Sword, Sparkles } from "lucide-react";
 import { multiplayerState, sendRoomInvite, createRoom } from "../logic/multiplayer";
 import { G, updateUI } from "../logic/engine";
 
@@ -168,123 +168,182 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative w-full max-w-sm bg-[#111] border border-white/10 rounded-[32px] overflow-hidden shadow-2xl"
+            className="relative w-full max-w-sm bg-[#1a1a2e] border border-white/10 rounded-[40px] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.8)]"
           >
-            <div className="h-24 bg-gradient-to-b from-[var(--color-gold)]/20 to-transparent" />
-            
-            <div className="px-8 pb-8 -mt-12 text-center">
-              <div className="inline-block relative">
-                <div className={`w-24 h-24 bg-[#1a1a1a] border-4 ${displayUser.searchId === '01' ? 'border-[var(--color-gold)] shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'border-[#111]'} rounded-[28px] text-5xl flex items-center justify-center shadow-xl relative overflow-hidden group`}>
+            {/* Deluxe Header Background */}
+            <div className="absolute top-0 inset-x-0 h-40 bg-gradient-to-b from-[var(--color-gold)]/20 via-[var(--color-gold)]/5 to-transparent" />
+            <div className="absolute top-4 left-4">
+              <div className="flex items-center gap-1.5 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10">
+                <div className="w-2 h-2 bg-[var(--color-gold)] rounded-full animate-pulse shadow-[0_0_8px_var(--color-gold)]" />
+                <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Player Profile</span>
+              </div>
+            </div>
+
+            <div className="px-8 pb-10 pt-16 flex flex-col items-center">
+              {/* Profile Avatar with Hero Ring */}
+              <div className="relative group">
+                <motion.div 
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  className={`w-32 h-32 bg-black/60 border-4 ${displayUser.searchId === '01' ? 'border-[var(--color-gold)]' : 'border-white/10'} rounded-[36px] flex items-center justify-center shadow-2xl relative overflow-hidden transition-all group-hover:scale-105`}
+                >
                    {displayUser.searchId === '01' && (
                      <div className="absolute inset-0 bg-gradient-to-tr from-[var(--color-gold)]/20 to-transparent animate-pulse" />
                    )}
-                   <span className="relative z-10">{displayUser.avatar}</span>
-                </div>
+                   {displayUser.avatar?.startsWith('http') ? (
+                     <img src={displayUser.avatar} alt="Avatar" className="w-full h-full object-contain relative z-10 p-3" referrerPolicy="no-referrer" />
+                   ) : (
+                     <span className="text-6xl relative z-10">{displayUser.avatar}</span>
+                   )}
+                </motion.div>
+                
                 {displayUser.status === 'online' && (
-                  <div className="absolute bottom-1 right-1 w-5 h-5 bg-green-500 border-4 border-[#111] rounded-full shadow-[0_0_10px_#22c55e]" />
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute bottom-2 right-2 w-7 h-7 bg-green-500 border-4 border-[#1a1a2e] rounded-full shadow-[0_0_15px_#22c55e] z-20" 
+                  />
                 )}
-              </div>
-              
-              <div className="flex items-center justify-center gap-2 mt-4">
-                <h2 className="text-2xl font-black text-white">{displayUser.name}</h2>
+
                 {displayUser.searchId === '01' && (
-                  <Crown className="w-5 h-5 text-[var(--color-gold)] fill-[var(--color-gold)]/20 animate-bounce" />
-                )}
-              </div>
-              <div className="text-xs font-mono text-[var(--color-gold)] mb-1 tracking-widest uppercase opacity-60">#{displayUser.searchId || "00000000"}</div>
-              
-              <div className="flex items-center justify-center gap-2 mb-4 px-3 py-1.5 bg-white/5 rounded-full w-fit mx-auto border border-white/5">
-                <Clock className="w-3.5 h-3.5 text-[var(--color-gold)]" />
-                <span className="text-[10px] font-black text-white/50 uppercase tracking-wider">
-                  {displayUser.status === 'online' ? 'نشط الآن' : `آخر ظهور: ${formatLastSeen(displayUser.lastSeen)}`}
-                </span>
-              </div>
-              
-              <div className="flex items-center justify-center gap-3 mb-6">
-                {country && (
-                  <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/5 text-white/40 text-[10px] font-bold uppercase tracking-tight">
-                    <span className="text-sm">{country.flag}</span>
-                    <span>{country.name}</span>
+                  <div className="absolute -top-3 -right-3 bg-[var(--color-gold)] p-2 rounded-2xl border-4 border-[#1a1a2e] shadow-lg rotate-12">
+                    <Crown className="w-5 h-5 text-black" fill="black" />
                   </div>
                 )}
-                <div className="flex items-center gap-1.5 px-3 py-1 bg-white/5 rounded-lg border border-white/5 text-white/40 text-[10px] font-bold uppercase tracking-tight">
-                  {displayUser.gender === 'female' ? <Venus className="w-3 h-3 text-pink-400" /> : <Mars className="w-3 h-3 text-blue-400" />}
-                  <span>{displayUser.gender === 'female' ? 'أنثى' : 'ذكر'}</span>
-                </div>
               </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
-                  <div className="text-[10px] text-white/30 font-bold uppercase mb-1">المرحلة</div>
-                  <div className="text-white font-black">{displayUser.points ? Math.floor(displayUser.points / 100) + 1 : 1}</div>
+              
+              {/* Identity Info */}
+              <div className="mt-6 text-center space-y-1">
+                <div className="flex items-center justify-center gap-2">
+                  <h2 className="text-3xl font-black text-white tracking-tight">{displayUser.name}</h2>
                 </div>
-                <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
-                  <div className="text-[10px] text-white/30 font-bold uppercase mb-1">النقاط</div>
-                  <div className="text-white font-black">{displayUser.points || 0}</div>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-2 mb-8 px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-white/40">
-                <Calendar className="w-3.5 h-3.5 text-[var(--color-gold)]" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">
-                  عضو منذ: {formatJoinDate(displayUser.createdAt)}
-                </span>
-              </div>
-
-              {!showConfirm ? (
-                <div className="space-y-3">
-                  {isFriend && displayUser.status === 'online' && (
-                    <button 
-                      onClick={handleChallenge}
-                      disabled={inviting}
-                      className="w-full py-4 bg-[var(--color-gold)] text-black text-sm font-black rounded-2xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-[0_5px_15px_rgba(212,175,55,0.3)]"
-                    >
-                      <Sword className="w-4 h-4" />
-                      {inviting ? "جاري الإرسال..." : "تحدي ⚔️"}
-                    </button>
+                <div className="flex items-center justify-center gap-2">
+                   <div className="px-3 py-0.5 bg-white/5 rounded-full border border-white/5 flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-[var(--color-gold)] tracking-[0.2em]">#{displayUser.searchId || "0000"}</span>
+                   </div>
+                   {country && (
+                    <div className="flex items-center gap-1.5 text-white/40 font-bold text-xs">
+                      <span>{country.flag}</span>
+                      <span>{country.name}</span>
+                    </div>
                   )}
-                  {isFriend && (
-                    <button 
-                      onClick={() => setShowConfirm(true)}
-                      className="w-full py-4 border border-red-500/20 text-red-500 text-sm font-black rounded-2xl hover:bg-red-500/10 transition-colors"
-                    >
-                      إلغاء الصداقة
-                    </button>
-                  )}
-                  <button 
-                    onClick={onClose}
-                    className="w-full py-4 bg-white/5 text-white/60 text-sm font-black rounded-2xl hover:bg-white/10 transition-colors"
-                  >
-                    إغلاق
-                  </button>
                 </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="text-white/60 text-sm mb-4">هل أنت متأكد من إزالة الصداقة؟</div>
-                  <button 
-                    onClick={handleUnfriend}
-                    disabled={unfriending}
-                    className="w-full py-4 bg-red-600 text-white text-sm font-black rounded-2xl hover:bg-red-500 transition-colors disabled:opacity-50"
-                  >
-                    {unfriending ? "جاري الإزالة..." : "نعم، متأكد"}
-                  </button>
-                  <button 
-                    onClick={() => setShowConfirm(false)}
-                    className="w-full py-4 bg-white/5 text-white/60 text-sm font-black rounded-2xl hover:bg-white/10 transition-colors"
-                  >
-                    إلغاء
-                  </button>
+              </div>
+              
+              {/* Stats Dashboard */}
+              <div className="grid grid-cols-2 gap-4 w-full mt-8">
+                <div className="relative group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-gold)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl" />
+                  <div className="bg-white/5 border border-white/5 p-4 rounded-3xl text-center space-y-1 transition-all group-hover:translate-y-[-4px]">
+                    <div className="text-[9px] text-white/30 font-black uppercase tracking-widest">Player Rank</div>
+                    <div className="text-2xl font-black text-white flex items-center justify-center gap-2">
+                       <span className="text-[var(--color-gold)] text-sm">LVL</span> 
+                       {displayUser.points ? Math.floor(displayUser.points / 100) + 1 : 1}
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                <div className="relative group">
+                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl" />
+                   <div className="bg-white/5 border border-white/5 p-4 rounded-3xl text-center space-y-1 transition-all group-hover:translate-y-[-4px]">
+                    <div className="text-[9px] text-white/30 font-black uppercase tracking-widest">Total Points</div>
+                    <div className="text-2xl font-black text-white flex items-center justify-center gap-1">
+                       <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+                       {displayUser.points || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status & Activity */}
+              <div className="w-full mt-6 space-y-2">
+                <div className="flex items-center justify-between px-4 py-3 bg-black/20 rounded-2xl border border-white/5">
+                   <div className="flex items-center gap-2">
+                      <Clock className="w-3.5 h-3.5 text-[var(--color-gold)]" />
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Activity Status</span>
+                   </div>
+                   <span className="text-[10px] font-black text-white/60">
+                      {displayUser.status === 'online' ? 'Active Now' : formatLastSeen(displayUser.lastSeen)}
+                   </span>
+                </div>
+
+                <div className="flex items-center justify-between px-4 py-3 bg-black/20 rounded-2xl border border-white/5">
+                   <div className="flex items-center gap-2">
+                      <Calendar className="w-3.5 h-3.5 text-blue-400" />
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Joined Origin</span>
+                   </div>
+                   <span className="text-[10px] font-black text-white/60">
+                      {formatJoinDate(displayUser.createdAt)}
+                   </span>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="w-full mt-8 space-y-3">
+                {!showConfirm ? (
+                  <>
+                    {isFriend && displayUser.status === 'online' && (
+                      <button 
+                        onClick={handleChallenge}
+                        disabled={inviting}
+                        className="w-full py-5 bg-gradient-to-r from-blue-600 to-blue-400 text-white text-md font-black rounded-2xl shadow-[0_15px_30px_rgba(37,99,235,0.2)] active:scale-95 transition-all flex items-center justify-center gap-3 group relative overflow-hidden"
+                      >
+                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 skew-x-12" />
+                        <Sword className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                        {inviting ? "Sending Challenge..." : "Challenge Battle ⚔️"}
+                      </button>
+                    )}
+                    <div className="flex gap-3">
+                      {isFriend && (
+                        <button 
+                          onClick={() => setShowConfirm(true)}
+                          className="flex-1 py-4 bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-black rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-inner"
+                        >
+                          Unfriend
+                        </button>
+                      )}
+                      <button 
+                        onClick={onClose}
+                        className="flex-1 py-4 bg-white/5 border border-white/10 text-white/60 text-xs font-black rounded-2xl hover:bg-white/10 transition-all"
+                      >
+                        Close Portal
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-6 bg-red-500/5 rounded-[32px] border border-red-500/20 text-center space-y-4 shadow-inner"
+                  >
+                    <div className="text-white/80 font-black text-sm">Are you sure about removing this friend?</div>
+                    <div className="flex gap-3">
+                       <button 
+                        onClick={handleUnfriend}
+                        disabled={unfriending}
+                        className="flex-1 py-4 bg-red-600 text-white text-xs font-black rounded-2xl hover:bg-red-500 transition-all shadow-lg"
+                      >
+                        {unfriending ? "Removing..." : "Yes, Remove"}
+                      </button>
+                      <button 
+                        onClick={() => setShowConfirm(false)}
+                        className="flex-1 py-4 bg-white/5 text-white/60 text-xs font-black rounded-2xl hover:bg-white/10 transition-all"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
             </div>
             {loading && (
-              <div className="absolute top-2 right-2">
-                <div className="w-4 h-4 border-2 border-[var(--color-gold)] border-t-transparent rounded-full animate-spin" />
+              <div className="absolute top-4 right-4">
+                <div className="w-5 h-5 border-2 border-[var(--color-gold)] border-t-transparent rounded-full animate-spin" />
               </div>
             )}
-          </motion.div>
-        </div>
+          </motion.div>        </div>
       )}
     </AnimatePresence>
   );
 };
+

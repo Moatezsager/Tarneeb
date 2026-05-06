@@ -56,8 +56,12 @@ function FriendCard({ friend, onSelect }: FriendCardProps) {
         <div
           className={`relative ${f.searchId === "01" ? "p-0.5 bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 rounded-2xl" : ""}`}
         >
-          <div className="text-3xl sm:text-4xl bg-black/40 p-2.5 sm:p-3 rounded-2xl flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 shadow-inner border border-white/5">
-            {f.avatar}
+          <div className="bg-black/40 p-2.5 sm:p-3 rounded-2xl flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 shadow-inner border border-white/5 overflow-hidden">
+            {f.avatar?.startsWith('http') ? (
+              <img src={f.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            ) : (
+              <span className="text-3xl sm:text-4xl">{f.avatar}</span>
+            )}
           </div>
           {f.searchId === "01" && (
             <div className="absolute -top-1.5 -left-1.5 bg-[var(--color-gold)] p-1 rounded-full border border-black shadow-[0_0_10px_rgba(241,196,15,0.5)]">
@@ -473,8 +477,12 @@ export function SocialModal({ isOpen, onClose, myProfile }: Props) {
                               onClick={() => setSelectedUser(u)}
                             >
                               <div className="flex items-center gap-3.5 w-full sm:w-auto">
-                                <div className="text-3xl sm:text-4xl bg-black/40 p-2.5 sm:p-3 rounded-2xl flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 shadow-inner border border-white/5">
-                                  {u.avatar}
+                                <div className="bg-black/40 p-2.5 sm:p-3 rounded-2xl flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 shadow-inner border border-white/5 overflow-hidden">
+                                  {u.avatar?.startsWith('http') ? (
+                                    <img src={u.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                                  ) : (
+                                    <span className="text-3xl sm:text-4xl">{u.avatar}</span>
+                                  )}
                                 </div>
                                 <div className="text-right flex-1">
                                   <div className="flex items-center gap-1.5">

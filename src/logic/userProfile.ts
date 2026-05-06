@@ -46,8 +46,41 @@ export const COUNTRIES = [
 ];
 
 export const AVATARS = [
-  "👨‍💼", "👩‍💼", "👨‍🎨", "👩‍🎨", "👨‍🚀", "👩‍🚀", "👨‍🚒", "👩‍🚒",
-  "🥷", "🧙‍♂️", "🧙‍♀️", "🧞‍♂️", "🧞‍♀️", "🧛‍♂️", "🧛‍♀️", "🧟‍♂️"
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Felix",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Aria",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Jack",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Milo",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Lily",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Leo",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Zoe",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Jasper",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Luna",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Oliver",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Warrior1",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Knight",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Archer",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Viking",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Samurai",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Guard",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Gladiator",
+  "https://api.dicebear.com/7.x/adventurer/svg?seed=Valkyrie",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=Bot1",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=Bot2",
+  "https://api.dicebear.com/7.x/bottts/svg?seed=Bot3",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Elf1",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Elf2",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Spirit",
+  "https://api.dicebear.com/7.x/lorelei/svg?seed=Fairy",
+  "https://api.dicebear.com/7.x/big-ears/svg?seed=Hero1",
+  "https://api.dicebear.com/7.x/big-ears/svg?seed=Hero2",
+  "https://api.dicebear.com/7.x/avataaars/svg?seed=Classic",
+  "https://api.dicebear.com/7.x/pixel-art/svg?seed=Retro",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art1",
+  "https://api.dicebear.com/7.x/notionists/svg?seed=Art2"
+];
+
+export const AVATAR_CATEGORIES = [
+  { name: "الكل", avatars: AVATARS }
 ];
 
 let currentUserProfile: UserProfile | null = null;
