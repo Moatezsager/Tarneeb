@@ -112,7 +112,7 @@ export function ProfileSetupScreen({ onComplete, initialData }: Props) {
                   <span className="text-5xl flex items-center justify-center h-full">{avatar}</span>
                 )}
               </div>
-              <div className="absolute -bottom-2 -left-2 bg-green-500 w-5 h-5 rounded-full border-4 border-[#1a1a2e] shadow-lg" />
+              <div className="absolute -bottom-2 -left-2 bg-[var(--color-gold)] w-5 h-5 rounded-full border-4 border-[#1a1a2e] shadow-lg" />
             </div>
 
             <div className="flex flex-col gap-1">

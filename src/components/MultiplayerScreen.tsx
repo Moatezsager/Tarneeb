@@ -173,7 +173,7 @@ export function MultiplayerScreen() {
             <div className="text-right mb-8">
               <div className="flex items-center justify-between mb-4 px-2">
                 <h3 className="text-[#aaa] text-sm font-bold flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                  <span className="w-2 h-2 rounded-full bg-[var(--color-gold)] animate-pulse"></span>
                   اللاعبون المتصلون
                 </h3>
                 <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full text-white/70 font-bold">{multiplayerState.players.length}/4</span>
@@ -540,7 +540,7 @@ export function MultiplayerScreen() {
                          await handleJoin(req.roomCode); // Using handleJoin handles password modal / spectator state
                       }
                     }}
-                    className="flex-1 md:flex-none px-4 py-2 bg-green-500 hover:bg-green-400 text-black font-black text-xs rounded-xl active:scale-95 transition-all text-center"
+                    className="flex-1 md:flex-none px-4 py-2 bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black font-black text-xs rounded-xl active:scale-95 transition-all text-center shadow-lg"
                   >
                     قبول
                   </button>

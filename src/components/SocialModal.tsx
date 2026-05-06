@@ -93,7 +93,7 @@ function FriendCard({ friend: friendSnapshot, onSelect }: FriendCardProps) {
             </motion.div>
           )}
           <div
-            className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 border-[#1a1a2e] ${f.status === "online" ? "bg-green-500 shadow-[0_0_10px_#22c55e]" : "bg-gray-500"}`}
+            className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 border-[#1a1a2e] ${f.status === "online" ? "bg-[var(--color-gold)] shadow-[0_0_10px_rgba(212,175,55,0.6)]" : "bg-gray-500"}`}
           ></div>
         </div>
         <div className="text-right flex-1">
@@ -112,7 +112,7 @@ function FriendCard({ friend: friendSnapshot, onSelect }: FriendCardProps) {
               #{f.searchId}
             </div>
             <span
-              className={`text-[10px] font-black uppercase tracking-widest ${f.status === "online" ? "text-green-400" : "text-white/20"}`}
+              className={`text-[10px] font-black uppercase tracking-widest ${f.status === "online" ? "text-[var(--color-gold)]" : "text-white/20"}`}
             >
               {f.status === "online" ? "متصل الآن" : formatLastSeen(f.lastSeen)}
             </span>
@@ -396,7 +396,7 @@ export function SocialModal({ isOpen, onClose, myProfile }: Props) {
                                     },
                                   )
                                 }
-                                className="flex-1 py-2.5 sm:py-3 bg-green-500/20 text-green-400 border border-green-500/30 text-xs sm:text-sm font-black rounded-xl hover:bg-green-500 hover:text-black transition-all flex items-center justify-center gap-2"
+                                className="flex-1 py-2.5 sm:py-3 bg-[var(--color-gold)]/20 text-[var(--color-gold)] border border-[var(--color-gold)]/30 text-xs sm:text-sm font-black rounded-xl hover:bg-[var(--color-gold)] hover:text-black transition-all flex items-center justify-center gap-2"
                               >
                                 <Check className="w-4 h-4" />
                                 قبول
@@ -539,7 +539,7 @@ export function SocialModal({ isOpen, onClose, myProfile }: Props) {
 
                               <div className="w-full sm:w-auto flex justify-end">
                                 {isFriend ? (
-                                  <div className="w-full sm:w-auto px-4 py-2 bg-green-500/10 text-green-400 border border-green-500/30 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                                  <div className="w-full sm:w-auto px-4 py-2 bg-[var(--color-gold)]/10 text-[var(--color-gold)] border border-[var(--color-gold)]/30 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
                                     <Check className="w-4 h-4" /> صديق
                                   </div>
                                 ) : incomingRequest ? (
@@ -559,7 +559,7 @@ export function SocialModal({ isOpen, onClose, myProfile }: Props) {
                                           },
                                         );
                                       }}
-                                      className="flex-1 sm:flex-none px-4 py-2 sm:py-0 bg-green-500/20 text-green-400 border border-green-500/30 font-bold rounded-xl hover:bg-green-500 hover:text-black transition-all flex items-center justify-center gap-1"
+                                      className="flex-1 sm:flex-none px-4 py-2 sm:py-0 bg-[var(--color-gold)]/20 text-[var(--color-gold)] border border-[var(--color-gold)]/30 font-bold rounded-xl hover:bg-[var(--color-gold)] hover:text-black transition-all flex items-center justify-center gap-1"
                                     >
                                       <Check className="w-4 h-4" /> قبول
                                     </button>

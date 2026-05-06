@@ -211,7 +211,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                   <motion.div 
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute bottom-2 right-2 w-7 h-7 bg-green-500 border-4 border-[#1a1a2e] rounded-full shadow-[0_0_15px_#22c55e] z-20" 
+                    className="absolute bottom-2 right-2 w-7 h-7 bg-[var(--color-gold)] border-4 border-[#1a1a2e] rounded-full shadow-[0_0_15px_rgba(212,175,55,0.6)] z-20" 
                   />
                 )}
 

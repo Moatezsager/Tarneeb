@@ -158,7 +158,7 @@ export function IntroScreen() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--color-kuba)] blur-[120px] opacity-10 rounded-full animate-pulse" />
       
       {/* Profile Header */}
-      <div className="absolute top-4 right-4 left-4 z-20 flex justify-between items-center bg-black/50 backdrop-blur-md p-3 rounded-[24px] border border-white/10 shadow-2xl">
+      <div className="absolute top-4 right-4 left-4 z-20 flex justify-between items-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1c] backdrop-blur-md p-3 rounded-[24px] border border-[var(--color-gold)]/30 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
         
         {/* Profile (Right side) */}
         <div className="flex items-center gap-3">
@@ -240,20 +240,20 @@ export function IntroScreen() {
         
         <div className="flex flex-col gap-3.5 w-full mt-6 px-2">
           {rejoinRoomId && (
-            <div className="absolute top-4 left-4 right-4 z-50 animate-in fade-in slide-in-from-top duration-500">
-              <div className="bg-gradient-to-r from-green-600/90 to-emerald-600/90 backdrop-blur-md border border-green-400/30 rounded-2xl p-4 shadow-2xl flex items-center justify-between gap-4">
+            <div className="absolute top-2 left-4 right-4 z-50 animate-in fade-in slide-in-from-top duration-500">
+              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1c] backdrop-blur-md border-2 border-[var(--color-gold)] rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center text-xl animate-pulse">
+                  <div className="w-10 h-10 bg-[var(--color-gold)]/20 rounded-xl flex items-center justify-center text-xl shadow-inner border border-[var(--color-gold)]/30">
                     🔄
                   </div>
-                  <div>
-                    <h3 className="text-white font-bold text-sm">لديك مباراة جارية!</h3>
-                    <p className="text-green-100 text-xs">هل ترغب في العودة إليها؟</p>
+                  <div className="text-right">
+                    <h3 className="text-[var(--color-gold)] font-black text-sm">لديك مباراة جارية!</h3>
+                    <p className="text-white/60 text-[10px]">هل ترغب في العودة إليها؟</p>
                   </div>
                 </div>
                 <div className="flex gap-2">
                   <button
-                    className="px-4 py-2 bg-white text-green-700 rounded-xl font-black text-sm transition-all hover:bg-green-50 active:scale-95 shadow-lg"
+                    className="px-6 py-2 bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black rounded-xl font-black text-xs transition-all hover:scale-105 active:scale-95 shadow-lg"
                     onClick={() => {
                       setRejoining(true);
                       initAudio();
@@ -292,7 +292,7 @@ export function IntroScreen() {
 
           {G.savedPhase && (
             <button 
-              className="w-full py-4 text-base sm:text-lg bg-green-600/90 text-white border border-green-500 rounded-2xl font-black cursor-pointer shadow-[0_5px_25px_rgba(34,197,94,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group mb-1"
+              className="w-full py-4 text-base sm:text-lg bg-gradient-to-b from-[#1a1a2e] to-[#0a0a0f] text-[var(--color-gold)] border border-[var(--color-gold)]/40 rounded-2xl font-black cursor-pointer shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group mb-1"
               onClick={() => {
                 initAudio();
                 G.phase = G.savedPhase!;
@@ -368,7 +368,7 @@ export function IntroScreen() {
               exit={{ y: -50, opacity: 0 }}
               className="fixed top-24 left-4 right-4 z-[700] pointer-events-none"
             >
-              <div className="bg-black/80 backdrop-blur-xl border border-green-500/30 p-3 px-5 rounded-full shadow-2xl flex items-center gap-3 w-fit mx-auto pointer-events-auto">
+              <div className="bg-black/80 backdrop-blur-xl border border-[var(--color-gold)]/30 p-3 px-5 rounded-full shadow-2xl flex items-center gap-3 w-fit mx-auto pointer-events-auto">
                 <span className="text-xl">{toast.icon}</span>
                 <span className="text-white text-sm font-bold">{toast.message}</span>
               </div>
@@ -397,7 +397,7 @@ export function IntroScreen() {
                         invites[0].fromAvatar
                       )}
                     </div>
-                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 rounded-full border-2 border-[#1a1a2e]" />
+                    <div className="absolute -bottom-1 -right-1 bg-[var(--color-gold)] w-3 h-3 rounded-full border-2 border-[#1a1a2e]" />
                   </div>
                   
                   <div className="text-right flex-1 min-w-0">
