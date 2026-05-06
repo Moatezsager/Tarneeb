@@ -199,31 +199,46 @@ export async function unfriend(friendId: string) {
  */
 export async function cleanupOldFriendRequests() {
   try {
+    const user = auth.currentUser;
+    if (!user) return;
+    
     // Stricter (7 days + 1 hour)
     const sevenDaysPlusAgo = new Date(Date.now() - (7 * 24 + 1) * 60 * 60 * 1000);
-    const q1 = query(
+    const q1To = query(
       collection(db, "friendRequests"),
+      where("toUid", "==", user.uid),
       where("createdAt", "<", sevenDaysPlusAgo)
     );
-    const snap1 = await getDocs(q1);
-    for (const d of snap1.docs) {
+    const q1From = query(
+      collection(db, "friendRequests"),
+      where("fromUid", "==", user.uid),
+      where("createdAt", "<", sevenDaysPlusAgo)
+    );
+    
+    const [snap1To, snap1From] = await Promise.all([getDocs(q1To), getDocs(q1From)]);
+    const docs1 = [...snap1To.docs, ...snap1From.docs];
+    for (const d of docs1) {
       try { await deleteDoc(d.ref); } catch (e) {}
     }
     
     // Also cleanup accepted/rejected requests that are older than 25 hours
     const twentyFiveHoursAgo = new Date(Date.now() - 25 * 60 * 60 * 1000);
-    const q2 = query(
+    const q2To = query(
       collection(db, "friendRequests"),
-      where("status", "in", ["accepted", "rejected"]),
-      where("createdAt", "<", twentyFiveHoursAgo)
+      where("toUid", "==", user.uid),
+      where("status", "in", ["accepted", "rejected"])
     );
-    const snap2 = await getDocs(q2);
+    const snap2 = await getDocs(q2To);
+    let cleaned2 = 0;
     for (const d of snap2.docs) {
-      try { await deleteDoc(d.ref); } catch (e) {}
+      const data = d.data();
+      if (data.createdAt && data.createdAt.toMillis() < twentyFiveHoursAgo.getTime()) {
+         try { await deleteDoc(d.ref); cleaned2++; } catch (e) {}
+      }
     }
     
-    if (snap1.docs.length + snap2.docs.length > 0) {
-      console.log(`Cleaned up ${snap1.docs.length + snap2.docs.length} friend requests.`);
+    if (docs1.length + cleaned2 > 0) {
+      console.log(`Cleaned up ${docs1.length + cleaned2} friend requests.`);
     }
   } catch (error) {
     // Background task, silent fail

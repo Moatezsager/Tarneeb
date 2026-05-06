@@ -842,21 +842,33 @@ export async function startGame() {
  */
 export async function cleanupOldInvites() {
   try {
+    const user = auth.currentUser;
+    if (!user) return;
+    
     // Stricter than 1h to avoid clock sync issues (using 65 mins)
     const sixtyFiveMinsAgo = new Date(Date.now() - 65 * 60 * 1000);
-    const q = query(
+    const q1 = query(
       collection(db, "roomInvites"),
+      where("toUid", "==", user.uid),
       where("createdAt", "<", sixtyFiveMinsAgo)
     );
-    const snapshot = await getDocs(q);
-    for (const docSnap of snapshot.docs) {
+    const q2 = query(
+      collection(db, "roomInvites"),
+      where("fromUid", "==", user.uid),
+      where("createdAt", "<", sixtyFiveMinsAgo)
+    );
+    
+    const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+    const allDocs = [...snap1.docs, ...snap2.docs];
+    
+    for (const docSnap of allDocs) {
       try {
         await deleteDoc(docSnap.ref);
       } catch (err) {
         // Silently skip if we still don't have permission
       }
     }
-    if (snapshot.docs.length > 0) console.log(`Cleaned up ${snapshot.docs.length} old invites.`);
+    if (allDocs.length > 0) console.log(`Cleaned up ${allDocs.length} old invites.`);
   } catch (error) {
     // This often happens if the query logic doesn't perfectly match security rules
     // or if we have no permissions for these docs yet.
@@ -902,20 +914,30 @@ export async function sendRoomInvite(friendUid: string, roomCode: string) {
       where("toUid", "==", friendUid),
       where("status", "==", "pending")
     );
-    const existingSnap = await getDocs(existingQ);
-    if (!existingSnap.empty) return true; // Already sent
+    try {
+      const existingSnap = await getDocs(existingQ);
+      if (!existingSnap.empty) return true;
+    } catch (e) {
+      console.error("Error in getDocs existingQ:", e);
+      throw e;
+    }
 
-    const inviteId = `${user.uid}_${friendUid}_${roomCode}`;
-    await setDoc(doc(db, "roomInvites", inviteId), {
-      fromUid: user.uid,
-      fromName: profile?.name || user.displayName || "صديق",
-      fromAvatar: profile?.avatar || "👤",
-      toUid: friendUid,
-      roomCode,
-      status: "pending",
-      createdAt: serverTimestamp()
-    });
-    return true;
+    try {
+      const inviteId = `${user.uid}_${friendUid}_${roomCode}`;
+      await setDoc(doc(db, "roomInvites", inviteId), {
+        fromUid: user.uid,
+        fromName: profile?.name || user.displayName || "صديق",
+        fromAvatar: profile?.avatar || "👤",
+        toUid: friendUid,
+        roomCode,
+        status: "pending",
+        createdAt: serverTimestamp()
+      });
+      return true;
+    } catch (e) {
+      console.error("Error in setDoc roomInvite:", e);
+      throw e;
+    }
   } catch (error) {
     console.error("Error sending room invite:", error);
     return false;

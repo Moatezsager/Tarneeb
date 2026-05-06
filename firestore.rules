@@ -72,15 +72,11 @@ service cloud.firestore {
     match /friendRequests/{requestId} {
       allow read: if isSignedIn() && (
         resource.data.fromUid == request.auth.uid || 
-        resource.data.toUid == request.auth.uid ||
-        request.time > resource.data.createdAt + duration.value(168, 'h') ||
-        (resource.data.status != 'pending' && request.time > resource.data.createdAt + duration.value(24, 'h'))
+        resource.data.toUid == request.auth.uid
       );
       allow list: if isSignedIn() && (
         resource.data.fromUid == request.auth.uid || 
-        resource.data.toUid == request.auth.uid ||
-        request.time > resource.data.createdAt + duration.value(168, 'h') ||
-        (resource.data.status != 'pending' && request.time > resource.data.createdAt + duration.value(24, 'h'))
+        resource.data.toUid == request.auth.uid
       );
       
       allow create: if isSignedIn() && 
@@ -110,13 +106,11 @@ service cloud.firestore {
     match /roomInvites/{inviteId} {
       allow read: if isSignedIn() && (
         resource.data.fromUid == request.auth.uid || 
-        resource.data.toUid == request.auth.uid ||
-        request.time > resource.data.createdAt + duration.value(1, 'h')
+        resource.data.toUid == request.auth.uid
       );
       allow list: if isSignedIn() && (
         resource.data.fromUid == request.auth.uid || 
-        resource.data.toUid == request.auth.uid ||
-        request.time > resource.data.createdAt + duration.value(1, 'h')
+        resource.data.toUid == request.auth.uid
       );
       
       allow create: if isSignedIn() && 
