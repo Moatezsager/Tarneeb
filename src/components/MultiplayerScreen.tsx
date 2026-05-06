@@ -22,6 +22,52 @@ export function MultiplayerScreen() {
   const [inRoom, setInRoom] = useState(multiplayerState.isMultiplayer);
   const [tick, setTick] = useState(0);
   
+  // Player Event Notifications
+  const [lastPlayers, setLastPlayers] = useState<typeof multiplayerState.players>([]);
+  const [roomToast, setRoomToast] = useState<{message: string, icon: string} | null>(null);
+
+  const showRoomToast = (message: string, icon: string) => {
+    setRoomToast({ message, icon });
+    setTimeout(() => {
+      setRoomToast(null);
+    }, 4000);
+  };
+
+  // Monitor Player Events
+  useEffect(() => {
+    if (!inRoom) return;
+
+    // Detect Joins / Leaves / Status Changes
+    const currentPlayers = [...multiplayerState.players];
+    
+    if (lastPlayers.length > 0) {
+      // 1. Detect Joins
+      currentPlayers.forEach(p => {
+        const prev = lastPlayers.find(lp => lp.uid === p.uid);
+        if (!prev) {
+          showRoomToast(`${p.name} دخل الغرفة الآن`, "⚔️");
+        } else {
+          // 2. Detect Connection Changes
+          if (p.disconnected && !prev.disconnected) {
+            showRoomToast(`${p.name} فقد الاتصال.. جاري انتظاره`, "📡");
+          } else if (!p.disconnected && prev.disconnected) {
+            showRoomToast(`${p.name} عاد إلى قلب المعركة!`, "⚡");
+          }
+        }
+      });
+
+      // 3. Detect Leaves
+      lastPlayers.forEach(lp => {
+        const missing = !currentPlayers.find(p => p.uid === lp.uid);
+        if (missing) {
+          showRoomToast(`${lp.name} غادر المباراة`, "🏃‍♂️");
+        }
+      });
+    }
+
+    setLastPlayers(currentPlayers);
+  }, [multiplayerState.players, inRoom]);
+  
   // Lobby State
   const [publicRooms, setPublicRooms] = useState<RoomData[]>([]);
   const [isPublic, setIsPublic] = useState(true);
@@ -127,6 +173,23 @@ export function MultiplayerScreen() {
   if (inRoom) {
      return (
        <div className="flex flex-col items-center min-h-[100dvh] bg-[#0a0a0f]" dir="rtl">
+         {/* Room Toast Notifications */}
+         <AnimatePresence>
+           {roomToast && (
+             <motion.div 
+               initial={{ y: -50, opacity: 0 }}
+               animate={{ y: 20, opacity: 1 }}
+               exit={{ y: -50, opacity: 0 }}
+               className="fixed top-20 left-6 right-6 z-[100] pointer-events-none"
+             >
+               <div className="bg-black/80 backdrop-blur-3xl border border-[var(--color-gold)]/30 p-2.5 px-5 rounded-[20px] shadow-2xl flex items-center gap-3 w-fit mx-auto pointer-events-auto">
+                 <div className="w-8 h-8 bg-[var(--color-gold)]/20 rounded-lg flex items-center justify-center text-lg">{roomToast.icon}</div>
+                 <span className="text-white text-xs font-black tracking-tight">{roomToast.message}</span>
+               </div>
+             </motion.div>
+           )}
+         </AnimatePresence>
+
          {/* Improved Header */}
          <div className="w-full bg-[#151522]/80 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
             <button 

@@ -125,7 +125,7 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
               {isDisconnected ? (
                  <WifiOff size={10} className="text-red-500 bg-black/50 rounded-full p-[1px] animate-pulse" />
               ) : (
-                 <Wifi size={10} className="text-green-400 opacity-80" />
+                 <Wifi size={10} className="text-[var(--color-gold)] opacity-80" />
               )}
             </span>
           )}
