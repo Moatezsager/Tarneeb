@@ -152,296 +152,278 @@ export function IntroScreen() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[100dvh] p-4 text-center bg-[#11111a] relative overflow-hidden" dir="rtl">
-      {/* Decorative background elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-gold)] blur-[150px] opacity-[0.07] rounded-full animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600 blur-[150px] opacity-[0.05] rounded-full animate-pulse" />
-      
-      {/* Profile Header (Relocated to Bottom for better UX) */}
-      <div className="absolute bottom-8 right-6 left-6 z-50 flex justify-between items-center bg-gradient-to-b from-[#1a1a2e] to-[#0a0a0f] backdrop-blur-xl p-2.5 px-4 rounded-[30px] border-2 border-[var(--color-gold)]/40 shadow-[0_15px_40px_rgba(0,0,0,0.8)] max-w-[420px] mx-auto animate-in fade-in slide-in-from-bottom duration-700">
-        
-        {/* Profile (Right side) */}
-        <div className="flex items-center gap-3">
-          <div 
-            className={`w-10 h-10 sm:w-11 sm:h-11 ${profile?.searchId === '01' ? 'bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 p-0.5 shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/40'} rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-inner cursor-pointer active:scale-95 transition-all hover:border-[var(--color-gold)] relative`}
-            onClick={() => { G.phase = 'profile'; updateUI(); }}
-          >
-            <div className="bg-[#0a0a0a] w-full h-full rounded-full flex items-center justify-center overflow-hidden">
-              {profile?.avatar?.startsWith('http') ? (
-                <img src={profile.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-              ) : (
-                profile?.avatar || "👤"
-              )}
-            </div>
-            {profile?.searchId === '01' && (
-              <motion.div 
-                animate={{ scale: [1, 1.2, 1] }} 
-                transition={{ repeat: Infinity, duration: 2 }}
-                className="absolute -top-1.5 -right-1.5 bg-[var(--color-gold)] p-0.5 rounded-full border border-black shadow-lg"
-              >
-                <Crown className="w-3 h-3 text-black fill-black" />
-              </motion.div>
-            )}
-          </div>
-
-          <div className="flex flex-col items-start">
-            <div className="flex items-center gap-1.5" dir="rtl">
-              <div className={`font-black text-xs sm:text-sm leading-tight max-w-[100px] truncate ${profile?.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white'}`}>{profile?.name}</div>
-              <div className="text-[9px] text-[#666] font-mono tracking-tighter" dir="ltr">#{profile?.searchId}</div>
-            </div>
-            <div className="text-[9px] text-[var(--color-gold)] font-bold flex items-center gap-1" dir="rtl">
-              <span>{country?.flag}</span>
-              <span className="truncate max-w-[50px]">{country?.name}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Action Buttons (Left side) */}
-        <div className="flex gap-1.5">
-           <button 
-             onClick={() => { G.phase = 'profile'; updateUI(); }}
-             className="p-2 sm:p-2.5 bg-white/5 hover:bg-[var(--color-gold)]/20 rounded-2xl text-white/80 hover:text-[var(--color-gold)] transition-all border border-white/5 active:scale-90"
-             title="الملف الشخصي"
-           >
-             <UserCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-           </button>
-           <button 
-             onClick={() => setShowSettings(true)}
-             className="p-2 sm:p-2.5 bg-white/5 hover:bg-[var(--color-gold)]/20 rounded-2xl text-white/80 hover:text-[var(--color-gold)] transition-all border border-white/5 active:scale-90"
-             title="الإعدادات"
-           >
-             <Settings className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-           </button>
-           <div className="w-[1px] h-6 bg-white/10 mx-0.5 self-center" />
-           <button 
-             onClick={handleLogout}
-             className="p-2 sm:p-2.5 bg-red-900/10 hover:bg-red-900/30 rounded-2xl text-red-500/80 hover:text-red-500 transition-all border border-red-500/10 active:scale-90"
-             title="خروج"
-           >
-             <LogOut className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
-           </button>
-        </div>
+    <div className="flex flex-col min-h-[100dvh] bg-[#050508] relative overflow-hidden font-[var(--font-tajawal)]" dir="rtl">
+      {/* 🎭 Deep Cinematic Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-[-15%] left-[-10%] w-[60%] h-[40%] bg-[var(--color-gold)] blur-[140px] opacity-[0.08] rounded-full animate-pulse" />
+        <div className="absolute bottom-[5%] right-[-10%] w-[60%] h-[40%] bg-blue-900 blur-[140px] opacity-[0.05] rounded-full animate-pulse" />
+        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] opacity-20" />
       </div>
 
-      
-      <div className="z-10 flex flex-col items-center w-full max-w-sm mt-12 sm:mt-16">
-        <div className="text-8xl md:text-9xl mb-2 drop-shadow-[0_0_20px_rgba(212,175,55,0.4)] animate-bounce-subtle">🂡</div>
-        <div className="text-7xl md:text-8xl font-black golden-text font-[var(--font-tajawal)] drop-shadow-2xl" style={{textShadow: "0 4px 30px rgba(212,175,55,0.4)"}}>طرنيب</div>
-        <div className="font-[var(--font-tajawal)] tracking-[10px] text-[var(--color-gold)] opacity-90 text-sm md:text-md mt-2 font-black uppercase">
-          كلاسيكيات هيرو
-        </div>
+      {/* 🏢 Main Content Container */}
+      <div className="flex-1 flex flex-col items-center z-10 px-6 py-8 sm:py-12">
         
-        <p className="text-[#ccc] text-sm md:text-base my-2 max-w-[280px] sm:max-w-[340px] leading-relaxed font-medium px-4 mt-8">
-          العب طرنيب مع أصدقائك في أي وقت وفي أي مكان، بذكاء ومهارة عالية.
-        </p>
-        
-        <div className="flex flex-col gap-3.5 w-full mt-6 px-2">
+        {/* 1. Brand Section */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center mb-8 sm:mb-12"
+        >
+          <div className="text-8xl sm:text-9xl mb-4 drop-shadow-[0_0_25px_rgba(212,175,55,0.3)] animate-float">🂡</div>
+          <h1 className="text-6xl sm:text-8xl font-black golden-text drop-shadow-2xl mb-1" style={{textShadow: "0 4px 40px rgba(0,0,0,0.8)"}}>طرنيب</h1>
+          <div className="flex items-center gap-3">
+             <div className="h-[1px] w-8 bg-gradient-to-l from-transparent to-[var(--color-gold)]/40" />
+             <span className="tracking-[6px] text-[var(--color-gold)] opacity-90 text-[10px] sm:text-xs font-black uppercase">كلاسيكيات هيرو</span>
+             <div className="h-[1px] w-8 bg-gradient-to-r from-transparent to-[var(--color-gold)]/40" />
+          </div>
+        </motion.div>
+
+        {/* 2. Notifications & Rejoin (Positioned for visibility) */}
+        <div className="w-full max-w-sm mb-6 space-y-3">
           {rejoinRoomId && (
-            <div className="absolute top-2 left-4 right-4 z-50 animate-in fade-in slide-in-from-top duration-500">
-              <div className="bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1c] backdrop-blur-md border-2 border-[var(--color-gold)] rounded-2xl p-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)] flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[var(--color-gold)]/20 rounded-xl flex items-center justify-center text-xl shadow-inner border border-[var(--color-gold)]/30">
-                    🔄
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="bg-gradient-to-r from-[#1a1c35] to-[#0f1020] border-2 border-[var(--color-gold)]/60 rounded-2xl p-4 shadow-2xl flex items-center justify-between"
+            >
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-[var(--color-gold)] shadow-lg rounded-xl flex items-center justify-center text-xl">🔄</div>
+                 <div className="text-right">
+                    <p className="text-[var(--color-gold)] font-black text-xs">لديك مباراة جارية</p>
+                    <p className="text-white/50 text-[9px]">هل ترغب في العودة؟</p>
+                 </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setRejoining(true);
+                  initAudio();
+                  joinRoom(rejoinRoomId, profile?.name || "لاعب").then(() => {
+                    if (G.phase === 'intro') G.phase = 'multiplayer';
+                    updateUI();
+                  }).catch(() => {
+                    localStorage.removeItem('tarneb_active_room');
+                    setRejoinRoomId(null);
+                  }).finally(() => setRejoining(false));
+                }}
+                className="px-5 py-2 bg-[var(--color-gold)] text-black font-black text-xs rounded-xl shadow-lg active:scale-95 transition-all"
+              >
+                {rejoining ? "جاري..." : "دخول"}
+              </button>
+            </motion.div>
+          )}
+        </div>
+
+        {/* 3. Primary Actions (Game Modes) */}
+        <div className="w-full max-w-sm space-y-4">
+          
+          {/* ONLINE MODE (Hero Button) */}
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="w-full relative group overflow-hidden rounded-[24px] shadow-[0_10px_35px_rgba(248,181,0,0.25)]"
+            onClick={() => { initAudio(); G.phase = 'multiplayer'; updateUI(); }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-[#fceabb] via-[#f8b500] to-[#cb9200]" />
+            <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]" />
+            <div className="relative py-5 px-6 flex items-center justify-between">
+               <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-black/10 rounded-2xl flex items-center justify-center backdrop-blur-sm border border-white/20">
+                     <Play className="w-6 h-6 fill-black" />
                   </div>
                   <div className="text-right">
-                    <h3 className="text-[var(--color-gold)] font-black text-sm">لديك مباراة جارية!</h3>
-                    <p className="text-white/60 text-[10px]">هل ترغب في العودة إليها؟</p>
+                     <div className="text-black font-black text-xl leading-tight">اللعب أونلاين</div>
+                     <div className="text-black/60 text-[10px] font-bold">تحدَّ اللاعبين الحقيقيين الآن</div>
                   </div>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    className="px-6 py-2 bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black rounded-xl font-black text-xs transition-all hover:scale-105 active:scale-95 shadow-lg"
-                    onClick={() => {
-                      setRejoining(true);
-                      initAudio();
-                      joinRoom(rejoinRoomId, profile?.name || "لاعب").then(() => {
-                        if (G.phase === 'intro') {
-                          G.phase = 'multiplayer';
-                        }
-                        updateUI();
-                      }).catch((e) => {
-                        console.error("Auto rejoin failed", e);
-                        localStorage.removeItem('tarneb_active_room');
-                        setRejoinRoomId(null);
-                        alert(e.message || "عذراً تعذر العودة للمباراة أو أن المباراة قد انتهت");
-                      }).finally(() => {
-                        setRejoining(false);
-                      });
-                    }}
-                    disabled={rejoining}
-                  >
-                    {rejoining ? "جاري العودة..." : "دخول"}
-                  </button>
-                  <button
-                    className="p-2 bg-black/20 text-white/70 rounded-xl hover:bg-black/30 transition-all"
-                    onClick={() => {
-                      localStorage.removeItem('tarneb_active_room');
-                      setRejoinRoomId(null);
-                    }}
-                    disabled={rejoining}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-                  </button>
-                </div>
-              </div>
+               </div>
+               <div className="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center">
+                  <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse shadow-[0_0_8px_red]" />
+               </div>
             </div>
-          )}
+          </motion.button>
 
-          {G.savedPhase && (
-            <button 
-              className="w-full py-4 text-base sm:text-lg bg-gradient-to-b from-[#1a1a2e] to-[#0a0a0f] text-[var(--color-gold)] border border-[var(--color-gold)]/40 rounded-2xl font-black cursor-pointer shadow-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group mb-1"
-              onClick={() => {
-                initAudio();
-                G.phase = G.savedPhase!;
-                G.savedPhase = null;
-                updateUI();
-              }}
+          {/* OFFLINE / SAVED MODE */}
+          {G.savedPhase ? (
+            <motion.button 
+              whileTap={{ scale: 0.98 }}
+              className="w-full py-4 bg-gradient-to-b from-[#1a1a2e] to-[#0a0a0f] border border-[var(--color-gold)]/30 rounded-2xl flex items-center justify-center gap-3 shadow-xl"
+              onClick={() => { initAudio(); G.phase = G.savedPhase!; G.savedPhase = null; updateUI(); }}
             >
-              <div className="text-xl group-hover:rotate-12 transition-transform">🃏</div>
-              <span className="translate-y-[1px]">متابعة اللعب المحلي</span>
-            </button>
+               <span className="text-2xl">⚡</span>
+               <div className="text-right">
+                  <div className="text-[var(--color-gold)] font-black text-sm">متابعة اللعب المحلي</div>
+                  <div className="text-white/30 text-[9px] font-bold">لديك جولة لم تكتمل</div>
+               </div>
+            </motion.button>
+          ) : (
+            <motion.button 
+              whileTap={{ scale: 0.98 }}
+              className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl flex items-center gap-4 px-6 transition-all"
+              onClick={() => { initAudio(); G.phase = 'setup'; updateUI(); }}
+            >
+               <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
+                  <Gamepad2 className="w-5 h-5 text-white/70" />
+               </div>
+               <div className="text-right">
+                  <div className="text-white font-black text-base">اللعب المحلي</div>
+                  <div className="text-white/40 text-[9px]">تدرب ضد الذكاء الاصطناعي</div>
+               </div>
+            </motion.button>
           )}
 
-          <button 
-            className="w-full py-4 text-base sm:text-lg bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black border border-[#f8b500]/50 rounded-2xl font-black cursor-pointer shadow-[0_5px_25px_rgba(248,181,0,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
-            onClick={() => {
-              initAudio();
-              G.phase = 'multiplayer';
-              updateUI();
-            }}
-          >
-            <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-black group-hover:-translate-x-1 transition-transform" />
-            <span className="translate-y-[1px]">اللعب أونلاين</span>
-          </button>
-
-          <button 
-            className={`w-full py-4 text-base sm:text-lg border rounded-2xl font-bold cursor-pointer shadow-lg transition-all active:scale-[0.98] flex items-center justify-center gap-2 group ${G.savedPhase ? 'bg-white/5 border-white/10 text-white/50 py-3 text-sm' : 'bg-white/5 border-white/10 text-white hover:bg-white/10'}`}
-            onClick={() => {
-              initAudio();
-              G.phase = 'setup';
-              updateUI();
-            }}
-          >
-            <Gamepad2 className={`w-5 h-5 sm:w-6 sm:h-6 group-hover:text-white transition-colors ${G.savedPhase ? 'text-white/30' : 'text-white/80'}`} />
-            <span className="translate-y-[1px]">
-              {G.savedPhase ? "بدء مباراة محلية جديدة" : "اللعب المحلي (أوفلاين)"}
-            </span>
-          </button>
-
-          <button 
-            className="w-full py-3.5 text-sm sm:text-base bg-black/40 border border-white/5 text-[#ccc] rounded-2xl font-bold cursor-pointer transition-all hover:bg-white/10 flex items-center justify-center gap-2 relative group mt-2 shadow-inner"
+          {/* SOCIAL MODE */}
+          <motion.button 
+            whileTap={{ scale: 0.98 }}
+            className="w-full py-4 bg-white/5 hover:bg-white/10 border border-white/5 rounded-2xl flex items-center justify-between px-6 transition-all"
             onClick={() => setShowSocial(true)}
           >
-            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-[#aaa] group-hover:text-white transition-colors" />
-            <span className="translate-y-[1px]">الأصدقاء والمجتمع</span>
-            
-            {hasNotification && (
-              <span className="absolute top-2.5 right-2.5 flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.8)]"></span>
-              </span>
-            )}
-          </button>
+             <div className="flex items-center gap-4">
+                <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center border border-white/10">
+                   <Users className="w-5 h-5 text-white/70" />
+                </div>
+                <div className="text-right">
+                   <div className="text-white font-black text-base">الأصدقاء والمجتمع</div>
+                   <p className="text-white/40 text-[9px]">تواصل مع أصدقائك</p>
+                </div>
+             </div>
+             {hasNotification && (
+                <div className="relative flex h-3 w-3">
+                   <span className="animate-ping absolute h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                   <span className="bg-red-500 rounded-full h-3 w-3 border-2 border-black"></span>
+                </div>
+             )}
+          </motion.button>
+
         </div>
       </div>
 
-        <SocialModal 
-          isOpen={showSocial} 
-          onClose={() => setShowSocial(false)} 
-          myProfile={profile}
-        />
-
-        <SettingsModal 
-          isOpen={showSettings} 
-          onClose={() => setShowSettings(false)} 
-        />
-
-        {/* Generic Toast Notification */}
-        <AnimatePresence>
-          {toast && (
-            <motion.div
-              initial={{ y: -50, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: -50, opacity: 0 }}
-              className="fixed top-24 left-4 right-4 z-[700] pointer-events-none"
-            >
-              <div className="bg-black/80 backdrop-blur-xl border border-[var(--color-gold)]/30 p-3 px-5 rounded-full shadow-2xl flex items-center gap-3 w-fit mx-auto pointer-events-auto">
-                <span className="text-xl">{toast.icon}</span>
-                <span className="text-white text-sm font-bold">{toast.message}</span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Room Invite Notification */}
-        <AnimatePresence>
-          {invites.length > 0 && (
-            <motion.div 
-              initial={{ y: -100, opacity: 0, scale: 0.9 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: -100, opacity: 0, scale: 0.9 }}
-              className="fixed top-24 left-4 right-4 z-[650] pointer-events-none"
-            >
-              <div className="bg-[#1a1a2e]/95 backdrop-blur-2xl border-2 border-[var(--color-gold)] p-4 rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col gap-3 pointer-events-auto max-w-[360px] mx-auto overflow-hidden relative group">
-                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-50" />
-                
-                <div className="flex items-center gap-3">
-                  <div className="relative shrink-0">
-                    <div className="w-12 h-12 bg-[var(--color-gold)]/10 rounded-xl flex items-center justify-center text-3xl shadow-inner border border-[var(--color-gold)]/20 overflow-hidden">
-                      {invites[0].fromAvatar?.startsWith('http') ? (
-                        <img src={invites[0].fromAvatar} alt="Invite Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
-                      ) : (
-                        invites[0].fromAvatar
-                      )}
-                    </div>
-                    <div className="absolute -bottom-1 -right-1 bg-[var(--color-gold)] w-3 h-3 rounded-full border-2 border-[#1a1a2e]" />
-                  </div>
-                  
-                  <div className="text-right flex-1 min-w-0">
-                    <div className="text-white font-black text-base truncate">{invites[0].fromName}</div>
-                    <div className="text-[var(--color-gold)] text-[10px] font-bold flex items-center gap-1 mt-0.5">
-                       <span className="animate-pulse shrink-0">⚔️</span>
-                       <span className="truncate">يدعوك لتحدٍ في الغرفة: <span className="font-mono bg-white/5 px-1 rounded text-white">{invites[0].roomCode}</span></span>
-                    </div>
-                  </div>
-                  
-                  {invites.length > 1 && (
-                    <div className="bg-[var(--color-kuba)] text-white text-[10px] font-black px-2 py-1 rounded-full absolute -top-1 -left-1 shadow-lg animate-bounce">
-                      +{invites.length - 1}
-                    </div>
+      {/* 🧭 Optimized Bottom Navigation / Profile Bar */}
+      <div className="bg-gradient-to-t from-black via-black/90 to-transparent pt-10 pb-6 sm:pb-8 px-6 z-20">
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="max-w-md mx-auto bg-[#1a1b2e]/60 backdrop-blur-3xl border border-[var(--color-gold)]/20 p-2.5 rounded-[28px] flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.5)]"
+        >
+          {/* Profile Quick Info */}
+          <button 
+            onClick={() => { G.phase = 'profile'; updateUI(); }}
+            className="flex items-center gap-2.5 hover:bg-white/5 p-1 px-2 rounded-2xl transition-colors min-w-0"
+          >
+            <div className={`relative w-10 h-10 rounded-full flex-shrink-0 ${profile?.searchId === '01' ? 'p-0.5 bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200' : 'p-0.5 bg-white/10'}`}>
+               <div className="bg-[#0a0a0f] w-full h-full rounded-full flex items-center justify-center overflow-hidden border border-black/50">
+                  {profile?.avatar?.startsWith('http') ? (
+                    <img src={profile.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                  ) : (
+                    <span className="text-xl">{profile?.avatar || "👤"}</span>
                   )}
-                </div>
+               </div>
+               {profile?.searchId === '01' && (
+                  <div className="absolute -top-1 -right-1 bg-[var(--color-gold)] p-0.5 rounded-full border border-black scale-90">
+                     <Crown className="w-2.5 h-2.5 text-black fill-black" />
+                  </div>
+               )}
+            </div>
+            <div className="text-right min-w-0">
+               <div className="text-white font-black text-xs truncate max-w-[80px]">{profile?.name || "لاعب"}</div>
+               <div className="text-[9px] text-[var(--color-gold)] opacity-70 font-mono tracking-tighter">#{profile?.searchId || "0000"}</div>
+            </div>
+          </button>
 
-                <div className="flex gap-2.5 mt-0.5">
-                  <button 
-                    onClick={async () => {
-                      const req = invites[0];
-                      const accepted = await respondToRoomInvite(req.id, req.roomCode, 'accepted');
-                      if (accepted) {
-                        try {
-                          await joinRoom(req.roomCode, profile?.name || "لاعب");
-                          G.phase = 'multiplayer';
-                          updateUI();
-                        } catch (err: any) {
-                          alert(err.message || "عذراً تعذر الانضمام للغرفة");
-                        }
-                      }
-                    }}
-                    className="flex-[2] py-2.5 bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black font-black text-xs rounded-lg active:scale-95 transition-all shadow-[0_4px_12px_rgba(248,181,0,0.3)] hover:brightness-110"
-                  >
-                    قبول التحدي
-                  </button>
-                  <button 
-                    onClick={() => respondToRoomInvite(invites[0].id, invites[0].roomCode, 'rejected')}
-                    className="flex-1 py-2.5 bg-white/5 text-white/60 font-bold text-xs rounded-lg active:scale-95 transition-all hover:bg-white/10 hover:text-white"
-                  >
-                    تجاهل
-                  </button>
+          {/* Quick Shortcuts */}
+          <div className="flex gap-1.5 px-2">
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="w-10 h-10 bg-white/5 hover:bg-[var(--color-gold)]/20 rounded-2xl flex items-center justify-center text-white/50 hover:text-[var(--color-gold)] transition-all active:scale-90 border border-white/5"
+            >
+               <Settings className="w-5 h-5" />
+            </button>
+            <div className="w-[1px] h-6 bg-white/10 self-center" />
+            <button 
+              onClick={handleLogout}
+              className="w-10 h-10 bg-red-900/10 hover:bg-red-900/30 rounded-2xl flex items-center justify-center text-red-500/80 hover:text-red-500 transition-all active:scale-90 border border-red-500/10"
+            >
+               <LogOut className="w-5 h-5" />
+            </button>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* 🧩 Modals & Overlays */}
+      <SocialModal isOpen={showSocial} onClose={() => setShowSocial(false)} myProfile={profile} />
+      <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+
+      {/* 🔔 Notifications Layer */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -50, opacity: 0 }} className="fixed top-8 left-6 right-6 z-[800] pointer-events-none">
+            <div className="bg-black/90 backdrop-blur-xl border border-[var(--color-gold)]/30 p-3 px-6 rounded-full shadow-2xl flex items-center gap-3 w-fit mx-auto pointer-events-auto">
+              <span className="text-xl">{toast.icon}</span>
+              <span className="text-white text-xs font-black">{toast.message}</span>
+            </div>
+          </motion.div>
+        )}
+
+        {invites.length > 0 && (
+          <motion.div 
+            initial={{ y: -100, opacity: 0, scale: 0.9 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -100, opacity: 0, scale: 0.9 }}
+            className="fixed top-24 left-4 right-4 z-[650] pointer-events-none"
+          >
+            <div className="bg-[#1a1a2e]/95 backdrop-blur-2xl border-2 border-[var(--color-gold)] p-4 rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col gap-3 pointer-events-auto max-w-[360px] mx-auto overflow-hidden relative group">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-50" />
+              
+              <div className="flex items-center gap-3">
+                <div className="relative shrink-0">
+                  <div className="w-12 h-12 bg-[var(--color-gold)]/10 rounded-xl flex items-center justify-center text-3xl shadow-inner border border-[var(--color-gold)]/20 overflow-hidden">
+                    {invites[0].fromAvatar?.startsWith('http') ? (
+                      <img src={invites[0].fromAvatar} alt="Invite Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                    ) : (
+                      invites[0].fromAvatar
+                    )}
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 bg-[var(--color-gold)] w-3 h-3 rounded-full border-2 border-[#1a1a2e]" />
+                </div>
+                
+                <div className="text-right flex-1 min-w-0">
+                  <div className="text-white font-black text-base truncate">{invites[0].fromName}</div>
+                  <div className="text-[var(--color-gold)] text-[10px] font-bold flex items-center gap-1 mt-0.5">
+                     <span className="animate-pulse shrink-0">⚔️</span>
+                     <span className="truncate">يدعوك لتحدٍ في الغرفة: <span className="font-mono bg-white/5 px-1 rounded text-white">{invites[0].roomCode}</span></span>
+                  </div>
                 </div>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
+              <div className="flex gap-2.5 mt-0.5">
+                <button 
+                  onClick={async () => {
+                    const req = invites[0];
+                    const accepted = await respondToRoomInvite(req.id, req.roomCode, 'accepted');
+                    if (accepted) {
+                      try {
+                        await joinRoom(req.roomCode, profile?.name || "لاعب");
+                        G.phase = 'multiplayer';
+                        updateUI();
+                      } catch (err: any) {
+                        alert(err.message || "عذراً تعذر الانضمام للغرفة");
+                      }
+                    }
+                  }}
+                  className="flex-[2] py-2.5 bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black font-black text-xs rounded-lg active:scale-95 transition-all shadow-[0_4px_12px_rgba(248,181,0,0.3)] hover:brightness-110"
+                >
+                  قبول التحدي
+                </button>
+                <button 
+                  onClick={() => respondToRoomInvite(invites[0].id, invites[0].roomCode, 'rejected')}
+                  className="flex-1 py-2.5 bg-white/5 text-white/60 font-bold text-xs rounded-lg active:scale-95 transition-all hover:bg-white/10 hover:text-white"
+                >
+                  تجاهل
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+
