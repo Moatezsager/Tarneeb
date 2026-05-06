@@ -12,7 +12,7 @@ import {
   getDoc
 } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
-import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning, justPlayedLocalAction, setJustPlayedLocalAction, resumeGameLoop, executeAISwap } from "./engine";
+import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning, justPlayedLocalAction, setJustPlayedLocalAction, resumeGameLoop, executeAISwap, setExecutingForcedAction } from "./engine";
 import { getLocalProfile } from "./userProfile";
 
 let timerInterval: any = null;
@@ -119,8 +119,10 @@ function startHostTimer() {
           console.log(`Bot ${actingPlayer} seems stuck. Forcing AI move.`);
           // Adjust turnStartTime so we don't spam if it takes a bit
           G.turnStartTime = Date.now();
+          setExecutingForcedAction(true);
           if (G.phase === "swapping") executeAISwap();
           else forceAiAction(actingPlayer);
+          setExecutingForcedAction(false);
           updateGameState();
        }
     } else {
@@ -128,8 +130,10 @@ function startHostTimer() {
           console.log(`Player ${actingPlayer} (${G.playerNames[actingPlayer]}) timed out. AFK Bot taking over for this turn.`);
           // DO NOT convertPlayerToBot(actingPlayer) so they can return!
           G.turnStartTime = Date.now();
+          setExecutingForcedAction(true);
           if (G.phase === "swapping") executeAISwap();
           else forceAiAction(actingPlayer);
+          setExecutingForcedAction(false);
           updateGameState();
        }
     }
@@ -176,6 +180,7 @@ export interface Player {
   name: string;
   avatar: string;
   country: string;
+  searchId?: string;
   index: number;
   status: "connected" | "disconnected";
   isBot?: boolean;
@@ -186,6 +191,7 @@ export interface Spectator {
   uid: string;
   name: string;
   avatar: string;
+  searchId?: string;
 }
 
 export interface RoomData {
@@ -385,6 +391,7 @@ export async function createRoom(playerName: string, isPublic = true, password =
         name: profile?.name || playerName, 
         avatar: profile?.avatar || "👨‍💼",
         country: profile?.country || "LY",
+        searchId: profile?.searchId || "0000",
         index: 0, 
         status: "connected" 
       }
@@ -453,7 +460,8 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
         const newSpectator: Spectator = {
           uid: user.uid,
           name: profile?.name || playerName,
-          avatar: profile?.avatar || "👤"
+          avatar: profile?.avatar || "👤",
+          searchId: profile?.searchId || "0000",
         };
         const updatedSpectators = [...(data.spectators || []), newSpectator];
         await updateDoc(roomRef, {
@@ -484,6 +492,7 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
                          name: profile?.name || playerName,
                          avatar: profile?.avatar || "👨‍💼",
                          country: profile?.country || "LY",
+                         searchId: profile?.searchId || "0000",
                          isBot: false,
                          status: "connected"
                      } as Player;
@@ -522,6 +531,7 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
            name: profile?.name || playerName,
            avatar: profile?.avatar || "👨‍💼",
            country: profile?.country || "LY",
+           searchId: profile?.searchId || "0000",
            index: data.players.length,
            status: "connected"
          };

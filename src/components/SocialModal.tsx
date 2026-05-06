@@ -359,15 +359,19 @@ export function SocialModal({ isOpen, onClose, myProfile }: Props) {
                         requests.map((r) => (
                           <div
                             key={r.id}
-                            className="p-4 sm:p-5 bg-gradient-to-l from-white/5 to-white/0 rounded-2xl border border-white/10 shadow-lg"
+                            className={`p-4 sm:p-5 rounded-2xl border shadow-lg ${r.fromSearchId === '01' ? 'bg-gradient-to-l from-[var(--color-gold)]/20 to-[var(--color-gold)]/5 border-[var(--color-gold)]/50' : 'bg-gradient-to-l from-white/5 to-white/0 border-white/10'}`}
                           >
                             <div className="flex items-center gap-3 sm:gap-4 mb-4">
-                              <div className="text-3xl sm:text-4xl bg-black/40 p-2 sm:p-3 rounded-2xl border border-white/5 shadow-inner">
-                                {r.fromAvatar}
+                              <div className="relative">
+                                <div className={`text-3xl sm:text-4xl bg-black/40 p-2 sm:p-3 rounded-2xl border ${r.fromSearchId === '01' ? 'border-[var(--color-gold)]/50' : 'border-white/5'} shadow-inner`}>
+                                  {r.fromAvatar}
+                                </div>
+                                {r.fromSearchId === '01' && <span className="absolute -top-2 -right-2 text-[10px] bg-[var(--color-gold)] text-black w-6 h-6 flex items-center justify-center rounded-full shadow-[0_0_10px_rgba(212,175,55,0.8)] border border-black z-10 text-xs">👑</span>}
                               </div>
                               <div className="text-right flex-1">
-                                <div className="text-white font-bold text-sm sm:text-base">
+                                <div className={`font-bold text-sm sm:text-base flex items-center gap-1.5 ${r.fromSearchId === '01' ? 'text-[var(--color-gold)]' : 'text-white'}`}>
                                   {r.fromName}
+                                  {r.fromSearchId === '01' && <span className="px-1.5 py-0.5 bg-[var(--color-gold)] text-black rounded text-[8px] font-black uppercase tracking-tighter">مطور</span>}
                                 </div>
                                 <div className="text-[10px] text-[var(--color-gold)] font-mono tracking-wider">
                                   #{r.fromSearchId}

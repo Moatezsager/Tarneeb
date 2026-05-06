@@ -5,6 +5,8 @@ import { unfriend } from "../logic/social";
 import { Clock, Mars, Venus, User, Calendar, Crown, Sword, Sparkles } from "lucide-react";
 import { multiplayerState, sendRoomInvite, createRoom } from "../logic/multiplayer";
 import { G, updateUI } from "../logic/engine";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "../lib/firebase";
 
 export function formatLastSeen(lastSeen: any): string {
   if (!lastSeen) return "غير متوفر";
@@ -80,6 +82,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
   const [inviting, setInviting] = useState(false);
 
   useEffect(() => {
+    let unsub = () => {};
     if (isOpen && user) {
       setFullProfile(user);
       setLoading(true);
@@ -87,9 +90,16 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
         if (p) setFullProfile(p);
         setLoading(false);
       }).catch(() => setLoading(false));
+
+      unsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
+        if (snap.exists()) {
+          setFullProfile({ ...snap.data(), uid: snap.id } as UserProfile);
+        }
+      });
     } else {
       setShowConfirm(false);
     }
+    return unsub;
   }, [isOpen, user]);
 
   if (!user) return null;

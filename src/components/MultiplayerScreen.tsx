@@ -185,11 +185,15 @@ export function MultiplayerScreen() {
                        {p ? (
                          <>
                            <div className="relative">
-                             <span className="text-3xl filter drop-shadow-md">{p.avatar}</span>
-                             {i === 0 && <span className="absolute -bottom-1 -right-1 text-[10px] bg-[var(--color-gold)] text-black w-4 h-4 flex items-center justify-center rounded-full leading-none shadow-md">👑</span>}
+                             <div className={`text-3xl filter drop-shadow-md p-1 rounded-2xl ${p.searchId === '01' ? 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/50' : ''}`}>{p.avatar}</div>
+                             {i === 0 && p.searchId !== '01' && <span className="absolute -bottom-1 -right-1 text-[10px] bg-[var(--color-gold)] text-black w-4 h-4 flex items-center justify-center rounded-full leading-none shadow-md">👑</span>}
+                             {p.searchId === '01' && <span className="absolute -top-2 -right-2 text-[10px] bg-[var(--color-gold)] text-black w-5 h-5 flex items-center justify-center rounded-full leading-none shadow-[0_0_10px_rgba(212,175,55,0.8)] border border-black animate-pulse z-10 text-xs">👑</span>}
                            </div>
                            <div className="flex flex-col items-center text-center max-w-full">
-                             <span className="text-white font-bold text-xs truncate max-w-full leading-tight">{p.name}</span>
+                             <div className="flex items-center gap-1 justify-center max-w-full">
+                               <span className={`font-black text-xs truncate max-w-full leading-tight ${p.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white'}`}>{p.name}</span>
+                               {p.searchId === '01' && <span className="px-1 py-0.5 bg-[var(--color-gold)] text-black rounded text-[6px] font-black uppercase tracking-tighter">مطور</span>}
+                             </div>
                              <span className="text-[9px] text-[#888] font-bold truncate max-w-full">{country?.flag} {country?.name} {p.uid === auth.currentUser?.uid ? "(أنت)" : ""}</span>
                            </div>
                          </>
@@ -211,9 +215,12 @@ export function MultiplayerScreen() {
                 <h3 className="text-[#888] text-xs mb-3 font-bold px-2 uppercase tracking-wider">المشاهدون ({G.spectators.length})</h3>
                 <div className="flex flex-wrap gap-2 justify-end px-2">
                   {G.spectators.map(s => (
-                    <div key={s.uid} className="flex items-center gap-2 bg-gradient-to-r from-white/5 to-transparent pr-2 pl-3 py-1.5 rounded-xl border border-white/5 group relative shadow-sm">
-                      <span className="text-sm">{s.avatar}</span>
-                      <span className="text-xs text-white/70 font-bold">{s.name}</span>
+                    <div key={s.uid} className={`flex items-center gap-2 pr-2 pl-3 py-1.5 rounded-xl border group relative shadow-sm ${s.searchId === '01' ? 'bg-gradient-to-r from-[var(--color-gold)]/20 to-[var(--color-gold)]/5 border-[var(--color-gold)]/50' : 'bg-gradient-to-r from-white/5 to-transparent border-white/5'}`}>
+                      <div className="relative">
+                        <span className="text-sm">{s.avatar}</span>
+                        {s.searchId === '01' && <span className="absolute -top-1.5 -right-1.5 text-[6px] bg-[var(--color-gold)] text-black w-3 h-3 flex items-center justify-center rounded-full leading-none shadow-md border border-black z-10">👑</span>}
+                      </div>
+                      <span className={`text-xs font-bold ${s.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white/70'}`}>{s.name}</span>
                       {multiplayerState.isHost && multiplayerState.players.length < 4 && (
                         <button 
                           onClick={() => {

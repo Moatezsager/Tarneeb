@@ -78,6 +78,9 @@ export const G = {
 export let myPlayerIndex = 0;
 export const setMyPlayerIndex = (idx: number) => { myPlayerIndex = idx; };
 
+export let isExecutingForcedAction = false;
+export const setExecutingForcedAction = (v: boolean) => isExecutingForcedAction = v;
+
 let isMultiplayerMode = false;
 let isHostMode = false;
 export const setMultiplayerMode = (multi: boolean, host: boolean) => {
@@ -88,6 +91,10 @@ export const setMultiplayerMode = (multi: boolean, host: boolean) => {
 // Responsible identifies if THIS client should handle autonomous state transitions (AI, timers, etc)
 export function isMyTurnToProcess(targetPlayer?: number): boolean {
   if (!isMultiplayerMode) return true;
+  if (isExecutingForcedAction && isHostMode) return true;
+  
+  if (G.isGatheringTrick && isHostMode) return true;
+
   const p = targetPlayer ?? G.currentPlayer;
   // If it's my turn, I process
   if (p === myPlayerIndex) return true;
