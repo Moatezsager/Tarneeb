@@ -154,19 +154,19 @@ export function IntroScreen() {
   return (
     <div className="flex flex-col items-center justify-center min-h-[100dvh] p-4 text-center bg-[#11111a] relative overflow-hidden" dir="rtl">
       {/* Decorative background elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-gold)] blur-[120px] opacity-10 rounded-full animate-pulse" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[var(--color-kuba)] blur-[120px] opacity-10 rounded-full animate-pulse" />
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[var(--color-gold)] blur-[150px] opacity-[0.07] rounded-full animate-pulse" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-600 blur-[150px] opacity-[0.05] rounded-full animate-pulse" />
       
-      {/* Profile Header */}
-      <div className="absolute top-4 right-4 left-4 z-20 flex justify-between items-center bg-gradient-to-b from-[#1a1a2e] to-[#0f0f1c] backdrop-blur-md p-3 rounded-[24px] border border-[var(--color-gold)]/30 shadow-[0_10px_30px_rgba(0,0,0,0.5)]">
+      {/* Profile Header (Relocated to Bottom for better UX) */}
+      <div className="absolute bottom-8 right-6 left-6 z-50 flex justify-between items-center bg-gradient-to-b from-[#1a1a2e] to-[#0a0a0f] backdrop-blur-xl p-2.5 px-4 rounded-[30px] border-2 border-[var(--color-gold)]/40 shadow-[0_15px_40px_rgba(0,0,0,0.8)] max-w-[420px] mx-auto animate-in fade-in slide-in-from-bottom duration-700">
         
         {/* Profile (Right side) */}
         <div className="flex items-center gap-3">
           <div 
-            className={`w-11 h-11 sm:w-12 sm:h-12 ${profile?.searchId === '01' ? 'bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 p-0.5 shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/40'} rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-inner cursor-pointer active:scale-95 transition-all hover:border-[var(--color-gold)] relative`}
+            className={`w-10 h-10 sm:w-11 sm:h-11 ${profile?.searchId === '01' ? 'bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 p-0.5 shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/40'} rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-inner cursor-pointer active:scale-95 transition-all hover:border-[var(--color-gold)] relative`}
             onClick={() => { G.phase = 'profile'; updateUI(); }}
           >
-            <div className="bg-[#1a1a1a] w-full h-full rounded-full flex items-center justify-center overflow-hidden">
+            <div className="bg-[#0a0a0a] w-full h-full rounded-full flex items-center justify-center overflow-hidden">
               {profile?.avatar?.startsWith('http') ? (
                 <img src={profile.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
               ) : (
@@ -179,53 +179,50 @@ export function IntroScreen() {
                 transition={{ repeat: Infinity, duration: 2 }}
                 className="absolute -top-1.5 -right-1.5 bg-[var(--color-gold)] p-0.5 rounded-full border border-black shadow-lg"
               >
-                <Crown className="w-3.5 h-3.5 text-black fill-black" />
+                <Crown className="w-3 h-3 text-black fill-black" />
               </motion.div>
             )}
           </div>
 
-          <div className="flex flex-col items-start gap-0.5">
+          <div className="flex flex-col items-start">
             <div className="flex items-center gap-1.5" dir="rtl">
-              <div className={`font-black text-xs md:text-md leading-tight max-w-[120px] truncate ${profile?.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white'}`}>{profile?.name}</div>
-              {profile?.searchId === '01' && (
-                <div className="bg-[var(--color-gold)] text-black px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter">
-                  مطور
-                </div>
-              )}
-              <div className="text-[10px] text-[#888] font-mono tracking-tighter" dir="ltr">#{profile?.searchId}</div>
+              <div className={`font-black text-xs sm:text-sm leading-tight max-w-[100px] truncate ${profile?.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white'}`}>{profile?.name}</div>
+              <div className="text-[9px] text-[#666] font-mono tracking-tighter" dir="ltr">#{profile?.searchId}</div>
             </div>
-            <div className="text-[9px] sm:text-[10px] text-[var(--color-gold)] font-bold flex items-center gap-1" dir="rtl">
+            <div className="text-[9px] text-[var(--color-gold)] font-bold flex items-center gap-1" dir="rtl">
               <span>{country?.flag}</span>
-              <span className="truncate max-w-[60px]">{country?.name}</span>
+              <span className="truncate max-w-[50px]">{country?.name}</span>
             </div>
           </div>
         </div>
 
-        {/* Buttons (Left side) */}
-        <div className="flex gap-2">
+        {/* Action Buttons (Left side) */}
+        <div className="flex gap-1.5">
            <button 
              onClick={() => { G.phase = 'profile'; updateUI(); }}
-             className="p-2 sm:p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/80 hover:text-white transition-colors border border-white/5 active:scale-90"
-             title="تعديل الملف الشخصي"
+             className="p-2 sm:p-2.5 bg-white/5 hover:bg-[var(--color-gold)]/20 rounded-2xl text-white/80 hover:text-[var(--color-gold)] transition-all border border-white/5 active:scale-90"
+             title="الملف الشخصي"
            >
-             <UserCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+             <UserCircle className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
            </button>
            <button 
              onClick={() => setShowSettings(true)}
-             className="p-2 sm:p-2.5 bg-white/5 hover:bg-white/10 rounded-xl text-white/80 hover:text-white transition-colors border border-white/5 active:scale-90"
-             title="إعدادات اللعبة"
+             className="p-2 sm:p-2.5 bg-white/5 hover:bg-[var(--color-gold)]/20 rounded-2xl text-white/80 hover:text-[var(--color-gold)] transition-all border border-white/5 active:scale-90"
+             title="الإعدادات"
            >
-             <Settings className="w-4 h-4 sm:w-5 sm:h-5" />
+             <Settings className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
            </button>
+           <div className="w-[1px] h-6 bg-white/10 mx-0.5 self-center" />
            <button 
              onClick={handleLogout}
-             className="p-2 sm:p-2.5 bg-red-900/20 hover:bg-red-900/40 rounded-[14px] text-red-500 transition-colors border border-red-500/10 active:scale-90"
+             className="p-2 sm:p-2.5 bg-red-900/10 hover:bg-red-900/30 rounded-2xl text-red-500/80 hover:text-red-500 transition-all border border-red-500/10 active:scale-90"
              title="خروج"
            >
-             <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
+             <LogOut className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
            </button>
         </div>
       </div>
+
       
       <div className="z-10 flex flex-col items-center w-full max-w-sm mt-12 sm:mt-16">
         <div className="text-8xl md:text-9xl mb-2 drop-shadow-[0_0_20px_rgba(212,175,55,0.4)] animate-bounce-subtle">🂡</div>
