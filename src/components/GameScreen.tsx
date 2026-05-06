@@ -111,7 +111,7 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
   return (
     <div 
       onClick={() => onProfileClick(index)}
-      className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isActive ? 'border-[var(--color-gold)] shadow-[0_0_15px_rgba(212,175,55,0.4)] z-30 scale-105 ring-1 ring-[var(--color-gold)]/50' : 'border-[#333] shadow-xl z-20'} overflow-hidden transition-all min-w-[70px] sm:min-w-[85px] max-w-[90px] cursor-pointer hover:border-[var(--color-gold)]/50 active:scale-95`}
+      className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isDisconnected ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : isActive ? 'border-[var(--color-gold)] shadow-[0_0_15px_rgba(212,175,55,0.4)] z-30 scale-105 ring-1 ring-[var(--color-gold)]/50' : 'border-[#333] shadow-xl z-20'} overflow-hidden transition-all min-w-[70px] sm:min-w-[85px] max-w-[90px] cursor-pointer hover:border-[var(--color-gold)]/50 active:scale-95`}
     >
       
       {/* Header (Name) */}
@@ -123,10 +123,16 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
           {multiplayerState.isMultiplayer && !isBot && (
             <span className="absolute -right-1 top-0">
               {isDisconnected ? (
-                 <WifiOff size={10} className="text-red-500 bg-black/50 rounded-full p-[1px]" />
+                 <WifiOff size={10} className="text-red-500 bg-black/50 rounded-full p-[1px] animate-pulse" />
               ) : (
                  <Wifi size={10} className="text-green-400 opacity-80" />
               )}
+            </span>
+          )}
+          {/* Show AI badge when disconnected player's turn */}
+          {isDisconnected && isActive && (
+            <span className="absolute -left-1 top-0 text-[0.45rem] bg-red-500/80 text-white px-0.5 rounded-sm font-black leading-tight">
+              🤖
             </span>
           )}
         </div>
@@ -176,8 +182,16 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
       {/* Cards Count (Only for others) */}
       {!isYou && (
         <div className="w-full text-center bg-[#000]/60 py-0.5 text-[0.5rem] sm:text-[0.6rem] text-[#aaa] flex items-center justify-center gap-1 border-t border-[#333]">
-          <span className="font-bold">{cardCount}</span>
-          <span className="text-[var(--color-gold)] font-bold">🂠</span>
+          {isDisconnected ? (
+            <>
+              <span className="text-red-400 font-bold">🤖 AI يلعب</span>
+            </>
+          ) : (
+            <>
+              <span className="font-bold">{cardCount}</span>
+              <span className="text-[var(--color-gold)] font-bold">🂠</span>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -484,12 +498,21 @@ function RoundEndOverlay() {
           >
             {gs.gameWinner !== null ? 'بداية جديدة' : '✅ متابعة'}
           </button>
-        ) : (
-          <div className="mt-4 px-6 py-2 bg-white/5 border border-white/10 text-white/60 rounded-full font-black text-xs flex justify-center items-center gap-2 max-w-[200px] mx-auto">
-            <span className="w-3.5 h-3.5 border-2 border-[var(--color-gold)]/20 border-t-[var(--color-gold)] rounded-full animate-spin"></span>
-            في انتظار الكنق...
-          </div>
-        )}
+        ) : (() => {
+          const hostPlayer = multiplayerState.players.find(p => p.uid === multiplayerState.players.find(pp => pp.index === 0)?.uid);
+          const hostRecord = multiplayerState.players.find(p => {
+            // Find the host by checking who matches the current host role
+            return !p.isBot && !p.uid.startsWith('bot_');
+          });
+          const isHostDisconnected = multiplayerState.players.some(p => p.status === "disconnected" && !p.isBot);
+          
+          return (
+            <div className="mt-4 px-6 py-2 bg-white/5 border border-white/10 text-white/60 rounded-full font-black text-xs flex justify-center items-center gap-2 max-w-[220px] mx-auto">
+              <span className="w-3.5 h-3.5 border-2 border-[var(--color-gold)]/20 border-t-[var(--color-gold)] rounded-full animate-spin"></span>
+              {isHostDisconnected ? 'متابعة تلقائية قريباً...' : 'في انتظار الكنق...'}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );

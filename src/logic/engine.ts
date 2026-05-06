@@ -1063,6 +1063,7 @@ function resolveTrick() {
 function endRound() {
   G.phase = "roundEnd";
   G.roundPhase = "📊 النتائج";
+  G.turnStartTime = Date.now(); // Track for auto-close timer in multiplayer
 
   let results = [];
   const numPlayers = G.gameMode === "1v1" ? 2 : 4;

@@ -18,42 +18,89 @@ import { getLocalProfile } from "./userProfile";
 let timerInterval: any = null;
 let pingInterval: any = null;
 
+// Timing constants for disconnect detection
+const HEARTBEAT_INTERVAL = 5000;      // 5 seconds between heartbeats
+const DISCONNECT_THRESHOLD = 15000;   // 15 seconds before considered disconnected
+const RECONNECT_GRACE_PERIOD = 3000;  // 3 seconds grace for reconnection
+
 function startHeartbeat() {
   if (pingInterval) clearInterval(pingInterval);
-  pingInterval = setInterval(async () => {
-    if (!activeRoomId || !auth.currentUser) return;
-    try {
-       const roomRef = doc(db, "rooms", activeRoomId);
-       const players = multiplayerState.players;
-       if (players.length > 0) {
-          let hasChange = false;
-          const updatedPlayers = players.map(p => {
-             if (p.uid === auth.currentUser!.uid) {
-                // Update our timestamp, considered a change to keep connection alive
-                hasChange = true;
-                return { ...p, lastPing: Date.now(), status: "connected" as const };
-             }
-             if (!p.isBot && p.lastPing && Date.now() - p.lastPing > 30000 && p.status !== "disconnected") {
-                hasChange = true;
-                return { ...p, status: "disconnected" as const };
-             }
-             return p;
-          });
-          
-          if (hasChange) {
-            await updateDoc(roomRef, { players: updatedPlayers });
-          }
-       }
-    } catch (e) {
-       console.error("Heartbeat failed", e);
+
+  // Browser online/offline events for instant detection
+  const handleOnline = () => {
+    if (activeRoomId && auth.currentUser) {
+      console.log("Browser back online - sending immediate heartbeat");
+      sendHeartbeat();
     }
-  }, 10000); // 10 seconds
+  };
+  const handleVisibility = () => {
+    if (document.visibilityState === "visible" && activeRoomId && auth.currentUser) {
+      sendHeartbeat();
+    }
+  };
+  window.addEventListener("online", handleOnline);
+  document.addEventListener("visibilitychange", handleVisibility);
+  (window as any).__tarneb_hb_cleanup = () => {
+    window.removeEventListener("online", handleOnline);
+    document.removeEventListener("visibilitychange", handleVisibility);
+  };
+
+  // Send initial heartbeat immediately
+  sendHeartbeat();
+  pingInterval = setInterval(() => sendHeartbeat(), HEARTBEAT_INTERVAL);
+}
+
+async function sendHeartbeat() {
+  if (!activeRoomId || !auth.currentUser) return;
+  try {
+    const roomRef = doc(db, "rooms", activeRoomId);
+    const players = multiplayerState.players;
+    if (players.length === 0) return;
+
+    let hasChange = false;
+    const now = Date.now();
+    const updatedPlayers = players.map(p => {
+      if (p.uid === auth.currentUser!.uid) {
+        const wasDisconnected = p.status === "disconnected";
+        hasChange = true;
+        if (wasDisconnected) {
+          console.log("Reconnected! Restoring player status.");
+        }
+        return { ...p, lastPing: now, status: "connected" as const };
+      }
+      // Only host detects disconnected players to avoid conflicts
+      if (multiplayerState.isHost && !p.isBot && p.lastPing && p.status === "connected") {
+        if (now - p.lastPing > DISCONNECT_THRESHOLD) {
+          hasChange = true;
+          console.log(`Player ${p.name} (idx ${p.index}) disconnected (${Math.round((now - p.lastPing) / 1000)}s since last ping)`);
+          return { ...p, status: "disconnected" as const, disconnectedAt: now };
+        }
+      }
+      // Detect reconnection: player was disconnected but now sending pings again
+      if (multiplayerState.isHost && !p.isBot && p.status === "disconnected" && p.lastPing && now - p.lastPing < DISCONNECT_THRESHOLD) {
+        hasChange = true;
+        console.log(`Player ${p.name} (idx ${p.index}) reconnected!`);
+        return { ...p, status: "connected" as const, disconnectedAt: undefined };
+      }
+      return p;
+    });
+
+    if (hasChange) {
+      await updateDoc(roomRef, { players: updatedPlayers });
+    }
+  } catch (e) {
+    // Silently fail - next heartbeat will retry
+  }
 }
 
 function stopHeartbeat() {
   if (pingInterval) {
     clearInterval(pingInterval);
     pingInterval = null;
+  }
+  if ((window as any).__tarneb_hb_cleanup) {
+    (window as any).__tarneb_hb_cleanup();
+    delete (window as any).__tarneb_hb_cleanup;
   }
 }
 
@@ -102,22 +149,56 @@ function startHostTimer() {
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {
     if (!multiplayerState.isHost || !multiplayerState.isMultiplayer) return;
-    if (G.phase !== "playing" && G.phase !== "bidding" && G.phase !== "swapping") return;
     if (!G.gameStarted) return;
     
-    // Check if turn timeout reached
     const now = Date.now();
     const elapsed = (now - G.turnStartTime) / 1000;
     
+    // === Auto-close roundEnd overlay ===
+    // If host hasn't clicked "continue" after 25 seconds, auto-progress
+    if (G.phase === "roundEnd" && G.roundEndOverlayVisible && elapsed > 25) {
+      console.log("Auto-closing round end overlay (timeout)");
+      G.turnStartTime = Date.now();
+      import("./engine").then(eng => eng.closeRoundEnd());
+      return;
+    }
+    
+    // === Dealing phase stuck detection ===
+    // If dealing animation is stuck for > 20 seconds, force-complete it
+    if (G.phase === "dealing" && elapsed > 20 && !isDealingAnimationRunning) {
+      console.log("Dealing phase stuck, forcing progression");
+      G.turnStartTime = Date.now();
+      resumeGameLoop();
+      updateGameState();
+      return;
+    }
+    
+    // Only process turn-based phases
+    if (G.phase !== "playing" && G.phase !== "bidding" && G.phase !== "swapping") return;
+    
     const actingPlayer = G.phase === "swapping" ? G.playerWithHighestScore : G.currentPlayer;
-    const currentPlayerIsBot = Object.values(G.playerNames).length > actingPlayer && G.playerNames[actingPlayer] && G.playerNames[actingPlayer].includes("كمبيوتر");
+    const currentPlayerIsBot = G.playerNames[actingPlayer]?.includes("كمبيوتر");
+    
+    // Check if the acting player is disconnected (even if not a bot)
+    const actingPlayerRecord = multiplayerState.players.find(p => p.index === actingPlayer);
+    const isDisconnected = actingPlayerRecord && actingPlayerRecord.status === "disconnected";
     
     if (currentPlayerIsBot) {
-       // If it's a bot and it's stuck for > 5 seconds (bots normally play in 1.5s), fix it
-       // This handles the case where a player disconnects mid-turn and becomes a bot, losing the delayed timeout
-       if (elapsed > 6) {
-          console.log(`Bot ${actingPlayer} seems stuck. Forcing AI move.`);
-          // Adjust turnStartTime so we don't spam if it takes a bit
+       // Bot stuck for > 4 seconds - force action
+       if (elapsed > 4) {
+          console.log(`Bot ${actingPlayer} stuck. Forcing AI move.`);
+          G.turnStartTime = Date.now();
+          setExecutingForcedAction(true);
+          if (G.phase === "swapping") executeAISwap();
+          else forceAiAction(actingPlayer);
+          setExecutingForcedAction(false);
+          updateGameState();
+       }
+    } else if (isDisconnected) {
+       // Disconnected player: take over immediately (shorter timeout)
+       const disconnectTimeout = Math.min(G.turnTimeout, 8);
+       if (elapsed > disconnectTimeout) {
+          console.log(`Disconnected player ${actingPlayer} (${G.playerNames[actingPlayer]}) - AI taking over turn.`);
           G.turnStartTime = Date.now();
           setExecutingForcedAction(true);
           if (G.phase === "swapping") executeAISwap();
@@ -126,9 +207,10 @@ function startHostTimer() {
           updateGameState();
        }
     } else {
+       // Connected human player: use normal timeout
        if (elapsed > G.turnTimeout) {
-          console.log(`Player ${actingPlayer} (${G.playerNames[actingPlayer]}) timed out. AFK Bot taking over for this turn.`);
-          // DO NOT convertPlayerToBot(actingPlayer) so they can return!
+          console.log(`Player ${actingPlayer} (${G.playerNames[actingPlayer]}) timed out. AI taking over for this turn.`);
+          // DO NOT convertPlayerToBot so they can return!
           G.turnStartTime = Date.now();
           setExecutingForcedAction(true);
           if (G.phase === "swapping") executeAISwap();
@@ -185,6 +267,7 @@ export interface Player {
   status: "connected" | "disconnected";
   isBot?: boolean;
   lastPing?: number;
+  disconnectedAt?: number;  // When the player was detected as disconnected
 }
 
 export interface Spectator {
@@ -285,20 +368,31 @@ function startAntiHostFreezeTimer() {
   if (antiHostInterval) clearInterval(antiHostInterval);
   antiHostInterval = setInterval(() => {
     if (multiplayerState.isHost || !multiplayerState.isMultiplayer) return;
-    if (G.phase !== "playing" && G.phase !== "bidding") return;
     if (!G.gameStarted) return;
     if (!activeRoomId) return;
 
     const now = Date.now();
     const elapsed = (now - G.turnStartTime) / 1000;
     
-    // If the host hasn't done anything (turn is stuck for > turnTimeout + 15 seconds)
-    // We assume host is dead and take over.
-    if (elapsed > G.turnTimeout + 15) {
-      console.log("Host seems dead. Taking over...");
+    // Determine appropriate freeze threshold based on phase
+    let freezeThreshold: number;
+    if (G.phase === "roundEnd") {
+      freezeThreshold = 35; // Round end can take longer (reading results)
+    } else if (G.phase === "dealing") {
+      freezeThreshold = 30; // Dealing animation + setup
+    } else if (G.phase === "swapping") {
+      freezeThreshold = G.turnTimeout + 12;
+    } else if (G.phase === "playing" || G.phase === "bidding") {
+      freezeThreshold = G.turnTimeout + 10;
+    } else {
+      return; // intro, setup, stats, etc. - no freeze detection needed
+    }
+    
+    if (elapsed > freezeThreshold) {
+      console.log(`Host seems frozen in phase '${G.phase}' (${Math.round(elapsed)}s elapsed). Taking over...`);
       takeOverHost();
     }
-  }, 5000);
+  }, 4000);
 }
 
 function stopAntiHostFreezeTimer() {
@@ -319,52 +413,55 @@ async function takeOverHost() {
     if (!roomSnap.exists()) return;
     const data = roomSnap.data() as RoomData;
     
-    // Safety check: Maybe someone else just took over?
-    if (!data.memberUids.includes(data.hostId)) {
-        // host is already leaving?
+    // Determine who should be the new host:
+    // Find the first connected non-bot player (by index order for determinism)
+    const connectedPlayers = data.players
+      .filter(p => !p.isBot && !p.uid.startsWith('bot_') && p.status === "connected")
+      .sort((a, b) => a.index - b.index);
+    
+    // Only take over if I'm the first eligible connected player
+    if (connectedPlayers.length === 0 || connectedPlayers[0].uid !== user.uid) {
+      return; // Someone else should take over, or no one can
     }
     
-    // Only the first available non-bot member should take over. 
-    // We can rely on memberUids order.
-    const activeMembers = data.memberUids;
-    if (activeMembers[0] === user.uid || (activeMembers[0] === data.hostId && activeMembers[1] === user.uid)) {
-        console.log("I am taking over as host!");
-        const newHostName = data.players.find(p => p.uid === user.uid)?.name || "لاعب";
-        
-        // Also convert the old host to a bot immediately since they are dead
-        const deadHostId = data.hostId;
-        const deadHostPlayer = data.players.find(p => p.uid === deadHostId);
-        
-        const updatedPlayers = data.players.map(p => {
-            if (p.uid === deadHostId) {
-                return {
-                    ...p,
-                    uid: `bot_${p.index}_${Date.now()}`,
-                    name: `كمبيوتر ${p.index + 1}`,
-                    avatar: "🤖",
-                    country: "AI",
-                    isBot: true
-                } as Player;
-            }
-            return p;
-        });
+    console.log("I am taking over as host!");
+    const newHostName = data.players.find(p => p.uid === user.uid)?.name || "لاعب";
+    
+    // Convert the old host to a bot if they are disconnected
+    const deadHostId = data.hostId;
+    const deadHostPlayer = data.players.find(p => p.uid === deadHostId);
+    
+    const updatedPlayers = data.players.map(p => {
+      if (p.uid === deadHostId && deadHostPlayer) {
+        return {
+          ...p,
+          uid: `bot_${p.index}_${Date.now()}`,
+          name: `كمبيوتر ${p.index + 1}`,
+          avatar: "🤖",
+          country: "AI",
+          isBot: true
+        } as Player;
+      }
+      return p;
+    });
 
-        let updatedGameState = data.gameState;
-        if (deadHostPlayer && updatedGameState && updatedGameState.playerNames) {
-            updatedGameState.playerNames[deadHostPlayer.index] = `كمبيوتر ${deadHostPlayer.index + 1}`;
-        }
-
-        const newMembers = activeMembers.filter(id => id !== deadHostId);
-
-        await updateDoc(roomRef, {
-            hostId: user.uid,
-            hostName: newHostName,
-            memberUids: newMembers,
-            players: updatedPlayers,
-            gameState: updatedGameState,
-            updatedAt: serverTimestamp()
-        });
+    let updatedGameState = data.gameState;
+    if (deadHostPlayer && updatedGameState && updatedGameState.playerNames) {
+      updatedGameState.playerNames[deadHostPlayer.index] = `كمبيوتر ${deadHostPlayer.index + 1}`;
+      // Reset turnStartTime so the new host's timer starts fresh
+      updatedGameState.turnStartTime = Date.now();
     }
+
+    const newMembers = data.memberUids.filter(id => id !== deadHostId);
+
+    await updateDoc(roomRef, {
+      hostId: user.uid,
+      hostName: newHostName,
+      memberUids: newMembers,
+      players: updatedPlayers,
+      gameState: updatedGameState,
+      updatedAt: serverTimestamp()
+    });
   } catch (e) {
     console.error("Take over host failed", e);
   }
@@ -585,6 +682,7 @@ export function listenToRoom(roomId: string) {
   if (roomUnsubscribe) roomUnsubscribe();
 
   let hasSyncedInitialState = false;
+  let lastKnownPlayerStatuses: Record<number, string> = {};
 
   roomUnsubscribe = onSnapshot(doc(db, "rooms", roomId), (doc) => {
     if (!doc.exists()) {
@@ -626,9 +724,24 @@ export function listenToRoom(roomId: string) {
         }
     }
     
+    // Track player reconnections for visual feedback
     for (let i = 0; i < 4; i++) {
        const p = data.players.find(x => x.index === i);
-       if (p && G.playerNames) G.playerNames[i] = p.name;
+       if (p && G.playerNames) {
+         G.playerNames[i] = p.name;
+         
+         // Detect reconnection: was disconnected, now connected
+         const oldStatus = lastKnownPlayerStatuses[i];
+         if (oldStatus === "disconnected" && p.status === "connected" && !p.isBot) {
+           console.log(`Player ${p.name} (idx ${i}) has reconnected!`);
+           // Show reconnection message briefly
+           if (G.gameStarted) {
+             G.gameMsg = `🔌 ${p.name} عاد للعبة!`;
+             G.gameMsgClass = "";
+           }
+         }
+         lastKnownPlayerStatuses[i] = p.status;
+       }
     }
     
     // Sync Game State
@@ -650,6 +763,11 @@ export function listenToRoom(roomId: string) {
           if (G.phase === "dealing" && oldPhase !== "dealing") {
              dealCardsAnimation();
           }
+          
+          // Ensure turnStartTime is reasonable (avoid stale timestamps causing instant timeouts)
+          if (G.turnStartTime && Date.now() - G.turnStartTime > 120000) {
+            G.turnStartTime = Date.now();
+          }
         }
         hasSyncedInitialState = true;
         lastSyncedCoreState = getCoreState();
@@ -661,13 +779,22 @@ export function listenToRoom(roomId: string) {
         }
     }
   }, (error) => {
-    handleFirestoreError(error, OperationType.GET, `rooms/${roomId}`);
+    console.error("Room listener error - attempting to reconnect...", error);
+    // Attempt to re-listen after a short delay
+    setTimeout(() => {
+      if (activeRoomId && multiplayerState.isMultiplayer) {
+        console.log("Re-establishing room listener...");
+        listenToRoom(roomId);
+      }
+    }, 3000);
   });
 }
 
 let lastUpdatePromise: Promise<void> | null = null;
 let pendingStateUpdate = false;
 let lastSerializedState = "";
+let syncRetryCount = 0;
+const MAX_SYNC_RETRIES = 3;
 
 export async function updateGameState() {
   if (!activeRoomId || !multiplayerState.isMultiplayer) return;
@@ -677,24 +804,42 @@ export async function updateGameState() {
   if (newState === lastSerializedState) return;
 
   pendingStateUpdate = true;
-  // Delay to batch possible rapid updates
-  await new Promise(resolve => setTimeout(resolve, 150));
+  // Shorter debounce for faster sync (80ms instead of 150ms)
+  await new Promise(resolve => setTimeout(resolve, 80));
   pendingStateUpdate = false;
 
   const finalState = serializeGameState({ ...G });
   if (finalState === lastSerializedState) return;
 
-  try {
-    lastSerializedState = finalState;
-    const roomRef = doc(db, "rooms", activeRoomId);
-    await updateDoc(roomRef, {
-      gameState: finalState,
-      lastActionBy: auth.currentUser?.uid,
-      updatedAt: serverTimestamp()
-    });
-  } catch (error) {
-    console.error("Multiplayer Sync Error", error);
-    lastSerializedState = ""; // Allow retry on failure
+  const roomId = activeRoomId; // Capture in case it changes
+  for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
+    try {
+      lastSerializedState = finalState;
+      const roomRef = doc(db, "rooms", roomId);
+      await updateDoc(roomRef, {
+        gameState: finalState,
+        lastActionBy: auth.currentUser?.uid,
+        updatedAt: serverTimestamp()
+      });
+      syncRetryCount = 0; // Reset on success
+      return;
+    } catch (error) {
+      lastSerializedState = ""; // Allow retry
+      if (attempt < MAX_SYNC_RETRIES) {
+        const backoffMs = Math.min(200 * Math.pow(2, attempt), 2000);
+        console.warn(`Sync failed (attempt ${attempt + 1}/${MAX_SYNC_RETRIES + 1}), retrying in ${backoffMs}ms...`);
+        await new Promise(resolve => setTimeout(resolve, backoffMs));
+      } else {
+        console.error("Multiplayer Sync Error after all retries", error);
+        syncRetryCount++;
+        // If we've had too many consecutive failures, warn the player
+        if (syncRetryCount >= 3) {
+          G.gameMsg = "⚠️ مشكلة في الاتصال... جاري المحاولة";
+          G.gameMsgClass = "";
+          updateUI();
+        }
+      }
+    }
   }
 }
 
