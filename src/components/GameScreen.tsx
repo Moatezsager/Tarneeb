@@ -745,7 +745,7 @@ export function GameScreen() {
                onClick={e => e.stopPropagation()}
              >
                  <div className="text-5xl mb-3 drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">🂡</div>
-                 <h2 className="text-2xl font-black text-[var(--color-gold)] mb-4 font-[var(--font-tajawal)] drop-shadow-md">طرنيب مجانية v3.0</h2>
+                 <h2 className="text-2xl font-black text-[var(--color-gold)] mb-4 font-[var(--font-tajawal)] drop-shadow-md">طرنيب كلاسيك v3.0</h2>
                  <p className="text-sm md:text-base text-[#ccc] mb-6 leading-relaxed">
                      لعبة ورق ليبية شهيرة مبنية على طاولة الجواكر. تتميز بالنظام الجديد للورق المكشوف والكنق، إضافة لذكاء اصطناعي متطور يلعب وكأنه أصدقاؤك.
                  </p>

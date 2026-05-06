@@ -231,17 +231,11 @@ export function IntroScreen() {
         <div className="text-8xl md:text-9xl mb-2 drop-shadow-[0_0_20px_rgba(212,175,55,0.4)] animate-bounce-subtle">🂡</div>
         <div className="text-7xl md:text-8xl font-black golden-text font-[var(--font-tajawal)] drop-shadow-2xl" style={{textShadow: "0 4px 30px rgba(212,175,55,0.4)"}}>طرنيب</div>
         <div className="font-[var(--font-tajawal)] tracking-[10px] text-[var(--color-gold)] opacity-90 text-sm md:text-md mt-2 font-black uppercase">
-          مجانية بالكامل
+          كلاسيكيات هيرو
         </div>
         
-        <div className="flex gap-2 items-center my-5">
-           <span className="bg-[var(--color-gold)]/10 border border-[var(--color-gold)]/40 text-[var(--color-gold)] px-4 py-1.5 rounded-full text-xs md:text-sm font-bold shadow-sm backdrop-blur-sm">
-             ✨ مجانية لمدى الحياة
-           </span>
-        </div>
-        
-        <p className="text-[#ccc] text-sm md:text-base my-2 max-w-[280px] sm:max-w-[340px] leading-relaxed font-medium px-4">
-          العب طرنيب مع أصدقائك في أي وقت وفي أي مكان، بذكاء وبدون إعلانات.
+        <p className="text-[#ccc] text-sm md:text-base my-2 max-w-[280px] sm:max-w-[340px] leading-relaxed font-medium px-4 mt-8">
+          العب طرنيب مع أصدقائك في أي وقت وفي أي مكان، بذكاء ومهارة عالية.
         </p>
         
         <div className="flex flex-col gap-3.5 w-full mt-6 px-2">

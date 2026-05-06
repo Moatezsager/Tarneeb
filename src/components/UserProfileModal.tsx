@@ -232,9 +232,6 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                     </div>
                   )}
                 </div>
-                {displayUser.searchId === '01' && (
-                   <p className="text-[var(--color-gold)] text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">مؤسس طرنيب هيرو</p>
-                )}
                 <div className="flex items-center justify-center gap-2 pt-2">
                    <div className="px-3 py-0.5 bg-white/5 rounded-full border border-white/5 flex items-center gap-2">
                       <span className="text-[10px] font-mono text-[var(--color-gold)] tracking-[0.2em]">#{displayUser.searchId || "0000"}</span>
