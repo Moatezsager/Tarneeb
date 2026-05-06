@@ -43,107 +43,141 @@ interface FriendCardProps {
   key?: React.Key;
 }
 
-function FriendCard({ friend, onSelect }: FriendCardProps) {
+function FriendCard({ friend: friendSnapshot, onSelect }: FriendCardProps) {
+  const [friend, setFriend] = useState<UserProfile>(friendSnapshot);
   const [isInviting, setIsInviting] = useState(false);
+
+  // Listen to the master profile document for live updates (status, points, avatar, etc.)
+  useEffect(() => {
+    const unsub = onSnapshot(doc(db, "users", friendSnapshot.uid), (snap) => {
+      if (snap.exists()) {
+        setFriend({ ...snap.data(), uid: snap.id } as UserProfile);
+      }
+    });
+    return unsub;
+  }, [friendSnapshot.uid]);
+
   const f = friend;
+  const isSpecial = f.searchId === "01";
 
   return (
-    <div
-      className={`flex flex-col sm:flex-row items-center justify-between p-3.5 sm:p-4 gap-3 sm:gap-0 ${f.searchId === "01" ? "bg-gradient-to-r from-[var(--color-gold)]/15 to-black/40 border-[var(--color-gold)]/40 hover:border-[var(--color-gold)]/80" : "bg-white/5 border-white/10 hover:bg-white/10"} rounded-2xl border cursor-pointer transition-all shadow-lg hover:shadow-[var(--color-gold)]/5`}
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`flex flex-col sm:flex-row items-center justify-between p-3.5 sm:p-4 gap-3 sm:gap-0 ${isSpecial ? "bg-gradient-to-r from-[var(--color-gold)]/20 via-[var(--color-gold)]/5 to-black/40 border-[var(--color-gold)]/50 shadow-[0_0_20px_rgba(212,175,55,0.15)]" : "bg-white/5 border-white/10 hover:bg-white/10"} rounded-2xl border cursor-pointer transition-all group overflow-hidden relative`}
       onClick={() => onSelect(f)}
     >
-      <div className="flex items-center gap-3.5 w-full sm:w-auto">
+      {isSpecial && (
+        <div className="absolute inset-0 bg-[var(--color-gold)]/5 animate-pulse pointer-events-none" />
+      )}
+      
+      <div className="flex items-center gap-3.5 w-full sm:w-auto relative z-10">
         <div
-          className={`relative ${f.searchId === "01" ? "p-0.5 bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 rounded-2xl" : ""}`}
+          className={`relative ${isSpecial ? "scale-110" : ""}`}
         >
-          <div className="bg-black/40 p-2.5 sm:p-3 rounded-2xl flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 shadow-inner border border-white/5 overflow-hidden">
+          <div className={`bg-black/40 p-2 sm:p-2.5 rounded-2xl flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 shadow-inner border ${isSpecial ? "border-[var(--color-gold)]/50" : "border-white/5"} overflow-hidden`}>
             {f.avatar?.startsWith('http') ? (
               <img src={f.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
             ) : (
               <span className="text-3xl sm:text-4xl">{f.avatar}</span>
             )}
           </div>
-          {f.searchId === "01" && (
-            <div className="absolute -top-1.5 -left-1.5 bg-[var(--color-gold)] p-1 rounded-full border border-black shadow-[0_0_10px_rgba(241,196,15,0.5)]">
-              <Crown className="w-3.5 h-3.5 text-black fill-black" />
-            </div>
+          {isSpecial && (
+            <motion.div 
+              animate={{ rotate: [0, 10, -10, 0] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+              className="absolute -top-2 -left-2 bg-[var(--color-gold)] p-1.5 rounded-full border-2 border-black shadow-[0_0_15px_rgba(241,196,15,0.6)] z-20"
+            >
+              <Crown className="w-4 h-4 text-black fill-black" />
+            </motion.div>
           )}
           <div
-            className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-2 border-[#1a1a2e] ${f.status === "online" ? "bg-green-500 shadow-[0_0_8px_#22c55e]" : "bg-gray-500"}`}
+            className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 border-[#1a1a2e] ${f.status === "online" ? "bg-green-500 shadow-[0_0_10px_#22c55e]" : "bg-gray-500"}`}
           ></div>
         </div>
         <div className="text-right flex-1">
-          <div className="flex items-center gap-1.5">
-            <div className="text-white font-bold text-sm sm:text-base">
+          <div className="flex items-center gap-2">
+            <div className={`font-black text-sm sm:text-lg ${isSpecial ? "text-[var(--color-gold)]" : "text-white"}`}>
               {f.name}
             </div>
-            {f.searchId === "01" && (
-              <Crown className="w-4 h-4 text-[var(--color-gold)]" />
+            {isSpecial && (
+              <div className="px-2 py-0.5 bg-[var(--color-gold)]/20 text-[var(--color-gold)] text-[9px] font-black rounded-lg border border-[var(--color-gold)]/30 uppercase tracking-tighter">
+                المطور
+              </div>
             )}
-            <div className="text-[10px] text-[var(--color-gold)]/70 font-mono tracking-wider bg-black/40 px-1.5 py-0.5 rounded-md">
+          </div>
+          <div className="flex items-center gap-2 mt-1">
+            <div className="text-[10px] text-white/30 font-mono tracking-widest bg-black/40 px-1.5 py-0.5 rounded-md border border-white/5">
               #{f.searchId}
             </div>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1">
             <span
-              className={`text-[11px] font-bold ${f.status === "online" ? "text-green-400" : "text-gray-400"}`}
+              className={`text-[10px] font-black uppercase tracking-widest ${f.status === "online" ? "text-green-400" : "text-white/20"}`}
             >
-              {f.status === "online" ? "إنترنت" : formatLastSeen(f.lastSeen)}
+              {f.status === "online" ? "متصل الآن" : formatLastSeen(f.lastSeen)}
             </span>
           </div>
         </div>
       </div>
-      <button
-        onClick={async (e) => {
-          e.stopPropagation();
-          let roomCode = multiplayerState.roomCode;
-          
-          if (!multiplayerState.isMultiplayer || !roomCode) {
-            const confirmed = window.confirm("أنت لست في غرفة حالياً. هل تريد إنشاء غرفة خاصة جديدة ودعوة هذا الصديق؟");
-            if (!confirmed) return;
-            
-            setIsInviting(true);
-            try {
-              const profile = getLocalProfile();
-              const createdCode = await createRoom(profile?.name || "لاعب", false, "", 31);
-              if (createdCode) {
-                roomCode = createdCode;
-              } else {
-                throw new Error("فشل إنشاء الغرفة");
-              }
-            } catch (err) {
-              alert("خطأ: " + (err as Error).message);
-              setIsInviting(false);
-              return;
-            }
-          } else {
-             setIsInviting(true);
-          }
-
-          const success = await sendRoomInvite(f.uid, roomCode);
-          if (success) {
-            alert(`تم إرسال الدعوة إلى ${f.name}`);
-            // Switch to multiplayer screen if we just joined a room
-            if (G.phase !== 'multiplayer') {
-               G.phase = 'multiplayer';
-               updateUI();
-            }
-          }
-          setIsInviting(false);
-        }}
-        disabled={isInviting || f.status !== "online"}
-        className={`w-full sm:w-auto px-5 py-2.5 sm:py-2 ${f.status === "online" ? "bg-gradient-to-r from-[var(--color-gold)] to-yellow-600 text-black hover:scale-105 active:scale-95" : "bg-black/30 text-gray-500"} text-xs font-black rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg`}
-      >
-        {isInviting ? (
-          "..."
-        ) : (
-          <>
-            <span>تحدي</span>
-            <span>⚔️</span>
-          </>
+      
+      <div className="flex items-center gap-3 w-full sm:w-auto relative z-10">
+        {f.points !== undefined && (
+          <div className="hidden sm:flex flex-col items-center px-4">
+             <div className="text-[9px] font-black text-white/20 uppercase">النقاط</div>
+             <div className="text-white font-black">{f.points}</div>
+          </div>
         )}
-      </button>
-    </div>
+        <button
+          onClick={async (e) => {
+            e.stopPropagation();
+            let roomCode = multiplayerState.roomCode;
+            
+            if (!multiplayerState.isMultiplayer || !roomCode) {
+              const confirmed = window.confirm("أنت لست في غرفة حالياً. هل تريد إنشاء غرفة خاصة جديدة ودعوة هذا الصديق؟");
+              if (!confirmed) return;
+              
+              setIsInviting(true);
+              try {
+                const profile = getLocalProfile();
+                const createdCode = await createRoom(profile?.name || "لاعب", false, "", 31);
+                if (createdCode) {
+                  roomCode = createdCode;
+                } else {
+                  throw new Error("فشل إنشاء الغرفة");
+                }
+              } catch (err) {
+                alert("خطأ: " + (err as Error).message);
+                setIsInviting(false);
+                return;
+              }
+            } else {
+               setIsInviting(true);
+            }
+
+            const success = await sendRoomInvite(f.uid, roomCode);
+            if (success) {
+              alert(`تم إرسال الدعوة إلى ${f.name}`);
+              if (G.phase !== 'multiplayer') {
+                 G.phase = 'multiplayer';
+                 updateUI();
+              }
+            }
+            setIsInviting(false);
+          }}
+          disabled={isInviting || f.status !== "online"}
+          className={`w-full sm:w-auto px-6 py-3 sm:py-2.5 ${f.status === "online" ? "bg-gradient-to-r from-[var(--color-gold)] to-yellow-600 text-black shadow-[0_10px_20px_rgba(212,175,55,0.2)] hover:brightness-110 active:scale-95" : "bg-white/5 text-white/20 border border-white/5"} text-[11px] font-black rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 group-hover:px-8`}
+        >
+          {isInviting ? (
+            <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+          ) : (
+            <>
+              <span>تحدي</span>
+              <Send className="w-3.5 h-3.5" />
+            </>
+          )}
+        </button>
+      </div>
+    </motion.div>
   );
 }
 

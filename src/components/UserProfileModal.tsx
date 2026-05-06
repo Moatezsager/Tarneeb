@@ -185,16 +185,16 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                 <motion.div 
                   initial={{ scale: 0.8 }}
                   animate={{ scale: 1 }}
-                  className={`w-32 h-32 bg-black/60 border-4 ${displayUser.searchId === '01' ? 'border-[var(--color-gold)]' : 'border-white/10'} rounded-[36px] flex items-center justify-center shadow-2xl relative overflow-hidden transition-all group-hover:scale-105`}
+                  className={`w-32 h-32 bg-black/60 border-4 ${displayUser.searchId === '01' ? 'border-[var(--color-gold)] shadow-[0_0_30px_rgba(212,175,55,0.4)]' : 'border-white/10'} rounded-[36px] flex items-center justify-center shadow-2xl relative overflow-hidden transition-all group-hover:scale-105`}
                 >
-                   {displayUser.searchId === '01' && (
-                     <div className="absolute inset-0 bg-gradient-to-tr from-[var(--color-gold)]/20 to-transparent animate-pulse" />
-                   )}
-                   {displayUser.avatar?.startsWith('http') ? (
-                     <img src={displayUser.avatar} alt="Avatar" className="w-full h-full object-contain relative z-10 p-3" referrerPolicy="no-referrer" />
-                   ) : (
-                     <span className="text-6xl relative z-10">{displayUser.avatar}</span>
-                   )}
+                    {displayUser.searchId === '01' && (
+                      <div className="absolute inset-0 bg-gradient-to-tr from-[var(--color-gold)]/30 via-transparent to-[var(--color-gold)]/10 animate-pulse" />
+                    )}
+                    {displayUser.avatar?.startsWith('http') ? (
+                      <img src={displayUser.avatar} alt="Avatar" className="w-full h-full object-contain relative z-10 p-3" referrerPolicy="no-referrer" />
+                    ) : (
+                      <span className="text-6xl relative z-10">{displayUser.avatar}</span>
+                    )}
                 </motion.div>
                 
                 {displayUser.status === 'online' && (
@@ -206,7 +206,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                 )}
 
                 {displayUser.searchId === '01' && (
-                  <div className="absolute -top-3 -right-3 bg-[var(--color-gold)] p-2 rounded-2xl border-4 border-[#1a1a2e] shadow-lg rotate-12">
+                  <div className="absolute -top-3 -right-3 bg-[var(--color-gold)] p-2 rounded-2xl border-4 border-[#1a1a2e] shadow-lg rotate-12 z-20">
                     <Crown className="w-5 h-5 text-black" fill="black" />
                   </div>
                 )}
@@ -215,9 +215,17 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
               {/* Identity Info */}
               <div className="mt-6 text-center space-y-1">
                 <div className="flex items-center justify-center gap-2">
-                  <h2 className="text-3xl font-black text-white tracking-tight">{displayUser.name}</h2>
+                  <h2 className="text-3xl font-black text-white tracking-tight leading-tight">{displayUser.name}</h2>
+                  {displayUser.searchId === '01' && (
+                    <div className="bg-[var(--color-gold)] text-black px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-tighter shadow-lg">
+                      مطور
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center justify-center gap-2">
+                {displayUser.searchId === '01' && (
+                   <p className="text-[var(--color-gold)] text-[10px] font-black uppercase tracking-[0.2em] animate-pulse">مؤسس طرنيب هيرو</p>
+                )}
+                <div className="flex items-center justify-center gap-2 pt-2">
                    <div className="px-3 py-0.5 bg-white/5 rounded-full border border-white/5 flex items-center gap-2">
                       <span className="text-[10px] font-mono text-[var(--color-gold)] tracking-[0.2em]">#{displayUser.searchId || "0000"}</span>
                    </div>
@@ -235,7 +243,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                 <div className="relative group">
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-gold)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl" />
                   <div className="bg-white/5 border border-white/5 p-4 rounded-3xl text-center space-y-1 transition-all group-hover:translate-y-[-4px]">
-                    <div className="text-[9px] text-white/30 font-black uppercase tracking-widest">Player Rank</div>
+                    <div className="text-[9px] text-white/30 font-black uppercase tracking-widest">رتبة اللاعب</div>
                     <div className="text-2xl font-black text-white flex items-center justify-center gap-2">
                        <span className="text-[var(--color-gold)] text-sm">LVL</span> 
                        {displayUser.points ? Math.floor(displayUser.points / 100) + 1 : 1}
@@ -246,7 +254,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                 <div className="relative group">
                    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl" />
                    <div className="bg-white/5 border border-white/5 p-4 rounded-3xl text-center space-y-1 transition-all group-hover:translate-y-[-4px]">
-                    <div className="text-[9px] text-white/30 font-black uppercase tracking-widest">Total Points</div>
+                    <div className="text-[9px] text-white/30 font-black uppercase tracking-widest">إجمالي النقاط</div>
                     <div className="text-2xl font-black text-white flex items-center justify-center gap-1">
                        <Sparkles className="w-3.5 h-3.5 text-blue-400" />
                        {displayUser.points || 0}
@@ -260,17 +268,17 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                 <div className="flex items-center justify-between px-4 py-3 bg-black/20 rounded-2xl border border-white/5">
                    <div className="flex items-center gap-2">
                       <Clock className="w-3.5 h-3.5 text-[var(--color-gold)]" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Activity Status</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">حالة النشاط</span>
                    </div>
                    <span className="text-[10px] font-black text-white/60">
-                      {displayUser.status === 'online' ? 'Active Now' : formatLastSeen(displayUser.lastSeen)}
+                      {displayUser.status === 'online' ? 'متصل الآن' : formatLastSeen(displayUser.lastSeen)}
                    </span>
                 </div>
 
                 <div className="flex items-center justify-between px-4 py-3 bg-black/20 rounded-2xl border border-white/5">
                    <div className="flex items-center gap-2">
                       <Calendar className="w-3.5 h-3.5 text-blue-400" />
-                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">Joined Origin</span>
+                      <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">تاريخ الانضمام</span>
                    </div>
                    <span className="text-[10px] font-black text-white/60">
                       {formatJoinDate(displayUser.createdAt)}
@@ -290,7 +298,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                       >
                         <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 skew-x-12" />
                         <Sword className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-                        {inviting ? "Sending Challenge..." : "Challenge Battle ⚔️"}
+                        {inviting ? "جاري الإرسال..." : "تحدي في معركة ⚔️"}
                       </button>
                     )}
                     <div className="flex gap-3">
@@ -299,14 +307,14 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                           onClick={() => setShowConfirm(true)}
                           className="flex-1 py-4 bg-red-500/10 border border-red-500/20 text-red-500 text-xs font-black rounded-2xl hover:bg-red-500 hover:text-white transition-all shadow-inner"
                         >
-                          Unfriend
+                          إلغاء الصداقة
                         </button>
                       )}
                       <button 
                         onClick={onClose}
                         className="flex-1 py-4 bg-white/5 border border-white/10 text-white/60 text-xs font-black rounded-2xl hover:bg-white/10 transition-all"
                       >
-                        Close Portal
+                        إغلاق الملف
                       </button>
                     </div>
                   </>
@@ -316,20 +324,20 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                     animate={{ opacity: 1, scale: 1 }}
                     className="p-6 bg-red-500/5 rounded-[32px] border border-red-500/20 text-center space-y-4 shadow-inner"
                   >
-                    <div className="text-white/80 font-black text-sm">Are you sure about removing this friend?</div>
+                    <div className="text-white/80 font-black text-sm">هل أنت متأكد من رغبتك في حذف هذا الصديق؟</div>
                     <div className="flex gap-3">
                        <button 
                         onClick={handleUnfriend}
                         disabled={unfriending}
                         className="flex-1 py-4 bg-red-600 text-white text-xs font-black rounded-2xl hover:bg-red-500 transition-all shadow-lg"
                       >
-                        {unfriending ? "Removing..." : "Yes, Remove"}
+                        {unfriending ? "جاري الحذف..." : "نعم، حذف"}
                       </button>
                       <button 
                         onClick={() => setShowConfirm(false)}
                         className="flex-1 py-4 bg-white/5 text-white/60 text-xs font-black rounded-2xl hover:bg-white/10 transition-all"
                       >
-                        Cancel
+                        تراجع
                       </button>
                     </div>
                   </motion.div>

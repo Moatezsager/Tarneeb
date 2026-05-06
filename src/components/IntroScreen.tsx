@@ -2,11 +2,11 @@ import React, { useState, useEffect } from "react";
 import { initAudio, sfxNotify } from "../lib/audio";
 import { G, updateUI } from "../logic/engine";
 import { auth } from "../lib/firebase";
-import { getLocalProfile, COUNTRIES } from "../logic/userProfile";
+import { getLocalProfile, COUNTRIES, UserProfile } from "../logic/userProfile";
 import { ProfileSetupScreen } from "./ProfileSetupScreen";
 import { SocialModal } from "./SocialModal";
 import { SettingsModal } from "./SettingsModal";
-import { Settings, LogOut, Users, Play, Gamepad2, UserCircle } from "lucide-react";
+import { Settings, LogOut, Users, Play, Gamepad2, UserCircle, Crown } from "lucide-react";
 import { 
   listenToFriendRequests, 
   listenToAcceptedRequests, 
@@ -15,12 +15,12 @@ import {
   FriendRequest
 } from "../logic/social";
 import { listenToRoomInvites, respondToRoomInvite, joinRoom, cleanupOldInvites, cleanupStaleRooms } from "../logic/multiplayer";
-import { setDoc, doc, serverTimestamp } from "firebase/firestore";
+import { setDoc, doc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { motion, AnimatePresence } from "motion/react";
 
 export function IntroScreen() {
-  const profile = getLocalProfile();
+  const [profile, setProfile] = useState<UserProfile | null>(getLocalProfile());
   const country = COUNTRIES.find(c => c.code === profile?.country);
   const [showSocial, setShowSocial] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -34,11 +34,25 @@ export function IntroScreen() {
   const [rejoining, setRejoining] = useState(false);
 
   useEffect(() => {
-    // Run cleanup logic only once per session or mount (ideally once per app life but mount is safer with auth)
+    // 1. Live Profile Listener
+    const user = auth.currentUser;
+    let unsubProfile = () => {};
+    
+    if (user) {
+      unsubProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() as UserProfile;
+          setProfile({ ...data, uid: snap.id });
+          localStorage.setItem('tarneb_user_profile', JSON.stringify({ ...data, uid: snap.id }));
+        }
+      });
+    }
+
+    // Run cleanup logic only once per session or mount
     const runCleanup = async () => {
       const lastCleanup = sessionStorage.getItem('tarneb_last_cleanup');
       const now = Date.now();
-      if (!lastCleanup || now - parseInt(lastCleanup) > 3600000) { // Once per hour per tab
+      if (!lastCleanup || now - parseInt(lastCleanup) > 3600000) {
         if (auth.currentUser) {
           cleanupOldInvites();
           cleanupStaleRooms();
@@ -69,49 +83,42 @@ export function IntroScreen() {
       setRequestsCount(reqs.length);
     });
 
-    // Also handle automatic syncing of accepted requests even when modal is closed
+    // Handle friend request acceptance sync
     const unsubAccepted = listenToAcceptedRequests(async (accepted) => {
       setAcceptedCount(accepted.length);
-      
-      const user = auth.currentUser;
       if (!user) return;
 
       for (const req of accepted) {
-        // Prevent redundant processing using a persistent session set
         const processedKey = `friend_processed_${req.id}`;
         if (req.toUid && !sessionStorage.getItem(processedKey)) {
           sessionStorage.setItem(processedKey, 'true');
           try {
-            // Add to my friend list (I am the sender who got accepted)
             const myFriendRef = doc(db, "users", user.uid, "friends", req.toUid);
             await setDoc(myFriendRef, {
               uid: req.toUid,
               name: req.toName || "لاعب",
               avatar: req.toAvatar || "👤",
               searchId: req.toSearchId || "",
-              status: "online", // optimistic
+              status: "online",
               updatedAt: serverTimestamp()
             });
-            
-            // Show toast
             sfxNotify();
             setToast({
               message: `أصبح ${req.toName} صديقك الآن!`,
               icon: req.toAvatar || "🤝"
             });
             setTimeout(() => setToast(null), 5000);
-
-            // Clean up the request document
             await deleteFriendRequest(req.id);
           } catch (err) {
             console.error("Intro sync error:", err);
-            sessionStorage.removeItem(processedKey); // Allow retry if failed
+            sessionStorage.removeItem(processedKey);
           }
         }
       }
     });
 
     return () => {
+      unsubProfile();
       unsubRequests();
       unsubAccepted();
       unsubInvites();
@@ -149,7 +156,7 @@ export function IntroScreen() {
         {/* Profile (Right side) */}
         <div className="flex items-center gap-3">
           <div 
-            className={`w-11 h-11 sm:w-12 sm:h-12 ${profile?.searchId === '01' ? 'bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 p-0.5' : 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/40'} rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-inner cursor-pointer active:scale-95 transition-all hover:border-[var(--color-gold)] relative`}
+            className={`w-11 h-11 sm:w-12 sm:h-12 ${profile?.searchId === '01' ? 'bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200 p-0.5 shadow-[0_0_15px_rgba(212,175,55,0.4)]' : 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/40'} rounded-full flex items-center justify-center text-2xl sm:text-3xl shadow-inner cursor-pointer active:scale-95 transition-all hover:border-[var(--color-gold)] relative`}
             onClick={() => { G.phase = 'profile'; updateUI(); }}
           >
             <div className="bg-[#1a1a1a] w-full h-full rounded-full flex items-center justify-center overflow-hidden">
@@ -160,16 +167,24 @@ export function IntroScreen() {
               )}
             </div>
             {profile?.searchId === '01' && (
-              <div className="absolute -top-1 -right-1 bg-[var(--color-gold)] p-0.5 rounded-full border border-black shadow-lg">
-                <span className="text-[10px] block leading-none">👑</span>
-              </div>
+              <motion.div 
+                animate={{ scale: [1, 1.2, 1] }} 
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="absolute -top-1.5 -right-1.5 bg-[var(--color-gold)] p-0.5 rounded-full border border-black shadow-lg"
+              >
+                <Crown className="w-3.5 h-3.5 text-black fill-black" />
+              </motion.div>
             )}
           </div>
 
           <div className="flex flex-col items-start gap-0.5">
             <div className="flex items-center gap-1.5" dir="rtl">
-              <div className="text-white font-black text-xs md:text-md leading-tight max-w-[120px] truncate">{profile?.name}</div>
-              {profile?.searchId === '01' && <span className="text-[var(--color-gold)] text-[10px]">👑</span>}
+              <div className={`font-black text-xs md:text-md leading-tight max-w-[120px] truncate ${profile?.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white'}`}>{profile?.name}</div>
+              {profile?.searchId === '01' && (
+                <div className="bg-[var(--color-gold)] text-black px-1.5 py-0.5 rounded-md text-[7px] font-black uppercase tracking-tighter">
+                  مطور
+                </div>
+              )}
               <div className="text-[10px] text-[#888] font-mono tracking-tighter" dir="ltr">#{profile?.searchId}</div>
             </div>
             <div className="text-[9px] sm:text-[10px] text-[var(--color-gold)] font-bold flex items-center gap-1" dir="rtl">
