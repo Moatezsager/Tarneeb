@@ -24,21 +24,25 @@ function startHeartbeat() {
     if (!activeRoomId || !auth.currentUser) return;
     try {
        const roomRef = doc(db, "rooms", activeRoomId);
-       const roomSnap = await getDoc(roomRef);
-       if (roomSnap.exists()) {
-          const data = roomSnap.data() as RoomData;
-          const updatedPlayers = data.players.map(p => {
+       const players = multiplayerState.players;
+       if (players.length > 0) {
+          let hasChange = false;
+          const updatedPlayers = players.map(p => {
              if (p.uid === auth.currentUser!.uid) {
-                return { ...p, lastPing: Date.now(), status: "connected" };
+                // Update our timestamp, considered a change to keep connection alive
+                hasChange = true;
+                return { ...p, lastPing: Date.now(), status: "connected" as const };
              }
-             // Also check if others haven't pinged in > 30s
-             if (!p.isBot && p.lastPing && Date.now() - p.lastPing > 30000) {
+             if (!p.isBot && p.lastPing && Date.now() - p.lastPing > 30000 && p.status !== "disconnected") {
+                hasChange = true;
                 return { ...p, status: "disconnected" as const };
              }
              return p;
           });
-          // Only write if we are modifying our own or another's status
-          await updateDoc(roomRef, { players: updatedPlayers });
+          
+          if (hasChange) {
+            await updateDoc(roomRef, { players: updatedPlayers });
+          }
        }
     } catch (e) {
        console.error("Heartbeat failed", e);
@@ -270,8 +274,10 @@ function deserializeGameState(state: any): any {
   return state;
 }
 
+let antiHostInterval: any = null;
 function startAntiHostFreezeTimer() {
-  setInterval(() => {
+  if (antiHostInterval) clearInterval(antiHostInterval);
+  antiHostInterval = setInterval(() => {
     if (multiplayerState.isHost || !multiplayerState.isMultiplayer) return;
     if (G.phase !== "playing" && G.phase !== "bidding") return;
     if (!G.gameStarted) return;
@@ -289,7 +295,12 @@ function startAntiHostFreezeTimer() {
   }, 5000);
 }
 
-startAntiHostFreezeTimer();
+function stopAntiHostFreezeTimer() {
+  if (antiHostInterval) {
+    clearInterval(antiHostInterval);
+    antiHostInterval = null;
+  }
+}
 
 async function takeOverHost() {
   if (!activeRoomId || multiplayerState.isHost) return;
@@ -402,6 +413,7 @@ export async function createRoom(playerName: string, isPublic = true, password =
     setMultiplayerMode(true, true);
     
     startHeartbeat();
+    startAntiHostFreezeTimer();
     listenToRoom(roomId);
     startHostTimer();
     return code;
@@ -535,6 +547,7 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
     setMultiplayerMode(true, multiplayerState.isHost);
     
     startHeartbeat();
+    startAntiHostFreezeTimer();
     listenToRoom(roomId);
     if (multiplayerState.isHost) startHostTimer();
     return roomId;
@@ -642,17 +655,36 @@ export function listenToRoom(roomId: string) {
   });
 }
 
+let lastUpdatePromise: Promise<void> | null = null;
+let pendingStateUpdate = false;
+let lastSerializedState = "";
+
 export async function updateGameState() {
   if (!activeRoomId || !multiplayerState.isMultiplayer) return;
+  if (pendingStateUpdate) return; 
+  
+  const newState = serializeGameState({ ...G });
+  if (newState === lastSerializedState) return;
+
+  pendingStateUpdate = true;
+  // Delay to batch possible rapid updates
+  await new Promise(resolve => setTimeout(resolve, 150));
+  pendingStateUpdate = false;
+
+  const finalState = serializeGameState({ ...G });
+  if (finalState === lastSerializedState) return;
 
   try {
-    await updateDoc(doc(db, "rooms", activeRoomId), {
-      gameState: serializeGameState({ ...G }),
+    lastSerializedState = finalState;
+    const roomRef = doc(db, "rooms", activeRoomId);
+    await updateDoc(roomRef, {
+      gameState: finalState,
       lastActionBy: auth.currentUser?.uid,
       updatedAt: serverTimestamp()
     });
   } catch (error) {
     console.error("Multiplayer Sync Error", error);
+    lastSerializedState = ""; // Allow retry on failure
   }
 }
 
@@ -664,6 +696,7 @@ export async function leaveRoom(destroy = false) {
   roomUnsubscribe = null;
   stopHeartbeat();
   stopHostTimer();
+  stopAntiHostFreezeTimer();
   activeRoomId = null;
   multiplayerState.isMultiplayer = false;
   multiplayerState.roomCode = "";

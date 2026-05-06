@@ -101,12 +101,18 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
     setInviting(true);
     try {
       let roomCode = multiplayerState.roomCode;
-      if (!multiplayerState.isMultiplayer) {
+      if (!multiplayerState.isMultiplayer || !roomCode) {
+        const confirmed = window.confirm("أنت لست في غرفة حالياً. هل تريد إنشاء غرفة خاصة جديدة ودعوة هذا الصديق؟");
+        if (!confirmed) {
+          setInviting(false);
+          return;
+        }
+
         // Create a private room automatically
         const profile = getLocalProfile();
-        const success = await createRoom(profile?.name || "لاعب", false, "", 31);
-        if (success) {
-          roomCode = multiplayerState.roomCode;
+        const createdCode = await createRoom(profile?.name || "لاعب", false, "", 31);
+        if (createdCode) {
+          roomCode = createdCode;
         } else {
           throw new Error("فشل إنشاء الغرفة");
         }

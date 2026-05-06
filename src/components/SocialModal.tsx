@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { UserProfile } from "../logic/userProfile";
+import { UserProfile, getLocalProfile } from "../logic/userProfile";
 import {
   FriendRequest,
   listenToFriendRequests,
@@ -12,9 +12,10 @@ import {
   listenToAcceptedRequests,
   deleteFriendRequest,
 } from "../logic/social";
-import { multiplayerState, sendRoomInvite } from "../logic/multiplayer";
+import { multiplayerState, sendRoomInvite, createRoom } from "../logic/multiplayer";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
+import { G, updateUI } from "../logic/engine";
 import { UserProfileModal, formatLastSeen } from "./UserProfileModal";
 import {
   Crown,
@@ -43,21 +44,8 @@ interface FriendCardProps {
 }
 
 function FriendCard({ friend, onSelect }: FriendCardProps) {
-  const [liveProfile, setLiveProfile] = useState<UserProfile>(friend);
   const [isInviting, setIsInviting] = useState(false);
-
-  useEffect(() => {
-    // Fetch live profile to stay updated with name/avatar/lastSeen changes
-    const unsub = onSnapshot(doc(db, "users", friend.uid), (doc) => {
-      if (doc.exists()) {
-        setLiveProfile({ ...doc.data(), uid: doc.id } as UserProfile);
-      }
-    });
-
-    return () => unsub();
-  }, [friend.uid]);
-
-  const f = liveProfile;
+  const f = friend;
 
   return (
     <div
@@ -104,17 +92,38 @@ function FriendCard({ friend, onSelect }: FriendCardProps) {
       <button
         onClick={async (e) => {
           e.stopPropagation();
-          if (!multiplayerState.isMultiplayer || !multiplayerState.roomCode) {
-            alert("يجب إنشاء غرفة أولاً لكي تتمكن من دعوة الأصدقاء!");
-            return;
+          let roomCode = multiplayerState.roomCode;
+          
+          if (!multiplayerState.isMultiplayer || !roomCode) {
+            const confirmed = window.confirm("أنت لست في غرفة حالياً. هل تريد إنشاء غرفة خاصة جديدة ودعوة هذا الصديق؟");
+            if (!confirmed) return;
+            
+            setIsInviting(true);
+            try {
+              const profile = getLocalProfile();
+              const createdCode = await createRoom(profile?.name || "لاعب", false, "", 31);
+              if (createdCode) {
+                roomCode = createdCode;
+              } else {
+                throw new Error("فشل إنشاء الغرفة");
+              }
+            } catch (err) {
+              alert("خطأ: " + (err as Error).message);
+              setIsInviting(false);
+              return;
+            }
+          } else {
+             setIsInviting(true);
           }
-          setIsInviting(true);
-          const success = await sendRoomInvite(
-            f.uid,
-            multiplayerState.roomCode,
-          );
+
+          const success = await sendRoomInvite(f.uid, roomCode);
           if (success) {
             alert(`تم إرسال الدعوة إلى ${f.name}`);
+            // Switch to multiplayer screen if we just joined a room
+            if (G.phase !== 'multiplayer') {
+               G.phase = 'multiplayer';
+               updateUI();
+            }
           }
           setIsInviting(false);
         }}

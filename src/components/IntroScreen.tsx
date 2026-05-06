@@ -32,12 +32,20 @@ export function IntroScreen() {
   const [rejoining, setRejoining] = useState(false);
 
   useEffect(() => {
-    // Run cleanup logic
-    if (auth.currentUser) {
-      cleanupOldInvites();
-      cleanupStaleRooms();
-      cleanupOldFriendRequests();
-    }
+    // Run cleanup logic only once per session or mount (ideally once per app life but mount is safer with auth)
+    const runCleanup = async () => {
+      const lastCleanup = sessionStorage.getItem('tarneb_last_cleanup');
+      const now = Date.now();
+      if (!lastCleanup || now - parseInt(lastCleanup) > 3600000) { // Once per hour per tab
+        if (auth.currentUser) {
+          cleanupOldInvites();
+          cleanupStaleRooms();
+          cleanupOldFriendRequests();
+          sessionStorage.setItem('tarneb_last_cleanup', now.toString());
+        }
+      }
+    };
+    runCleanup();
 
     // Listen for room invites
     let prevInviteCount = 0;
@@ -59,8 +67,6 @@ export function IntroScreen() {
       setRequestsCount(reqs.length);
     });
 
-    const processedRequests = new Set<string>();
-
     // Also handle automatic syncing of accepted requests even when modal is closed
     const unsubAccepted = listenToAcceptedRequests(async (accepted) => {
       setAcceptedCount(accepted.length);
@@ -69,8 +75,10 @@ export function IntroScreen() {
       if (!user) return;
 
       for (const req of accepted) {
-        if (req.toUid && !processedRequests.has(req.id)) {
-          processedRequests.add(req.id);
+        // Prevent redundant processing using a persistent session set
+        const processedKey = `friend_processed_${req.id}`;
+        if (req.toUid && !sessionStorage.getItem(processedKey)) {
+          sessionStorage.setItem(processedKey, 'true');
           try {
             // Add to my friend list (I am the sender who got accepted)
             const myFriendRef = doc(db, "users", user.uid, "friends", req.toUid);
@@ -95,7 +103,7 @@ export function IntroScreen() {
             await deleteFriendRequest(req.id);
           } catch (err) {
             console.error("Intro sync error:", err);
-            processedRequests.delete(req.id); // Allow retry if failed
+            sessionStorage.removeItem(processedKey); // Allow retry if failed
           }
         }
       }
@@ -329,32 +337,38 @@ export function IntroScreen() {
         <AnimatePresence>
           {invites.length > 0 && (
             <motion.div 
-              initial={{ y: 50, opacity: 0, scale: 0.9 }}
+              initial={{ y: -100, opacity: 0, scale: 0.9 }}
               animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: 50, opacity: 0, scale: 0.9 }}
-              className="fixed bottom-8 left-4 right-4 z-[600] pointer-events-none"
+              exit={{ y: -100, opacity: 0, scale: 0.9 }}
+              className="fixed top-24 left-4 right-4 z-[650] pointer-events-none"
             >
-              <div className="bg-[#1a1a2e]/95 backdrop-blur-2xl border-2 border-[var(--color-gold)] p-5 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-4 pointer-events-auto max-w-[400px] mx-auto overflow-hidden relative group">
+              <div className="bg-[#1a1a2e]/95 backdrop-blur-2xl border-2 border-[var(--color-gold)] p-4 rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex flex-col gap-3 pointer-events-auto max-w-[360px] mx-auto overflow-hidden relative group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-50" />
                 
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-16 h-16 bg-[var(--color-gold)]/10 rounded-2xl flex items-center justify-center text-4xl shadow-inner border border-[var(--color-gold)]/20">
+                <div className="flex items-center gap-3">
+                  <div className="relative shrink-0">
+                    <div className="w-12 h-12 bg-[var(--color-gold)]/10 rounded-xl flex items-center justify-center text-3xl shadow-inner border border-[var(--color-gold)]/20">
                       {invites[0].fromAvatar}
                     </div>
-                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-4 h-4 rounded-full border-2 border-[#1a1a2e]" title="متصل الآن" />
+                    <div className="absolute -bottom-1 -right-1 bg-green-500 w-3 h-3 rounded-full border-2 border-[#1a1a2e]" />
                   </div>
                   
-                  <div className="text-right flex-1">
-                    <div className="text-white font-black text-lg">{invites[0].fromName}</div>
-                    <div className="text-[var(--color-gold)] text-xs font-bold flex items-center gap-1 mt-1">
-                       <span className="animate-pulse">⚔️</span>
-                       يدعوك لتحدٍ في غرفة: <span className="font-mono bg-white/5 px-2 py-0.5 rounded text-white">{invites[0].roomCode}</span>
+                  <div className="text-right flex-1 min-w-0">
+                    <div className="text-white font-black text-base truncate">{invites[0].fromName}</div>
+                    <div className="text-[var(--color-gold)] text-[10px] font-bold flex items-center gap-1 mt-0.5">
+                       <span className="animate-pulse shrink-0">⚔️</span>
+                       <span className="truncate">يدعوك لتحدٍ في الغرفة: <span className="font-mono bg-white/5 px-1 rounded text-white">{invites[0].roomCode}</span></span>
                     </div>
                   </div>
+                  
+                  {invites.length > 1 && (
+                    <div className="bg-[var(--color-kuba)] text-white text-[10px] font-black px-2 py-1 rounded-full absolute -top-1 -left-1 shadow-lg animate-bounce">
+                      +{invites.length - 1}
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-3 mt-1">
+                <div className="flex gap-2.5 mt-0.5">
                   <button 
                     onClick={async () => {
                       const req = invites[0];
@@ -369,13 +383,13 @@ export function IntroScreen() {
                         }
                       }
                     }}
-                    className="flex-[2] py-3.5 bg-[var(--color-gold)] text-black font-black text-sm rounded-xl active:scale-95 transition-all shadow-[0_5px_15px_rgba(212,175,55,0.3)] hover:brightness-110"
+                    className="flex-[2] py-2.5 bg-gradient-to-b from-[#fceabb] to-[#f8b500] text-black font-black text-xs rounded-lg active:scale-95 transition-all shadow-[0_4px_12px_rgba(248,181,0,0.3)] hover:brightness-110"
                   >
                     قبول التحدي
                   </button>
                   <button 
                     onClick={() => respondToRoomInvite(invites[0].id, invites[0].roomCode, 'rejected')}
-                    className="flex-1 py-3.5 bg-white/5 text-white/60 font-bold text-sm rounded-xl active:scale-95 transition-all hover:bg-white/10 hover:text-white"
+                    className="flex-1 py-2.5 bg-white/5 text-white/60 font-bold text-xs rounded-lg active:scale-95 transition-all hover:bg-white/10 hover:text-white"
                   >
                     تجاهل
                   </button>
