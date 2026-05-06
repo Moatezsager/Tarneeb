@@ -61,6 +61,14 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errorMsg = error instanceof Error ? error.message : String(error);
+  
+  // Silently handle common/expected scenarios that shouldn't crash or alert the user
+  if (errorMsg.includes("not-found") || errorMsg.includes("الغرفة غير موجودة")) {
+    console.warn(`Firestore Info (${operationType}): Resource at ${path} not found. Handling gracefully.`);
+    return;
+  }
+
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {

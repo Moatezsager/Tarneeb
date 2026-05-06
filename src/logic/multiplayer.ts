@@ -86,10 +86,20 @@ async function sendHeartbeat() {
     });
 
     if (hasChange) {
-      await updateDoc(roomRef, { players: updatedPlayers });
+      try {
+        const roomSnap = await getDoc(roomRef);
+        if (roomSnap.exists()) {
+          await updateDoc(roomRef, { players: updatedPlayers });
+        } else {
+          console.warn("Heartbeat failed: Room no longer exists.");
+          stopHeartbeat();
+        }
+      } catch (e) {
+        // Silently fail - next heartbeat will retry or user will be kicked by listener
+      }
     }
   } catch (e) {
-    // Silently fail - next heartbeat will retry
+    // Silently fail
   }
 }
 
@@ -658,8 +668,17 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
     listenToRoom(roomId);
     if (multiplayerState.isHost) startHostTimer();
     return roomId;
-  } catch (error) {
+  } catch (error: any) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    const expectedErrors = ["الغرفة غير موجودة", "كلمة المرور غير صحيحة", "اللعبة بدأت بالفعل أو انتهت", "الغرفة ممتلئة"];
+    
+    if (expectedErrors.some(e => errorMsg.includes(e))) {
+      console.warn("Expected join error:", errorMsg);
+      throw error; // Just throw the simple error, don't use handleFirestoreError's JSON bloat
+    }
+    
     handleFirestoreError(error, OperationType.UPDATE, `rooms/${roomId}`);
+    throw error;
   }
 }
 
@@ -825,6 +844,15 @@ export async function updateGameState() {
     try {
       lastSerializedState = finalState;
       const roomRef = doc(db, "rooms", roomId);
+      
+      // Final existence check to avoid reported crash
+      const roomSnap = await getDoc(roomRef);
+      if (!roomSnap.exists()) {
+        console.warn("Update Game State failed: Room no longer exists.");
+        leaveRoom();
+        return;
+      }
+
       await updateDoc(roomRef, {
         gameState: finalState,
         lastActionBy: auth.currentUser?.uid,
@@ -832,7 +860,7 @@ export async function updateGameState() {
       });
       syncRetryCount = 0; // Reset on success
       return;
-    } catch (error) {
+    } catch (error: any) {
       lastSerializedState = ""; // Allow retry
       if (attempt < MAX_SYNC_RETRIES) {
         const backoffMs = Math.min(200 * Math.pow(2, attempt), 2000);
