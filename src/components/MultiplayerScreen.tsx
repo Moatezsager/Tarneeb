@@ -142,7 +142,9 @@ export function MultiplayerScreen() {
             <div className="flex items-center gap-3">
                <div className="flex -space-x-2 flex-row-reverse border border-white/10 p-1 rounded-full bg-black/20">
                   {multiplayerState.players.slice(0, 3).map(p => (
-                    <div key={p.uid} className="w-6 h-6 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[10px] shadow-sm">{p.avatar}</div>
+                    <div key={p.uid} className="w-6 h-6 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-[10px] shadow-sm overflow-hidden">
+                      {p.avatar?.startsWith('http') ? <img src={p.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : p.avatar}
+                    </div>
                   ))}
                   {multiplayerState.players.length > 3 && <div className="w-6 h-6 rounded-full bg-[var(--color-gold)] text-black border border-white/20 flex items-center justify-center text-[8px] font-black">+1</div>}
                </div>
@@ -185,7 +187,9 @@ export function MultiplayerScreen() {
                        {p ? (
                          <>
                            <div className="relative">
-                             <div className={`text-3xl filter drop-shadow-md p-1 rounded-2xl ${p.searchId === '01' ? 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/50' : ''}`}>{p.avatar}</div>
+                             <div className={`text-3xl filter drop-shadow-md p-1 rounded-2xl ${p.searchId === '01' ? 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/50' : ''}`}>
+                               {p.avatar?.startsWith('http') ? <img src={p.avatar} alt="Avatar" className="w-10 h-10 object-contain" referrerPolicy="no-referrer" /> : p.avatar}
+                             </div>
                              {i === 0 && p.searchId !== '01' && <span className="absolute -bottom-1 -right-1 text-[10px] bg-[var(--color-gold)] text-black w-4 h-4 flex items-center justify-center rounded-full leading-none shadow-md">👑</span>}
                              {p.searchId === '01' && <span className="absolute -top-2 -right-2 text-[10px] bg-[var(--color-gold)] text-black w-5 h-5 flex items-center justify-center rounded-full leading-none shadow-[0_0_10px_rgba(212,175,55,0.8)] border border-black animate-pulse z-10 text-xs">👑</span>}
                            </div>
@@ -217,7 +221,9 @@ export function MultiplayerScreen() {
                   {G.spectators.map(s => (
                     <div key={s.uid} className={`flex items-center gap-2 pr-2 pl-3 py-1.5 rounded-xl border group relative shadow-sm ${s.searchId === '01' ? 'bg-gradient-to-r from-[var(--color-gold)]/20 to-[var(--color-gold)]/5 border-[var(--color-gold)]/50' : 'bg-gradient-to-r from-white/5 to-transparent border-white/5'}`}>
                       <div className="relative">
-                        <span className="text-sm">{s.avatar}</span>
+                        <span className="text-sm">
+                          {s.avatar?.startsWith('http') ? <img src={s.avatar} alt="Avatar" className="w-5 h-5 object-contain" referrerPolicy="no-referrer" /> : s.avatar}
+                        </span>
                         {s.searchId === '01' && <span className="absolute -top-1.5 -right-1.5 text-[6px] bg-[var(--color-gold)] text-black w-3 h-3 flex items-center justify-center rounded-full leading-none shadow-md border border-black z-10">👑</span>}
                       </div>
                       <span className={`text-xs font-bold ${s.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white/70'}`}>{s.name}</span>
@@ -280,7 +286,9 @@ export function MultiplayerScreen() {
                   onlineFriends.map(f => (
                     <div key={f.uid} className="flex items-center justify-between p-3 bg-white/5 rounded-2xl border border-white/5">
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl">{f.avatar}</span>
+                        <span className="text-2xl inline-block w-8 h-8">
+                          {f.avatar?.startsWith('http') ? <img src={f.avatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : f.avatar}
+                        </span>
                         <span className="text-white font-bold text-sm">{f.name}</span>
                       </div>
                       <button 

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="128" fill="#141423" />
+  <path d="M256 120 L350 256 L256 392 L162 256 Z" fill="#D4AF37" />
+  <text x="50%" y="320" font-size="200" text-anchor="middle" font-family="Arial" font-weight="bold" fill="#000">ط</text>
+</svg>

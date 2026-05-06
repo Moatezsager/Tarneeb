@@ -1,0 +1,16 @@
+{
+  "name": "طرنيب كلاسيك",
+  "short_name": "طرنيب",
+  "description": "لعبة طرنيب كلاسيكية مع أصدقائك أو ضد الذكاء الاصطناعي",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#141423",
+  "theme_color": "#D4AF37",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

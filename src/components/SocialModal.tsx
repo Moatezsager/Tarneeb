@@ -363,8 +363,8 @@ export function SocialModal({ isOpen, onClose, myProfile }: Props) {
                           >
                             <div className="flex items-center gap-3 sm:gap-4 mb-4">
                               <div className="relative">
-                                <div className={`text-3xl sm:text-4xl bg-black/40 p-2 sm:p-3 rounded-2xl border ${r.fromSearchId === '01' ? 'border-[var(--color-gold)]/50' : 'border-white/5'} shadow-inner`}>
-                                  {r.fromAvatar}
+                                <div className={`text-3xl sm:text-4xl bg-black/40 p-2 sm:p-3 rounded-2xl border ${r.fromSearchId === '01' ? 'border-[var(--color-gold)]/50' : 'border-white/5'} shadow-inner flex items-center justify-center overflow-hidden w-16 h-16`}>
+                                  {r.fromAvatar?.startsWith('http') ? <img src={r.fromAvatar} alt="Avatar" className="w-full h-full object-contain" referrerPolicy="no-referrer" /> : r.fromAvatar}
                                 </div>
                                 {r.fromSearchId === '01' && <span className="absolute -top-2 -right-2 text-[10px] bg-[var(--color-gold)] text-black w-6 h-6 flex items-center justify-center rounded-full shadow-[0_0_10px_rgba(212,175,55,0.8)] border border-black z-10 text-xs">👑</span>}
                               </div>

@@ -309,6 +309,7 @@ export async function startNewRound() {
     G.playerWithHighestScore = highestPlayers[0];
 
     G.phase = "swapping";
+    G.turnStartTime = Date.now();
     G.gameMsg = `الكنق 👑 ${G.playerNames[G.playerWithHighestScore]} يفكر في التبديل...`;
     updateUI();
 

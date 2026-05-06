@@ -495,7 +495,7 @@ export async function createRoom(playerName: string, isPublic = true, password =
     ],
     spectators: [],
     memberUids: [user.uid],
-    gameState: serializeGameState({ ...G, phase: "intro", target: winLimit, gameMode: mode }),
+    gameState: serializeGameState({ ...G, phase: "multiplayer", target: winLimit, gameMode: mode }),
     lastActionBy: user.uid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -799,7 +799,16 @@ const MAX_SYNC_RETRIES = 3;
 export async function updateGameState() {
   if (!activeRoomId || !multiplayerState.isMultiplayer) return;
   if (pendingStateUpdate) return; 
+
+  // Stability/Anti-Cheat: Only the host or the player whose turn it is should push state.
+  const isActingPlayer = 
+    (G.phase === "playing" && G.currentPlayer === multiplayerState.myPlayerIndex) ||
+    (G.phase === "bidding" && G.currentPlayer === multiplayerState.myPlayerIndex) ||
+    (G.phase === "swapping" && G.playerWithHighestScore === multiplayerState.myPlayerIndex);
   
+  const isAuthorized = multiplayerState.isHost || isActingPlayer;
+  
+  if (!isAuthorized) return;  
   const newState = serializeGameState({ ...G });
   if (newState === lastSerializedState) return;
 
