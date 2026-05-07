@@ -12,7 +12,7 @@ import {
   sfxRoundSuccess,
 } from "../lib/audio";
 
-import { recordGameResult } from "./stats";
+import { recordGameResult, recordRoundResult } from "./stats";
 
 export type Suit = "♠" | "♥" | "♦" | "♣";
 export type Rank = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K" | "A";
@@ -177,9 +177,15 @@ export function initGame(
 
 function shuffleDeck(): Card[] {
   let deck: Card[] = [];
-  SUITS.forEach((s) => RANKS.forEach((r) => deck.push({ suit: s, rank: r, uid: `${s}${r}-${Math.random().toString(36).substring(2, 9)}` })));
+  // Ensure exactly 52 unique cards
+  SUITS.forEach((s) => RANKS.forEach((r) => deck.push({ 
+    suit: s, 
+    rank: r, 
+    uid: `${s}${r}-${Math.random().toString(36).substring(2, 9)}` 
+  })));
 
-  for (let round = 0; round < 4; round++) {
+  // Perform multiple shuffle passes (Fisher-Yates)
+  for (let round = 0; round < 6; round++) {
     for (let i = deck.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [deck[i], deck[j]] = [deck[j], deck[i]];
@@ -193,6 +199,10 @@ export async function dealCardsAnimation(): Promise<void> {
   if (isDealingAnimationRunning) return;
   isDealingAnimationRunning = true;
   
+  // Extra safety: reset round-specific laws at every dealing animation start
+  G.tarnebPlayed = false;
+  G.anyoneTarnebThisTrick = false;
+
   return new Promise((resolve) => {
     // We'll create a reproduction of the distribution order
     const distribution: { card: Card; player: number }[] = [];
@@ -260,6 +270,7 @@ export async function startNewRound() {
   G.totalTricksPlayed = 0;
   G.selectedCardIdx = -1;
   G.phase = "dealing";
+  // Reset Tarneb law variables for the new round
   G.tarnebPlayed = false;
   G.anyoneTarnebThisTrick = false;
   G.trapHolder = -1;
@@ -365,7 +376,7 @@ export function executeAISwap() {
     let c2 = G.exposedCards[bestTarget];
     swapCards(p, bestTarget);
     if (c1 && c2) {
-      G.gameMsg = `الكنق 👑 ${G.playerNames[p]} إستبدل ورقته (${c1.rank}${c1.suit}) بـ (${c2.rank}${c2.suit}) من ${G.playerNames[bestTarget]}`;
+      G.gameMsg = `الكنق 👑 ${G.playerNames[p]} إستبدل ورقته (${c1.rank}${c1.rank}) بـ (${c2.rank}${c2.rank}) من ${G.playerNames[bestTarget]}`;
     }
   } else {
     G.gameMsg = `الكنق 👑 ${G.playerNames[p]} قرر عدم التبديل (محتفظ بورقته)`;
@@ -382,10 +393,13 @@ export function swapCards(p1: number, p2: number) {
   let c2 = G.exposedCards[p2]!;
 
   // Swap in hands
-  let h1Idx = G.hands[p1].indexOf(c1);
-  let h2Idx = G.hands[p2].indexOf(c2);
-  G.hands[p1][h1Idx] = c2;
-  G.hands[p2][h2Idx] = c1;
+  let h1Idx = G.hands[p1].findIndex(c => c.suit === c1.suit && c.rank === c1.rank);
+  let h2Idx = G.hands[p2].findIndex(c => c.suit === c2.suit && c.rank === c2.rank);
+  
+  if (h1Idx >= 0 && h2Idx >= 0) {
+    G.hands[p1][h1Idx] = c2;
+    G.hands[p2][h2Idx] = c1;
+  }
 
   // Re-sort hands
   [p1, p2].forEach((p) => {
@@ -417,7 +431,7 @@ export function humanSwap(target: number) {
   let c2 = G.exposedCards[target];
   swapCards(myPlayerIndex, target);
   if (c1 && c2) {
-    G.gameMsg = `الكنق 👑 إستبدل ورقته المكشوفة (${c1.rank}${c1.suit}) بـ (${c2.rank}${c2.suit}) مع ${G.playerNames[target]}`;
+    G.gameMsg = `الكنق 👑 إستبدل ورقته المكشوفة (${c1.rank}${c1.rank}) بـ (${c2.rank}${c2.rank}) مع ${G.playerNames[target]}`;
   }
   updateUI();
   
@@ -600,7 +614,7 @@ function computerBid(p: number) {
           bidVal += 0.6; // singleton value
       }
       
-      const topRank = suitCards[0]?.rank;
+      const topRank = suitCards[0].rank;
       if (topRank === 'A') {
           bidVal += 1.2;
           if (count > 1 && suitCards[1].rank === 'K') bidVal += 1.0;
@@ -654,6 +668,10 @@ function finishBidding() {
 
 export function getValidCards(hand: Card[], leadSuit: Suit | null, isLeading: boolean, anyoneTarneb: boolean) {
   if (isLeading) {
+    // If Tarneb has been played at any point in the round, or someone cut this trick (rare case for leading, but kept for safety)
+    if (G.tarnebPlayed || anyoneTarneb) return hand;
+    
+    // Arabic: لا يمكن البدء بالكبة إلا إذا كانت "مكشوفة" أو لا يملك اللاعب غيرها
     let nonKuba = hand.filter((c) => c.suit !== "♥");
     if (nonKuba.length > 0) return nonKuba;
     return hand;
@@ -665,12 +683,13 @@ export function getValidCards(hand: Card[], leadSuit: Suit | null, isLeading: bo
 }
 
 export function canLeadKuba(playerIdx: number) {
+  // Arabic: هل يمكن فتح الحيلة بالكبة؟ نعم إذا كانت مكشوفة أو لا يملك اللاعب غيرها
   if (G.tarnebPlayed || G.anyoneTarnebThisTrick) return true;
   return G.hands[playerIdx].every((c) => c.suit === "♥");
 }
 
 export function handleSelectCard(idx: number) {
-  if (G.phase !== "playing" || G.currentPlayer !== myPlayerIndex) return;
+  if (G.phase !== "playing" || G.currentPlayer !== myPlayerIndex || G.isGatheringTrick) return;
 
   let isLeading = G.trickCards.every((c) => c === null);
   let leadSuit: Suit | null = null;
@@ -698,19 +717,23 @@ export function handleSelectCard(idx: number) {
 }
 
 export function executePlay() {
-  if (G.selectedCardIdx < 0 || G.currentPlayer !== myPlayerIndex) return;
+  if (G.selectedCardIdx < 0 || G.currentPlayer !== myPlayerIndex || G.isGatheringTrick) return;
   
   justPlayedLocalAction = true;
 
   let card = G.hands[myPlayerIndex][G.selectedCardIdx];
   let isLeading = G.trickCards.every((c) => c === null);
-  let leadSuit = isLeading ? null : G.trickCards[G.leadPlayer]?.suit;
+  let leadSuit = isLeading ? null : G.trickCards[G.leadPlayer]?.suit || null;
 
   let isTarneb = false;
+  // Set Tarneb as played/broken if any heart is played
+  if (card.suit === "♥") {
+    G.tarnebPlayed = true;
+  }
+
   if (!isLeading && leadSuit && card.suit === "♥" && leadSuit !== "♥") {
     isTarneb = true;
     G.anyoneTarnebThisTrick = true;
-    G.tarnebPlayed = true;
     sfxTarneb();
     G.gameMsg = "🔪 طرنب! قطعت بالكبة!";
     G.gameMsgClass = "tarneb-msg";
@@ -756,10 +779,14 @@ function computerPlay(p: number) {
   let card = selectBestCardAI(p, valid, leadSuit, isLeading);
 
   let isTarneb = false;
+  // Set Tarneb as played/broken if any heart is played
+  if (card.suit === "♥") {
+    G.tarnebPlayed = true;
+  }
+
   if (!isLeading && leadSuit && card.suit === "♥" && leadSuit !== "♥") {
     isTarneb = true;
     G.anyoneTarnebThisTrick = true;
-    G.tarnebPlayed = true;
     setTimeout(() => sfxTarneb(), 200);
   } else {
     sfxValidPlay();
@@ -782,11 +809,97 @@ function computerPlay(p: number) {
 
 function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | null, isLeading: boolean): Card {
   const tarnebSuit: Suit = "♥";
-  if (!valid || valid.length === 0) return G.hands[playerIdx][0]; // Fallback if valid is empty for some reason
+  if (!valid || valid.length === 0) return G.hands[playerIdx][0];
 
   const teammateIdx = G.gameMode === "Teams" ? (playerIdx + 2) % 4 : -1;
   const currentWinnerIdx = getTrickWinner();
   const isTeammateWinning = teammateIdx !== -1 && currentWinnerIdx === teammateIdx;
+
+  const aKubaPlayed = G.playedCards.some(c => c.suit === "♥" && c.rank === "A") || G.trickCards.some(c => c && c.suit === "♥" && c.rank === "A");
+  const qKubaPlayed = G.playedCards.some(c => c.suit === "♥" && c.rank === "Q") || G.trickCards.some(c => c && c.suit === "♥" && c.rank === "Q");
+
+  const iHaveAKuba = G.hands[playerIdx].some(c => c.suit === "♥" && c.rank === "A");
+  const iHaveQKuba = G.hands[playerIdx].some(c => c.suit === "♥" && c.rank === "Q");
+
+  const trickCardsSoFar = G.trickCards.filter(c => c !== null) as Card[];
+  const aKubaInTrick = trickCardsSoFar.some(c => c.suit === "♥" && c.rank === "A");
+  const qKubaInTrick = trickCardsSoFar.some(c => c.suit === "♥" && c.rank === "Q");
+
+  // --- SPECIAL WARTHA (Q♥) LOGIC ---
+
+  // Scenario 1: AI holds Q♥
+  if (iHaveQKuba) {
+    const validQKuba = valid.find(c => c.suit === "♥" && c.rank === "Q");
+    if (validQKuba) {
+      const otherValid = valid.filter(c => !(c.suit === "♥" && c.rank === "Q"));
+      
+      // If A♥ is already on the table, AVOID Q♥ at all costs
+      if (aKubaInTrick) {
+        if (otherValid.length > 0) return otherValid.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+      }
+      
+      // If A♥ is still in play (not in playedCards and not in my hand)
+      if (!aKubaPlayed && !iHaveAKuba) {
+        // Try not to play Q♥ if we have any other card in the same suit (if following suit)
+        // or any other card at all (if leading/cutting)
+        if (otherValid.length > 0) return otherValid.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+      }
+      // If A♥ is played, Q♥ is just another heart. Continue to regular logic.
+    }
+  }
+
+  // Scenario 2: AI holds A♥
+  if (iHaveAKuba) {
+    const validAKuba = valid.find(c => c.suit === "♥" && c.rank === "A");
+    if (validAKuba) {
+      // Hunt! If Q♥ is on the table, EAT IT!
+      if (qKubaInTrick) return validAKuba;
+
+      // If Q♥ is still at large (not played, and not in my hand)
+      if (!qKubaPlayed && !iHaveQKuba) {
+        // Don't play A♥ unless forced (only one card in suit) or trick is very important
+        const otherValid = valid.filter(c => !(c.suit === "♥" && c.rank === "A"));
+        
+        // If we have other hearts when following a heart lead, play the highest one that isn't Ace
+        if (leadSuit === "♥" && otherValid.some(c => c.suit === "♥")) {
+           return otherValid.filter(c => c.suit === "♥").sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+        }
+
+        // If leading, don't lead A♥ if we expect to catch Q♥ later
+        if (isLeading && otherValid.length > 0) {
+           // Lead something else to keep hands moving
+           return otherValid.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+        }
+      }
+    }
+  }
+
+  // Scenario 3: Neither A♥ nor Q♥, but one is on table
+  if (!iHaveAKuba && !iHaveQKuba) {
+    const teammateHasExposedAKuba = teammateIdx !== -1 && G.exposedCards[teammateIdx]?.suit === "♥" && G.exposedCards[teammateIdx]?.rank === "A";
+    
+    if (qKubaInTrick) {
+      const currentWinner = getTrickWinner();
+      const isOpponentWinning = teammateIdx !== -1 && currentWinner !== teammateIdx && currentWinner !== playerIdx;
+      
+      if (isOpponentWinning) {
+        // Try to win the trick to "save" the teammate/team from losing points or giving catch to opponent
+        const winningCards = valid.filter(c => {
+          const winnerCard = G.trickCards[currentWinner]!;
+          if (c.suit === "♥" && winnerCard.suit !== "♥") return true;
+          if (c.suit === winnerCard.suit && RANK_VAL[c.rank] > RANK_VAL[winnerCard.rank]) return true;
+          return false;
+        });
+        if (winningCards.length > 0) return winningCards.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+      }
+    } else if (teammateHasExposedAKuba && isLeading && G.tarnebPlayed && !qKubaPlayed) {
+      // "Open the way": Lead a heart to allow teammate to use their Ace to hunt
+      const hearts = valid.filter(c => c.suit === "♥");
+      if (hearts.length > 0) return hearts.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0]; // Small heart to pass lead to them
+    }
+  }
+
+  // --- REGULAR PLAY LOGIC ---
 
   // 1. LEADING STRATEGY
   if (isLeading) {
@@ -828,7 +941,7 @@ function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | nul
     
     // Coordination: If teammate is already winning with a strong card, throw away a low card
     if (isTeammateWinning && currentBestCard && (currentBestCard.rank === "A" || currentBestCard.rank === "K")) {
-      return mySuitCards.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+      return mySuitCards.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
     }
 
     // Attempt to win the trick against an opponent
@@ -836,11 +949,11 @@ function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | nul
       const winningCards = mySuitCards.filter(c => RANK_VAL[c.rank] > RANK_VAL[currentBestCard.rank]);
       if (winningCards.length > 0) {
         // Efficiency: Use the smallest card that is still enough to win
-        return winningCards.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+        return winningCards.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
       }
     }
     // Cannot win or teammate is winning, conserve power
-    return mySuitCards.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+    return mySuitCards.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
   }
 
   // 3. CUTTING STRATEGY (When out of the lead suit)
@@ -850,25 +963,25 @@ function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | nul
     
     // Tactical restraint: Don't spend a trump card if teammate is winning with a high lead-suit card
     if (isTeammateWinning && currentBestCard && currentBestCard.suit === leadSuit && (currentBestCard.rank === "A" || currentBestCard.rank === "K")) {
-      return valid.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+      return valid.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
     }
 
     const currentWinnerTarneb = leadCards.filter(c => c.suit === tarnebSuit).sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
     
     if (!currentWinnerTarneb) {
       // First one to cut in this trick
-      return tarnebs.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+      return tarnebs.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
     } else {
       // Try to overcut another player's trump
       const overCutCards = tarnebs.filter(t => RANK_VAL[t.rank] > RANK_VAL[currentWinnerTarneb.rank]);
       if (overCutCards.length > 0) {
-        return overCutCards.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+        return overCutCards.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
       }
     }
   }
 
   // Final Fallback: Play lowest available card
-  return valid.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0] || valid[0];
+  return valid.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0] || valid[0];
 }
 
 export function isBot(playerIdx: number) {
@@ -883,7 +996,7 @@ export function getTrickWinner() {
     if (li === -1) return -1;
   }
   
-  let leadSuit = G.trickCards[li]?.suit;
+  let leadSuit = G.trickCards[li]?.suit || null;
   if (!leadSuit) return li;
 
   let winner = li;
@@ -895,7 +1008,7 @@ export function getTrickWinner() {
     let currentWinnerCard = G.trickCards[winner];
     if (!card || !currentWinnerCard) continue;
 
-    if (card.suit === "♥" && currentWinnerCard.suit !== "♥") {
+    if (card.suit === "♥" && currentWinnerCard.suit !== '♥') {
       winner = i;
       highest = RANK_VAL[card.rank];
     } else if (card.suit === currentWinnerCard.suit && RANK_VAL[card.rank] > highest) {
@@ -1150,6 +1263,26 @@ function endRound() {
 
   if (humanSuccess) sfxRoundSuccess();
   else sfxRoundEnd();
+
+  if (myPlayerIndex !== -1) {
+    const roundStats = [];
+    for (let p = 0; p < numPlayers; p++) {
+      let isRoundWinner = false;
+      if (G.gameMode === "Teams") {
+        isRoundWinner = (p % 2 === 0) ? change0 > 0 : change1 > 0;
+      } else {
+        const pRes = results.find(r => r.player === p);
+        isRoundWinner = pRes ? pRes.change > 0 : false;
+      }
+      
+      roundStats.push({
+        name: G.playerNames[p] || `لاعب ${p+1}`,
+        isRoundWinner: G.roundNumber === 1 ? true : isRoundWinner,
+        tricks: G.tricksTaken[p]
+      });
+    }
+    recordRoundResult(roundStats);
+  }
 
   let bestInRound = results.reduce(
     (best, r) => (r.change > best.change ? r : best),

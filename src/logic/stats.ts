@@ -4,6 +4,11 @@ export interface GameStats {
   totalGames: number;
   totalScore: number;
   highestScore: number;
+  playerStats?: Record<string, {
+    roundsWon: number;
+    totalTricks: number;
+    totalRounds: number;
+  }>;
 }
 
 const DEFAULT_STATS: GameStats = {
@@ -12,12 +17,17 @@ const DEFAULT_STATS: GameStats = {
   totalGames: 0,
   totalScore: 0,
   highestScore: -Infinity,
+  playerStats: {},
 };
 
 export function getStats(): GameStats {
   try {
     const saved = localStorage.getItem("tarneb_stats");
-    if (saved) return JSON.parse(saved);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (!parsed.playerStats) parsed.playerStats = {};
+      return parsed;
+    }
   } catch (e) {
     console.error("Failed to load stats", e);
   }
@@ -30,6 +40,24 @@ export function saveStats(stats: GameStats) {
   } catch (e) {
     console.error("Failed to save stats", e);
   }
+}
+
+export function recordRoundResult(players: { name: string, isRoundWinner: boolean, tricks: number }[]) {
+  const stats = getStats();
+  if (!stats.playerStats) stats.playerStats = {};
+  
+  players.forEach(p => {
+    if (!stats.playerStats![p.name]) {
+      stats.playerStats![p.name] = { roundsWon: 0, totalTricks: 0, totalRounds: 0 };
+    }
+    stats.playerStats![p.name].totalRounds++;
+    stats.playerStats![p.name].totalTricks += p.tricks;
+    if (p.isRoundWinner) {
+      stats.playerStats![p.name].roundsWon++;
+    }
+  });
+  
+  saveStats(stats);
 }
 
 export function recordGameResult(playerScore: number, isWinner: boolean) {

@@ -13,14 +13,14 @@ function getCardImageUrl(card: Card) {
     "2": "2", "3": "3", "4": "4", "5": "5", "6": "6", "7": "7", "8": "8", "9": "9", "10": "0",
     "J": "J", "Q": "Q", "K": "K", "A": "A"
   };
-  return `https://deckofcardsapi.com/static/img/${rankMap[card.rank]}${suitMap[card.suit]}.png`;
+  return `https://deckofcardsapi.com/static/img/${rankMap[card?.rank]}${suitMap[card?.suit]}.png`;
 }
 
 function MiniCard({ card, isKuba }: { card: Card | null, isKuba: boolean }) {
   if (!card) return <div className="w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] bg-black/20 rounded-sm animate-pulse" />;
   return (
     <div className={`w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] relative min-w-0 flex-shrink-0 ${isKuba ? 'drop-shadow-[0_0_8px_rgba(231,76,60,0.6)]' : 'drop-shadow-sm'}`}>
-      <img src={getCardImageUrl(card)} className="w-full h-full object-contain" draggable={false} alt={`${card.rank}${card.suit}`} />
+      <img src={getCardImageUrl(card)} className="w-full h-full object-contain" draggable={false} alt={`${card?.rank}${card?.suit}`} />
     </div>
   );
 }
@@ -111,89 +111,87 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
   return (
     <div 
       onClick={() => onProfileClick(index)}
-      className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isDisconnected ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : isActive ? 'border-[var(--color-gold)] shadow-[0_0_15px_rgba(212,175,55,0.4)] z-30 scale-105 ring-1 ring-[var(--color-gold)]/50' : 'border-[#333] shadow-xl z-20'} overflow-hidden transition-all min-w-[70px] sm:min-w-[85px] max-w-[90px] cursor-pointer hover:border-[var(--color-gold)]/50 active:scale-95`}
+      className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isDisconnected ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : isActive ? 'border-[var(--color-gold)] shadow-[0_0_15px_rgba(212,175,55,0.4)] z-30 scale-105' : 'border-[#333] shadow-xl z-20'} overflow-hidden transition-all min-w-[95px] max-w-[120px] cursor-pointer hover:border-[var(--color-gold)]/50 active:scale-95`}
     >
       
-      {/* Header (Name) */}
-      <div className={`w-full text-center py-1 px-1.5 relative ${isActive ? 'bg-[var(--color-gold)] text-black' : 'bg-[#222] text-white'}`}>
-        <div className="flex items-center justify-center relative">
-          <span className="text-[0.6rem] sm:text-[0.7rem] font-black block truncate px-1">
-            {name}
-          </span>
-          {multiplayerState.isMultiplayer && !isBot && (
-            <span className="absolute -right-1 top-0">
-              {isDisconnected ? (
-                 <WifiOff size={10} className="text-red-500 bg-black/50 rounded-full p-[1px] animate-pulse" />
-              ) : (
-                 <Wifi size={10} className="text-[var(--color-gold)] opacity-80" />
-              )}
-            </span>
-          )}
-          {/* Show AI badge when disconnected player's turn */}
+      {/* Header (Avatar, Name, Status) */}
+      <div className={`w-full flex items-center py-1 px-2 gap-1.5 relative ${isActive ? 'bg-[var(--color-gold)] text-black' : 'bg-[#222] text-white'}`} dir="rtl">
+        {/* Avatar */}
+        <div className="w-5 h-5 rounded-full overflow-hidden bg-black/20 shrink-0 flex items-center justify-center text-[10px] relative border border-white/10">
+          {isBot ? '🤖' : realPlayer?.avatar?.startsWith('http') ? <img src={realPlayer.avatar} referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : realPlayer?.avatar || '👤'}
           {isDisconnected && isActive && (
-            <span className="absolute -left-1 top-0 text-[0.45rem] bg-red-500/80 text-white px-0.5 rounded-sm font-black leading-tight">
-              🤖
-            </span>
+             <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center text-[10px]">🤖</div>
           )}
         </div>
-        {isDealer && <span className={`absolute left-1.5 top-1 ${isActive ? 'text-black' : 'text-[var(--color-gold)]'} text-[0.55rem] sm:text-[0.6rem] leading-none animate-pulse`}>●</span>}
+        
+        {/* Name and Status Container */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          <div className="flex items-center justify-between gap-1 w-full relative">
+            <span className="text-[0.7rem] sm:text-[0.75rem] font-bold truncate leading-tight text-right w-full">
+              {name}
+            </span>
+            {multiplayerState.isMultiplayer && !isBot && (
+              <span className="shrink-0 flex items-center justify-center ml-0.5">
+                {isDisconnected ? (
+                   <WifiOff size={10} className="text-red-500 bg-black/50 rounded-full p-[1px] animate-pulse" />
+                ) : (
+                   <Wifi size={10} className={`${isActive ? 'text-black' : 'text-[var(--color-gold)]'} opacity-80`} />
+                )}
+              </span>
+            )}
+          </div>
+        </div>
+        
+        {/* Dealer Marker */}
+        {isDealer && <span className={`absolute -right-1 -top-1 w-4 h-4 rounded-full flex items-center justify-center border-2 ${isActive ? 'bg-black border-[var(--color-gold)] text-[var(--color-gold)]' : 'bg-[var(--color-gold)] border-[#222] text-black'} text-[0.55rem] font-black leading-none animate-bounce shadow-lg z-10`}>م</span>}
         
         {/* Turn Timer Progress Bar */}
         {showTimer && (
-          <div className="absolute bottom-0 left-0 w-full h-[2px] bg-black/20 overflow-hidden">
+          <div className="absolute bottom-0 left-0 w-full h-[2.5px] bg-black/20 overflow-hidden">
              <motion.div 
                initial={{ width: "100%" }}
                animate={{ width: "0%" }}
                transition={{ duration: gs.turnTimeout, ease: "linear" }}
-               key={gs.turnStartTime} // Restart animation when turn changes
+               key={gs.turnStartTime} 
                className={`h-full ${isActive ? 'bg-black' : 'bg-[var(--color-gold)]'}`}
              />
           </div>
         )}
       </div>
       
-      {/* Body (Score & Bid) */}
-      <div className="flex flex-col items-center px-1.5 py-1.5 relative">
+      {/* Body (Score & Extra Info) */}
+      <div className="flex flex-col items-center px-1.5 py-1.5 relative bg-[#1a1a2e]">
         {exposedCard && !isYou && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-30 z-0 pointer-events-none transform scale-90">
-             <MiniCard card={exposedCard} isKuba={exposedCard.suit === '♥'} />
+          <div className="absolute inset-0 flex items-center justify-center opacity-20 z-0 pointer-events-none transform scale-75">
+             <MiniCard card={exposedCard} isKuba={exposedCard?.suit === '♥'} />
           </div>
         )}
+        
         <div className={`z-10 text-xl sm:text-2xl font-black leading-none drop-shadow-md my-0.5 ${score < 0 ? 'text-[var(--color-kuba)]' : 'text-[var(--color-gold)]'}`}>
           {score}
         </div>
         
         {showTimer && (
-          <div className={`absolute top-0 right-1 font-mono font-black text-xs sm:text-sm drop-shadow-md z-20 ${timeLeft <= 5 ? 'text-red-500 animate-pulse' : 'text-[var(--color-gold)]'}`}>
+          <div className={`absolute top-1 right-2 font-mono font-black text-xs drop-shadow-md z-20 ${timeLeft <= 5 ? 'text-red-500 animate-[ping_1s_ease-in-out_infinite]' : 'text-[var(--color-gold)]'}`}>
             {timeLeft}
           </div>
         )}
-        
-        <div className="z-10 flex w-full mt-1.5 bg-black/80 rounded-[4px] border border-[#555] overflow-hidden text-[0.55rem] sm:text-[0.65rem] font-black">
-          <div className="flex-1 py-0.5 text-center text-[#bbb] border-l border-[#555]">
-            {bid > 0 ? bid : '-'}
-          </div>
-          <div className={`flex-1 py-0.5 text-center ${bid > 0 && gs.phase === 'playing' ? (taken >= bid ? 'bg-[#2ecc71]/20 text-[#2ecc71]' : 'text-white') : 'text-[#666]'}`}>
-            {bid > 0 ? taken : '-'}
-          </div>
-        </div>
       </div>
-
-      {/* Cards Count (Only for others) */}
-      {!isYou && (
-        <div className="w-full text-center bg-[#000]/60 py-0.5 text-[0.5rem] sm:text-[0.6rem] text-[#aaa] flex items-center justify-center gap-1 border-t border-[#333]">
-          {isDisconnected ? (
-            <>
-              <span className="text-red-400 font-bold">🤖 AI يلعب</span>
-            </>
-          ) : (
-            <>
-              <span className="font-bold">{cardCount}</span>
-              <span className="text-[var(--color-gold)] font-bold">🂠</span>
-            </>
-          )}
+      
+      {/* Footer (Stats/Cards) */}
+      <div className="w-full flex bg-black/40 text-[0.6rem] font-bold text-white/80 overflow-hidden border-t border-[#333]">
+        <div className="flex-1 py-0.5 text-center truncate border-l border-[#333]/50">
+          {bid > 0 ? <span className="text-[var(--color-gold)]">{bid}</span> : '-'}
         </div>
-      )}
+        <div className="flex-1 py-0.5 text-center truncate border-l border-[#333]/50">
+          <span className={taken >= bid && bid > 0 ? 'text-green-400' : ''}>{taken}</span>
+        </div>
+        {!isYou && cardCount > 0 && (
+          <div className="flex-1 py-0.5 text-center bg-black/30 flex items-center justify-center gap-0.5" title="الورق المتبقي">
+            🎴 {cardCount}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -210,26 +208,42 @@ function Spot({ index, position }: { index: number, position: string }) {
      isCurrentWinner = getTrickWinner() === index;
   }
 
+  const isLeadPlayer = gs.leadPlayer === index && gs.phase === "playing" && gs.trickCards.some(c => c !== null) && !gs.isGatheringTrick;
   const hasTrap = gs.trapHolder === index && (isYou || gs.phase === "roundEnd");
 
   return (
     <div className={`absolute flex flex-col items-center gap-[2px] z-10 ${position}`}>
       <div className={`w-[40px] h-[56px] sm:w-[52px] sm:h-[72px] border-2 rounded-[5px] flex items-center justify-center text-[0.55rem] transition-colors relative shrink-0
         ${playedCard ? 'border-[var(--color-gold)] bg-[var(--color-gold)]/10' : 'border-dashed border-white/10 bg-black/20 text-[#888]'}
-        ${playedCard && playedCard.suit === '♥' && gs.trickCards.some(c=>c?.suit!=='♥') ? 'border-[var(--color-kuba)] bg-[var(--color-kuba)]/15 shadow-[0_0_15px_rgba(231,76,60,0.4)]' : ''}
+        ${playedCard && playedCard?.suit === '♥' && gs.trickCards.some(c=>c?.suit!=='♥') ? 'border-[var(--color-kuba)] bg-[var(--color-kuba)]/15 shadow-[0_0_15px_rgba(231,76,60,0.4)]' : ''}
         ${isWinner ? 'winner-spot' : ''}
-        ${isCurrentWinner ? 'shadow-[0_0_20px_rgba(241,196,15,0.5)] border-[var(--color-gold)] z-20 scale-105 transition-all duration-300' : ''}
+        ${isCurrentWinner ? 'shadow-[0_0_20px_rgba(241,196,15,0.6)] border-[var(--color-gold)] z-30 scale-[1.08] transition-all duration-300 ring-1 ring-yellow-400/50' : 'transition-all duration-300'}
       `}>
+        {isLeadPlayer && (
+          <div className="absolute -top-3 sm:-top-4 w-4 h-4 sm:w-5 sm:h-5 bg-white/10 border border-white/20 rounded-full flex items-center justify-center shadow-sm z-20" title="اللاعب الأول">
+            <span className="text-[8px] sm:text-[10px] opacity-70">1️⃣</span>
+          </div>
+        )}
         <AnimatePresence mode="popLayout">
           {playedCard ? (
             <motion.div
-              key={playedCard.uid || `${playedCard.suit}${playedCard.rank}`}
-              initial={{ scale: 0, opacity: 0, y: 30, rotate: isYou ? 0 : Math.random() * 20 - 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0, rotate: 0 }}
-              exit={{ scale: 0.5, opacity: 0, transition: { duration: 0.05 } }}
-              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              key={playedCard.uid || `${playedCard?.suit}${playedCard?.rank}`}
+              initial={{ scale: 0.2, opacity: 0, y: isYou ? 50 : 20, rotate: isYou ? 0 : Math.random() * 30 - 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0, rotate: isYou ? 0 : Math.random() * 10 - 5 }}
+              exit={{ scale: 0.5, opacity: 0, transition: { duration: 0.15 } }}
+              transition={{ type: "spring", stiffness: 400, damping: 20, mass: 0.8 }}
+              className="w-full h-full drop-shadow-lg relative"
             >
-              <MiniCard card={playedCard} isKuba={playedCard.suit === '♥'} />
+              <MiniCard card={playedCard} isKuba={playedCard?.suit === '♥'} />
+              {isCurrentWinner && (
+                 <motion.div
+                   initial={{ opacity: 0, scale: 0 }}
+                   animate={{ opacity: 1, scale: 1 }}
+                   className="absolute -top-2 -right-2 bg-gradient-to-r from-yellow-400 to-yellow-600 rounded-full w-4 h-4 sm:w-5 sm:h-5 flex items-center justify-center shadow-[0_0_10px_rgba(255,215,0,0.8)] z-40"
+                 >
+                   <span className="text-[8px] sm:text-[10px] drop-shadow-md">👑</span>
+                 </motion.div>
+              )}
             </motion.div>
           ) : null}
         </AnimatePresence>
@@ -287,19 +301,20 @@ function TableArea({ onProfileClick }: { onProfileClick: (index: number) => void
                                 
               return (
                 <motion.div
-                  key={c.uid}
+                  key={`${c.uid}-gather`}
                   className={`absolute flex flex-col items-center gap-[2px] z-[100] ${posStr}`}
-                  initial={{ x: 0, y: 0, scale: 1, opacity: 1 }}
+                  initial={{ x: 0, y: 0, scale: 1, opacity: 1, rotate: Math.random() * 10 - 5 }}
                   animate={{ 
-                    x: winPosStr === 'right' ? 80 : winPosStr === 'left' ? -80 : 0, 
-                    y: winPosStr === 'bottom' ? 80 : winPosStr === 'top' ? -80 : 0,
-                    scale: 0.3, 
+                    x: winPosStr === 'right' ? 120 : winPosStr === 'left' ? -120 : 0, 
+                    y: winPosStr === 'bottom' ? 120 : winPosStr === 'top' ? -120 : 0,
+                    scale: 0.1, 
                     opacity: 0,
+                    rotate: (isWinner ? 0 : Math.random() * 180 - 90)
                   }}
-                  transition={{ duration: 0.5, ease: "easeIn" }}
+                  transition={{ duration: 0.5, ease: [0.32, 0, 0.67, 0] }}
                 >
                    <div className="w-[40px] h-[56px] sm:w-[52px] sm:h-[72px] shrink-0 drop-shadow-2xl">
-                     <MiniCard card={c} isKuba={c.suit === '♥'} />
+                     <MiniCard card={c} isKuba={c?.suit === '♥'} />
                    </div>
                 </motion.div>
               );
@@ -332,16 +347,16 @@ function PlayerHand() {
               // Need to check playability based on trick leader
               const isLeading = gs.trickCards.every(c => c === null);
               const leadSuit = isLeading ? null : gs.trickCards[gs.leadPlayer]?.suit;
-              const hasLeadSuit = leadSuit ? hand.some(c => c.suit === leadSuit) : false;
-              if (leadSuit && hasLeadSuit && card.suit !== leadSuit) notPlayable = true;
-              if (isLeading && card.suit === '♥' && hand.some(c => c.suit !== '♥')) notPlayable = true; // Can't lead Kuba normally unless all Kuba
+              const hasLeadSuit = leadSuit ? hand.some(c => c?.suit === leadSuit) : false;
+              if (leadSuit && hasLeadSuit && card?.suit !== leadSuit) notPlayable = true;
+              if (isLeading && card?.suit === '♥' && !gs.tarnebPlayed && !gs.anyoneTarnebThisTrick && hand.some(c => c?.suit !== '♥')) notPlayable = true; // Can't lead Kuba normally unless all Kuba or broken
             } else if (gs.phase === 'playing' && gs.currentPlayer !== myPlayerIndex) {
               notPlayable = true;
             }
             
             return (
               <motion.div 
-                key={card.uid || `${card.suit}${card.rank}-${i}`} 
+                key={card.uid || `${card?.suit}${card?.rank}-${i}`} 
                 layout
                 initial={{ opacity: 0, y: 50, scale: 0.8 }}
                 animate={{ 
@@ -360,14 +375,15 @@ function PlayerHand() {
                 }}
                 className={`w-[54px] h-[78px] xs:w-[58px] xs:h-[84px] sm:w-[72px] sm:h-[104px] relative cursor-pointer flex-shrink-0 select-none
                   ${i > 0 ? '-ml-[34px] xs:-ml-[36px] sm:-ml-[46px]' : ''}
-                  ${isSelected ? 'drop-shadow-[0_0_20px_rgba(212,175,55,0.8)]' : 'drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]'}
-                  ${notPlayable ? 'grayscale-[0.6] brightness-[0.6] cursor-not-allowed pointer-events-none' : ''}
-                  ${card.suit === '♥' && !isSelected ? 'drop-shadow-[0_0_12px_rgba(231,76,60,0.5)]' : ''}
-                  ${card.suit === '♥' && card.rank === 'Q' ? 'trap-card' : ''}
+                  ${isSelected ? 'drop-shadow-[0_0_20px_rgba(212,175,55,0.8)] z-30' : 'drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]'}
+                  ${notPlayable ? 'opacity-40 grayscale-[0.8] brightness-[0.5] cursor-not-allowed pointer-events-none' : 'opacity-100 brightness-110 z-10'}
+                  ${!notPlayable && !gs.isGatheringTrick && gs.currentPlayer === myPlayerIndex ? 'shadow-[0_0_15px_rgba(212,175,55,0.3)] ring-1 ring-[var(--color-gold)]/20 rounded-[4px]' : ''}
+                  ${card?.suit === '♥' && !isSelected && !notPlayable ? 'drop-shadow-[0_0_12px_rgba(231,76,60,0.5)]' : ''}
+                  ${card?.suit === '♥' && card?.rank === 'Q' ? 'trap-card' : ''}
                 `}
                 onClick={() => handleSelectCard(i)}
               >
-                <img src={getCardImageUrl(card)} className="w-full h-full object-contain rounded-[4px]" draggable={false} alt={`${card.rank}${card.suit}`} />
+                <img src={getCardImageUrl(card)} className="w-full h-full object-contain rounded-[4px]" draggable={false} alt={`${card?.rank}${card?.suit}`} />
                 {isSelected && <div className="absolute inset-[1px] rounded-[4px] border-[2px] border-[var(--color-gold)] pointer-events-none shadow-[inset_0_0_15px_rgba(212,175,55,0.5)]"></div>}
                 <div className="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent pointer-events-none rounded-[4px]"></div>
               </motion.div>
@@ -377,8 +393,8 @@ function PlayerHand() {
       </div>
       <div className="text-center mt-1 flex gap-2 justify-center items-center h-[30px]">
         <button 
-          className="px-4 py-1.5 rounded-full font-black text-[0.65rem] disabled:bg-[#555] disabled:text-[#888] disabled:scale-100 transition-transform active:scale-95 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black"
-          disabled={gs.selectedCardIdx < 0 || gs.currentPlayer !== myPlayerIndex || gs.phase !== 'playing'}
+          className="px-4 py-1.5 rounded-full font-black text-[0.65rem] disabled:bg-[#333] disabled:text-[#666] disabled:scale-100 transition-transform active:scale-95 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black shadow-lg shadow-black/20"
+          disabled={gs.selectedCardIdx < 0 || gs.currentPlayer !== myPlayerIndex || gs.phase !== 'playing' || gs.isGatheringTrick}
           onClick={executePlay}
         >
           🎯 العب
@@ -822,7 +838,7 @@ function SwapOverlay() {
         <div className="flex justify-center gap-2 mb-4">
           <div className="flex flex-col items-center">
             <span className="text-[0.6rem] text-[var(--color-gold)] mb-1">ورقتك</span>
-            {gs.exposedCards[myPlayerIndex] && <MiniCard card={gs.exposedCards[myPlayerIndex]} isKuba={gs.exposedCards[myPlayerIndex].suit === '♥'} />}
+            {gs.exposedCards[myPlayerIndex] && <MiniCard card={gs.exposedCards[myPlayerIndex]} isKuba={gs.exposedCards[myPlayerIndex]?.suit === '♥'} />}
           </div>
         </div>
 

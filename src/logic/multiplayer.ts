@@ -125,7 +125,9 @@ function getCoreState() {
        taken: G.tricksTaken,
        scores: G.scores,
        exposed: G.exposedCards ? G.exposedCards.map(c => c ? `${c.suit}${c.rank}` : null) : [],
-       round: G.roundNumber
+       round: G.roundNumber,
+       tp: G.tarnebPlayed,
+       att: G.anyoneTarnebThisTrick
    });
 }
 

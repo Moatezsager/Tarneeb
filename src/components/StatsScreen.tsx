@@ -57,6 +57,36 @@ export function StatsScreen() {
         <div className="text-[#777] text-xs mb-6 font-bold">
           إجمالي المباريات الملعوبة: <span className="text-white">{stats.totalGames}</span>
         </div>
+
+        {stats.playerStats && Object.keys(stats.playerStats).length > 0 && (
+          <div className="w-full bg-black/40 border border-white/5 rounded-2xl p-4 mb-6">
+            <h3 className="text-sm font-bold text-[var(--color-gold)] mb-3 border-b border-white/10 pb-2 text-right" dir="rtl">تفاصيل اللاعبين خلال الجولات</h3>
+            <div className="max-h-[150px] overflow-y-auto custom-scrollbar pr-1">
+              <table className="w-full text-xs text-right" dir="rtl">
+                <thead>
+                  <tr className="text-[#888]">
+                    <th className="pb-2 text-right">اللاعب</th>
+                    <th className="pb-2 text-center">جولات فاز بها</th>
+                    <th className="pb-2 text-center">م. الأكلات/الجولة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(stats.playerStats || {})
+                    .sort((a, b) => (b[1] as any).roundsWon - (a[1] as any).roundsWon)
+                    .map(([name, pStats]: [string, any]) => (
+                    <tr key={name} className="border-t border-white/5">
+                      <td className="py-2 text-white font-bold truncate max-w-[80px]" title={name}>{name}</td>
+                      <td className="py-2 text-[#2ecc71] font-black text-center">{pStats.roundsWon}</td>
+                      <td className="py-2 text-white/80 font-bold text-center">
+                        {pStats.totalRounds > 0 ? (pStats.totalTricks / pStats.totalRounds).toFixed(1) : "0.0"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
         
         <div className="flex gap-2">
           <button 

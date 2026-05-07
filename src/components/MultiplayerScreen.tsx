@@ -26,9 +26,12 @@ export function MultiplayerScreen() {
   const [lastPlayers, setLastPlayers] = useState<typeof multiplayerState.players>([]);
   const [roomToast, setRoomToast] = useState<{message: string, icon: string} | null>(null);
 
+  const toastTimeoutRef = React.useRef<any>(null);
+
   const showRoomToast = (message: string, icon: string) => {
     setRoomToast({ message, icon });
-    setTimeout(() => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => {
       setRoomToast(null);
     }, 4000);
   };
@@ -45,12 +48,18 @@ export function MultiplayerScreen() {
       currentPlayers.forEach(p => {
         const prev = lastPlayers.find(lp => lp.uid === p.uid);
         if (!prev) {
-          showRoomToast(`${p.name} دخل الغرفة الآن`, "⚔️");
+          if (!p.isBot) {
+            showRoomToast(`${p.name} دخل الغرفة الآن`, "⚔️");
+          } else {
+            showRoomToast(`الكمبيوتر أخذ مكان لاعب`, "🤖");
+          }
         } else {
           // 2. Detect Connection Changes
-          if (p.disconnected && !prev.disconnected) {
+          const wasDisconnected = prev.status === "disconnected";
+          const isDisconnected = p.status === "disconnected";
+          if (isDisconnected && !wasDisconnected && !p.isBot) {
             showRoomToast(`${p.name} فقد الاتصال.. جاري انتظاره`, "📡");
-          } else if (!p.disconnected && prev.disconnected) {
+          } else if (!isDisconnected && wasDisconnected && !p.isBot) {
             showRoomToast(`${p.name} عاد إلى قلب المعركة!`, "⚡");
           }
         }
@@ -59,7 +68,7 @@ export function MultiplayerScreen() {
       // 3. Detect Leaves
       lastPlayers.forEach(lp => {
         const missing = !currentPlayers.find(p => p.uid === lp.uid);
-        if (missing) {
+        if (missing && !lp.isBot) {
           showRoomToast(`${lp.name} غادر المباراة`, "🏃‍♂️");
         }
       });
