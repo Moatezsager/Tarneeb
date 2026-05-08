@@ -383,12 +383,12 @@ function PlayerHand() {
                 initial={{ opacity: 0, y: 50, scale: 0.8 }}
                 animate={{ 
                   opacity: 1, 
-                  y: isSelected ? -15 : 0,
-                  scale: isSelected ? 1.05 : 1,
+                  y: isSelected ? -50 : 0,
+                  scale: isSelected ? 1.15 : 1,
                   zIndex: isSelected ? 30 : i
                 }}
                 exit={{ opacity: 0, y: -40, scale: 0.6, filter: "blur(2px)", pointerEvents: "none" }}
-                whileHover={!notPlayable && !isSelected ? { y: -8, zIndex: 29 } : {}}
+                whileHover={!notPlayable && !isSelected ? { y: -20, zIndex: 29 } : {}}
                 whileTap={!notPlayable ? { scale: 0.95 } : {}}
                 transition={{ 
                   type: "spring", 
@@ -405,6 +405,12 @@ function PlayerHand() {
                   ${card?.suit === '♥' && card?.rank === 'Q' ? 'trap-card' : ''}
                 `}
                 onClick={() => handleSelectCard(i)}
+                onDoubleClick={() => {
+                  if (!notPlayable && gs.currentPlayer === myPlayerIndex && gs.phase === 'playing' && !gs.isGatheringTrick) {
+                    handleSelectCard(i);
+                    executePlay();
+                  }
+                }}
               >
                 <img src={getCardImageUrl(card)} className="w-full h-full object-contain rounded-[4px]" draggable={false} alt={`${card?.rank}${card?.suit}`} loading="eager" fetchPriority="high" />
                 {isSelected && <div className="absolute inset-[1px] rounded-[4px] border-[2px] border-[var(--color-gold)] pointer-events-none shadow-[inset_0_0_15px_rgba(212,175,55,0.5)]"></div>}
