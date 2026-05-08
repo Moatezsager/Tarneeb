@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { multiplayerState, createRoom, joinRoom, leaveRoom, startGame, fetchPublicRooms, RoomData, sendRoomInvite, swapPlayerWithSpectator, listenToRoomInvites, respondToRoomInvite } from "../logic/multiplayer";
+import { multiplayerState, createRoom, joinRoom, leaveRoom, startGame, fetchPublicRooms, listenToPublicRooms, RoomData, sendRoomInvite, swapPlayerWithSpectator, listenToRoomInvites, respondToRoomInvite } from "../logic/multiplayer";
 import { G, updateUI, subscribe } from "../logic/engine";
 import { auth, db } from "../lib/firebase";
 import { getLocalProfile, COUNTRIES } from "../logic/userProfile";
@@ -127,18 +127,15 @@ export function MultiplayerScreen() {
       setInRoom(multiplayerState.isMultiplayer);
     });
     
-    // Initial fetch of public rooms
-    const fetchRooms = async () => {
-       const rooms = await fetchPublicRooms();
+    // Real-time listener for public rooms
+    const unsubRooms = listenToPublicRooms((rooms) => {
        setPublicRooms(rooms);
-    };
-    fetchRooms();
-    const lobbyInterval = setInterval(fetchRooms, 10000); // Poll lobby every 10s
+    });
 
     return () => {
       unsubInvites();
       unsubG();
-      clearInterval(lobbyInterval);
+      unsubRooms();
     };
   }, []);
 

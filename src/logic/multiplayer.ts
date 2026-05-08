@@ -19,9 +19,12 @@ let timerInterval: any = null;
 let pingInterval: any = null;
 
 // Timing constants for disconnect detection
-const HEARTBEAT_INTERVAL = 10000;     // 10 seconds between heartbeats
-const DISCONNECT_THRESHOLD = 30000;   // 30 seconds before considered disconnected
-const RECONNECT_GRACE_PERIOD = 5000;  // 5 seconds grace for reconnection
+const HEARTBEAT_INTERVAL = 3000;      // 3 seconds between heartbeats (was 10s)
+const DISCONNECT_THRESHOLD = 8000;    // 8 seconds before considered disconnected (was 30s)
+const RECONNECT_GRACE_PERIOD = 2000;  // 2 seconds grace for reconnection
+
+export let localActionLockUntil = 0;
+export const setLocalActionLock = (ms: number) => { localActionLockUntil = Date.now() + ms; };
 
 function startHeartbeat() {
   if (pingInterval) clearInterval(pingInterval);
@@ -372,25 +375,28 @@ function generateCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
 }
 
-function serializeGameState(state: any): any {
+function serializeGameState(state: any, isRoot = true): any {
   if (Array.isArray(state)) {
-    return state.map(item => serializeGameState(item));
+    return state.map(item => serializeGameState(item, false));
   }
   
   if (state !== null && typeof state === 'object') {
     const serialized: any = {};
     for (const key in state) {
+      if (isRoot && (key === 'particles' || key === 'dealingCards')) {
+         continue; // Omit UI-only state from network sync
+      }
       const value = state[key];
       // Special handling for G.hands which is Card[][]
       if (key === 'hands' && Array.isArray(value) && value.length > 0 && Array.isArray(value[0])) {
         serialized[key] = {
-          h0: serializeGameState(value[0]),
-          h1: serializeGameState(value[1]),
-          h2: serializeGameState(value[2]),
-          h3: serializeGameState(value[3])
+          h0: serializeGameState(value[0], false),
+          h1: serializeGameState(value[1], false),
+          h2: serializeGameState(value[2], false),
+          h3: serializeGameState(value[3], false)
         };
       } else {
-        serialized[key] = serializeGameState(value);
+        serialized[key] = serializeGameState(value, false);
       }
     }
     return serialized;
@@ -439,13 +445,13 @@ function startAntiHostFreezeTimer() {
     // Determine appropriate freeze threshold based on phase
     let freezeThreshold: number;
     if (G.phase === "roundEnd") {
-      freezeThreshold = 35; // Round end can take longer (reading results)
+      freezeThreshold = 20; // Reduced from 35
     } else if (G.phase === "dealing") {
-      freezeThreshold = 30; // Dealing animation + setup
+      freezeThreshold = 18; // Reduced from 30
     } else if (G.phase === "swapping") {
-      freezeThreshold = G.turnTimeout + 12;
+      freezeThreshold = G.turnTimeout + 8;
     } else if (G.phase === "playing" || G.phase === "bidding") {
-      freezeThreshold = G.turnTimeout + 10;
+      freezeThreshold = G.turnTimeout + 6;
     } else {
       return; // intro, setup, stats, etc. - no freeze detection needed
     }
@@ -749,6 +755,20 @@ export async function fetchPublicRooms(): Promise<RoomData[]> {
   }
 }
 
+export function listenToPublicRooms(callback: (rooms: RoomData[]) => void) {
+  const q = query(
+    collection(db, "rooms"),
+    where("isPublic", "==", true),
+    where("status", "==", "waiting")
+  );
+  return onSnapshot(q, (snapshot) => {
+    const rooms = snapshot.docs.map(doc => doc.data() as RoomData);
+    callback(rooms);
+  }, (error) => {
+    console.error("Error listening to public rooms:", error);
+  });
+}
+
 export function listenToRoom(roomId: string) {
   if (roomUnsubscribe) roomUnsubscribe();
 
@@ -824,7 +844,8 @@ export function listenToRoom(roomId: string) {
     }
     
     // Sync Game State
-    if (data.lastActionBy !== auth.currentUser?.uid || !hasSyncedInitialState) {
+    // If we just played an action locally (optimistic UI), ignore incoming state for a short time to prevent rubberbanding.
+    if (!hasSyncedInitialState || (data.lastActionBy !== auth.currentUser?.uid && Date.now() > localActionLockUntil)) {
         if (data.gameState) {
           const newState = deserializeGameState(data.gameState);
           const oldPhase = G.phase;

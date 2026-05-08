@@ -434,7 +434,12 @@ export function humanSwap(target: number, forcePlayerIdx?: number) {
   if (G.phase !== "swapping" || G.playerWithHighestScore !== actPlayer) return;
   
   if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
-    import("./multiplayer").then(m => m.sendPlayerAction({ type: "SWAP", target, playerIdx: actPlayer }));
+    import("./multiplayer").then(m => {
+      m.sendPlayerAction({ type: "SWAP", target, playerIdx: actPlayer });
+      m.setLocalActionLock(1500);
+    });
+    // Optimistic Execution:
+    humanSwap(target, actPlayer);
     return;
   }
 
@@ -459,7 +464,12 @@ export function humanSkipSwap(forcePlayerIdx?: number) {
   if (G.phase !== "swapping" || G.playerWithHighestScore !== actPlayer) return;
   
   if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
-    import("./multiplayer").then(m => m.sendPlayerAction({ type: "SKIP_SWAP", playerIdx: actPlayer }));
+    import("./multiplayer").then(m => {
+       m.sendPlayerAction({ type: "SKIP_SWAP", playerIdx: actPlayer });
+       m.setLocalActionLock(1500);
+    });
+    // Optimistic Execution:
+    humanSkipSwap(actPlayer);
     return;
   }
 
@@ -593,9 +603,13 @@ export function confirmBid(forceBid?: number, forcePlayerIdx?: number) {
 
   if (theBid !== null) {
     if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
-      import("./multiplayer").then(m => m.sendPlayerAction({ type: "BID", bid: theBid, playerIdx: actPlayer }));
+      import("./multiplayer").then(m => {
+         m.sendPlayerAction({ type: "BID", bid: theBid, playerIdx: actPlayer });
+         m.setLocalActionLock(1500);
+      });
       G.bidOverlayVisible = false;
-      updateUI();
+      // Optimistic Execution:
+      confirmBid(theBid, actPlayer);
       return;
     }
 
@@ -752,9 +766,13 @@ export function executePlay(forceIdx?: number, forcePlayerIdx?: number) {
   if (cIdx < 0 || G.currentPlayer !== pIdx || G.isGatheringTrick) return;
   
   if (isMultiplayerMode && !isHostMode && forceIdx === undefined) {
-      import("./multiplayer").then(m => m.sendPlayerAction({ type: "PLAY_CARD", cardIdx: cIdx, playerIdx: pIdx }));
+      import("./multiplayer").then(m => {
+          m.sendPlayerAction({ type: "PLAY_CARD", cardIdx: cIdx, playerIdx: pIdx });
+          m.setLocalActionLock(2000); // Lock for 2 seconds to ensure trick resolves locally without jitter
+      });
       G.selectedCardIdx = -1;
-      updateUI();
+      // Optimistic Execution:
+      executePlay(cIdx, pIdx);
       return;
   }
 
