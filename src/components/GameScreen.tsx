@@ -7,20 +7,17 @@ import { UserProfileModal } from "./UserProfileModal";
 import { UserProfile } from "../logic/userProfile";
 import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut, Wifi, WifiOff, Volume2, VolumeX } from "lucide-react";
 
-function getCardImageUrl(card: Card) {
+function getCardImageUrl(card: Card | null) {
+  if (!card) return '/cards/back.svg';
   const suitMap: Record<string, string> = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
-  const rankMap: Record<string, string> = {
-    "2": "2", "3": "3", "4": "4", "5": "5", "6": "6", "7": "7", "8": "8", "9": "9", "10": "0",
-    "J": "J", "Q": "Q", "K": "K", "A": "A"
-  };
-  return `https://deckofcardsapi.com/static/img/${rankMap[card?.rank]}${suitMap[card?.suit]}.png`;
+  return `/cards/${card.rank}${suitMap[card.suit]}.svg`;
 }
 
 function MiniCard({ card, isKuba }: { card: Card | null, isKuba: boolean }) {
-  if (!card) return <div className="w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] bg-black/20 rounded-sm animate-pulse" />;
+  if (!card) return <div className="w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] bg-black/20 rounded-[4px] animate-pulse" />;
   return (
     <div className={`w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] relative min-w-0 flex-shrink-0 ${isKuba ? 'drop-shadow-[0_0_8px_rgba(231,76,60,0.6)]' : 'drop-shadow-sm'}`}>
-      <img src={getCardImageUrl(card)} className="w-full h-full object-contain" draggable={false} alt={`${card?.rank}${card?.suit}`} />
+      <img src={getCardImageUrl(card)} className="w-full h-full object-contain" draggable={false} alt={`${card?.rank}${card?.suit}`} loading="eager" fetchpriority="high" />
     </div>
   );
 }
@@ -54,7 +51,7 @@ function DealingAnimation() {
              transition={{ duration: 0.35, ease: "easeOut" }}
              className="absolute w-[32px] h-[46px] sm:w-[42px] sm:h-[60px] -ml-[16px] -mt-[23px] sm:-ml-[21px] sm:-mt-[30px]"
           >
-            <img src="https://deckofcardsapi.com/static/img/back.png" className="w-full h-full object-contain drop-shadow" />
+            <img src="/cards/back.svg" className="w-full h-full object-contain drop-shadow" loading="eager" fetchpriority="high" />
           </motion.div>
         ))}
       </AnimatePresence>
@@ -391,6 +388,7 @@ function PlayerHand() {
                 }}
                 exit={{ opacity: 0, y: -40, scale: 0.6, filter: "blur(2px)", pointerEvents: "none" }}
                 whileHover={!notPlayable && !isSelected ? { y: -8, zIndex: 29 } : {}}
+                whileTap={!notPlayable ? { scale: 0.95 } : {}}
                 transition={{ 
                   type: "spring", 
                   stiffness: 500, 
@@ -407,7 +405,7 @@ function PlayerHand() {
                 `}
                 onClick={() => handleSelectCard(i)}
               >
-                <img src={getCardImageUrl(card)} className="w-full h-full object-contain rounded-[4px]" draggable={false} alt={`${card?.rank}${card?.suit}`} />
+                <img src={getCardImageUrl(card)} className="w-full h-full object-contain rounded-[4px]" draggable={false} alt={`${card?.rank}${card?.suit}`} loading="eager" fetchpriority="high" />
                 {isSelected && <div className="absolute inset-[1px] rounded-[4px] border-[2px] border-[var(--color-gold)] pointer-events-none shadow-[inset_0_0_15px_rgba(212,175,55,0.5)]"></div>}
                 <div className="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent pointer-events-none rounded-[4px]"></div>
               </motion.div>
