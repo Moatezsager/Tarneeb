@@ -5,7 +5,7 @@ import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard,
 import { multiplayerState } from "../logic/multiplayer";
 import { UserProfileModal } from "./UserProfileModal";
 import { UserProfile } from "../logic/userProfile";
-import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut, Wifi, WifiOff } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut, Wifi, WifiOff, Volume2, VolumeX } from "lucide-react";
 
 function getCardImageUrl(card: Card) {
   const suitMap: Record<string, string> = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
@@ -108,14 +108,35 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
   const realPlayer = multiplayerState.players.find(p => p.index === index);
   const isDisconnected = realPlayer && realPlayer.status === "disconnected";
 
+  let teamBorder = 'border-[#333] shadow-xl z-20 hover:border-[var(--color-gold)]/50';
+  let teamHeaderBg = 'bg-[#222] text-white';
+  let activeClass = 'border-[var(--color-gold)] active-turn';
+  let activeHeaderBg = 'bg-[var(--color-gold)] text-black';
+
+  if (gs.gameMode === "Teams") {
+      const myTeam = myPlayerIndex !== -1 ? myPlayerIndex % 2 : 0;
+      const thisPlayerTeam = index % 2;
+      if (thisPlayerTeam === myTeam) {
+         teamBorder = 'border-blue-500/40 shadow-[0_0_10px_rgba(59,130,246,0.15)] z-20 hover:border-blue-400';
+         teamHeaderBg = 'bg-blue-900/60 text-blue-50';
+         activeClass = 'border-blue-500 active-turn-blue';
+         activeHeaderBg = 'bg-blue-600 text-white';
+      } else {
+         teamBorder = 'border-red-500/40 shadow-[0_0_10px_rgba(239,68,68,0.15)] z-20 hover:border-red-400';
+         teamHeaderBg = 'bg-red-900/60 text-red-50';
+         activeClass = 'border-red-500 active-turn-red';
+         activeHeaderBg = 'bg-red-600 text-white';
+      }
+  }
+
   return (
     <div 
       onClick={() => onProfileClick(index)}
-      className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isDisconnected ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : isActive ? 'border-[var(--color-gold)] shadow-[0_0_15px_rgba(212,175,55,0.4)] z-30 scale-105' : 'border-[#333] shadow-xl z-20'} overflow-hidden transition-all min-w-[95px] max-w-[120px] cursor-pointer hover:border-[var(--color-gold)]/50 active:scale-95`}
+      className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isDisconnected ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : isActive ? activeClass : teamBorder} overflow-hidden transition-all min-w-[95px] max-w-[120px] cursor-pointer active:scale-95`}
     >
       
       {/* Header (Avatar, Name, Status) */}
-      <div className={`w-full flex items-center py-1 px-2 gap-1.5 relative ${isActive ? 'bg-[var(--color-gold)] text-black' : 'bg-[#222] text-white'}`} dir="rtl">
+      <div className={`w-full flex items-center py-1 px-2 gap-1.5 relative ${isActive ? activeHeaderBg : teamHeaderBg}`} dir="rtl">
         {/* Avatar */}
         <div className="w-5 h-5 rounded-full overflow-hidden bg-black/20 shrink-0 flex items-center justify-center text-[10px] relative border border-white/10">
           {isBot ? '🤖' : realPlayer?.avatar?.startsWith('http') ? <img src={realPlayer.avatar} referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : realPlayer?.avatar || '👤'}
@@ -127,8 +148,11 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
         {/* Name and Status Container */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           <div className="flex items-center justify-between gap-1 w-full relative">
-            <span className="text-[0.7rem] sm:text-[0.75rem] font-bold truncate leading-tight text-right w-full">
+            <span className="text-[0.7rem] sm:text-[0.75rem] font-bold truncate leading-tight text-right w-full flex items-center gap-1">
               {name}
+              {multiplayerState.isMultiplayer && (realPlayer?.uid === multiplayerState.hostId) && (
+                <span title="مضيف الغرفة" className="drop-shadow-[0_0_5px_rgba(255,215,0,0.8)] text-[0.6rem]">👑</span>
+              )}
             </span>
             {multiplayerState.isMultiplayer && !isBot && (
               <span className="shrink-0 flex items-center justify-center ml-0.5">
@@ -395,7 +419,7 @@ function PlayerHand() {
         <button 
           className="px-4 py-1.5 rounded-full font-black text-[0.65rem] disabled:bg-[#333] disabled:text-[#666] disabled:scale-100 transition-transform active:scale-95 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black shadow-lg shadow-black/20"
           disabled={gs.selectedCardIdx < 0 || gs.currentPlayer !== myPlayerIndex || gs.phase !== 'playing' || gs.isGatheringTrick}
-          onClick={executePlay}
+          onClick={() => executePlay()}
         >
           🎯 العب
         </button>
@@ -438,7 +462,7 @@ function BiddingOverlay() {
         <button 
           className="px-6 py-1.5 rounded-full font-black text-xs disabled:bg-[#555] disabled:text-[#888] disabled:shadow-none bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black mt-2 active:scale-95 transition-all shadow-[0_5px_15px_rgba(212,175,55,0.3)] w-full max-w-[150px]"
           disabled={gs.pendingBid === null}
-          onClick={confirmBid}
+          onClick={() => confirmBid()}
         >
           تأكيد الطلب
         </button>
@@ -510,7 +534,7 @@ function RoundEndOverlay() {
         {(!multiplayerState.isMultiplayer || multiplayerState.isHost) ? (
           <button 
             className="mt-3 px-6 py-2 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black rounded-full font-black text-sm active:scale-95"
-            onClick={closeRoundEnd}
+            onClick={() => closeRoundEnd()}
           >
             {gs.gameWinner !== null ? 'بداية جديدة' : '✅ متابعة'}
           </button>
@@ -605,22 +629,44 @@ export function GameScreen() {
   const [confirmAction, setConfirmAction] = React.useState<"leave" | "reset" | null>(null);
   const [profileModalUser, setProfileModalUser] = React.useState<UserProfile | null>(null);
   const [showSpectators, setShowSpectators] = React.useState(false);
+  const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   let headerScores = null;
   if (gs.gameMode === "Teams") {
     const myTeamIdx = myPlayerIndex % 2 === 0 ? 0 : 1;
     const oppTeamIdx = myTeamIdx === 0 ? 1 : 0;
     headerScores = (
-      <div className="flex items-center gap-1.5 text-[0.7rem] font-black">
-        <span className="text-white/40">فريقنا:</span> <span className="text-white">{gs.teamScores[myTeamIdx]}</span>
-        <span className="text-white/20 mx-0.5">|</span>
-        <span className="text-red-400/60">الخصم:</span> <span className="text-white">{gs.teamScores[oppTeamIdx]}</span>
+      <div className="flex items-center justify-between flex-1 px-4">
+        <div className="flex items-center gap-1.5 text-[0.7rem] sm:text-xs font-black bg-white/10 px-3 py-1 rounded-full border border-white/20">
+          <span className="text-white/60">فريقنا:</span> <span className="text-[var(--color-gold)] drop-shadow-md text-base">{gs.teamScores[myTeamIdx]}</span>
+          <span className="text-white/20 mx-1">|</span>
+          <span className="text-red-400/80">الخصم:</span> <span className="text-red-300 text-base">{gs.teamScores[oppTeamIdx]}</span>
+        </div>
+        <div className="text-[0.6rem] sm:text-xs text-white/50 bg-black/40 px-2 py-0.5 rounded-md border border-[var(--color-gold)]/20 shadow-[0_0_10px_rgba(212,175,55,0.1)] hidden xs:block">
+          الهدف: <strong className="text-[var(--color-gold)]">{gs.target}</strong>
+        </div>
       </div>
     );
   } else {
     headerScores = (
-      <div className="flex items-center gap-1.5 text-[0.7rem] font-black">
-        <span className="text-white/40">نقاطي:</span> <span className="text-[var(--color-gold)]">{gs.scores[myPlayerIndex === -1 ? 0 : myPlayerIndex]}</span>
+      <div className="flex items-center justify-between flex-1 px-4">
+        <div className="flex items-center gap-1.5 text-[0.7rem] sm:text-xs font-black bg-white/10 px-3 py-1 rounded-full border border-white/20">
+          <span className="text-white/40">نقاطي:</span> <span className="text-[var(--color-gold)] font-bold text-base">{gs.scores[myPlayerIndex === -1 ? 0 : myPlayerIndex]}</span>
+        </div>
+        <div className="text-[0.6rem] sm:text-xs text-white/50 bg-black/40 px-2 py-0.5 rounded-md border border-[var(--color-gold)]/20 shadow-[0_0_10px_rgba(212,175,55,0.1)] hidden xs:block">
+          الهدف: <strong className="text-[var(--color-gold)]">{gs.target}</strong>
+        </div>
       </div>
     );
   }
@@ -665,6 +711,15 @@ export function GameScreen() {
 
   return (
     <div className="flex flex-col h-[100dvh] pt-1 pb-1 px-1 overflow-hidden gap-[4px] relative">
+      {isOffline && (
+        <div className="absolute inset-0 z-[10000] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-4">
+          <WifiOff size={48} className="text-red-500 mb-4 animate-pulse" />
+          <h2 className="text-[var(--color-gold)] font-black text-xl mb-2">انقطع الإتصال!</h2>
+          <p className="text-white/70 text-center max-w-[250px] text-sm leading-relaxed">
+            أنت تلعب بدون إنترنت الآن.<br/>يرجى التحقق من الشبكة الخاصة بك للعودة للعبة، وإلا قد لا يتمكن أصدقائك من مجاراتك.
+          </p>
+        </div>
+      )}
       <div className="flex justify-between items-center py-2 px-3 mx-1 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl shrink-0 mt-1 z-50 overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)]/5 to-transparent pointer-events-none" />
         
@@ -675,10 +730,20 @@ export function GameScreen() {
                 G.phase = 'intro'; 
                 updateUI(); 
              }}
-             className="p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
+             className="p-1 sm:p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
              title="القائمة الرئيسية"
            >
-             <Home className="w-5 h-5" />
+             <Home className="w-4 h-4 sm:w-5 sm:h-5" />
+           </button>
+           <button 
+             onClick={() => { 
+                G.isMuted = !G.isMuted;
+                updateUI(); 
+             }}
+             className="p-1 sm:p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
+             title={gs.isMuted ? "تشغيل الصوت" : "كتم الصوت"}
+           >
+             {gs.isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
            </button>
            <div className="w-[1px] h-4 bg-white/10" />
            <div className="flex flex-col">
@@ -705,8 +770,19 @@ export function GameScreen() {
 
       <TableArea onProfileClick={handleProfileClick} />
 
-      <div className={`text-center py-1 font-black text-[0.7rem] sm:text-[0.8rem] min-h-[22px] leading-[1.3] shrink-0 drop-shadow-md z-10 relative ${gs.gameMsgClass === 'tarneb-msg' ? 'text-[var(--color-kuba)]' : 'text-[var(--color-gold)]'}`}>
-        {gs.gameMsg}
+      <div className={`text-center py-1 font-black text-[0.7rem] sm:text-[0.8rem] min-h-[22px] leading-[1.3] shrink-0 drop-shadow-md z-10 relative overflow-hidden`}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={gs.gameMsg}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className={gs.gameMsgClass === 'tarneb-msg' ? 'text-[var(--color-kuba)]' : 'text-[var(--color-gold)]'}
+          >
+            {gs.gameMsg}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
       <PlayerHand />
@@ -858,7 +934,7 @@ function SwapOverlay() {
 
         <button 
           className="px-6 py-1.5 rounded-full font-bold text-xs bg-[#444] text-white hover:bg-[#555] border border-[#666] active:scale-95 transition-all w-full max-w-[150px]"
-          onClick={humanSkipSwap}
+          onClick={() => humanSkipSwap()}
         >
           عدم التبديل
         </button>

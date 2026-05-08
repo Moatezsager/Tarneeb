@@ -56,6 +56,7 @@ export const G = {
   results: [] as any[],
   bestInRound: null as any,
   gameWinner: null as number | null,
+  isMuted: false,
   particles: [] as { id: number; type: "tarneb" | "trap"; key: number }[],
   spectators: [] as any[],
   savedPhase: null as Phase | null,
@@ -357,7 +358,9 @@ function getCardValue(c: Card) {
 
 export function executeAISwap() {
   let p = G.playerWithHighestScore;
-  let myVal = getCardValue(G.exposedCards[p]!);
+  let exposedP = G.exposedCards[p];
+  if (!exposedP) return;
+  let myVal = getCardValue(exposedP);
   let bestTarget = -1;
   let bestVal = myVal;
 
@@ -389,8 +392,10 @@ export function executeAISwap() {
 }
 
 export function swapCards(p1: number, p2: number) {
-  let c1 = G.exposedCards[p1]!;
-  let c2 = G.exposedCards[p2]!;
+  let c1 = G.exposedCards[p1];
+  let c2 = G.exposedCards[p2];
+
+  if (!c1 || !c2) return;
 
   // Swap in hands
   let h1Idx = G.hands[p1].findIndex(c => c.suit === c1.suit && c.rank === c1.rank);
@@ -424,12 +429,19 @@ export function swapCards(p1: number, p2: number) {
   updateUI();
 }
 
-export function humanSwap(target: number) {
-  if (G.phase !== "swapping" || G.playerWithHighestScore !== myPlayerIndex) return;
-  justPlayedLocalAction = true;
-  let c1 = G.exposedCards[myPlayerIndex];
+export function humanSwap(target: number, forcePlayerIdx?: number) {
+  const actPlayer = forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
+  if (G.phase !== "swapping" || G.playerWithHighestScore !== actPlayer) return;
+  
+  if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
+    import("./multiplayer").then(m => m.sendPlayerAction({ type: "SWAP", target, playerIdx: actPlayer }));
+    return;
+  }
+
+  if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
+  let c1 = G.exposedCards[actPlayer];
   let c2 = G.exposedCards[target];
-  swapCards(myPlayerIndex, target);
+  swapCards(actPlayer, target);
   if (c1 && c2) {
     G.gameMsg = `الكنق 👑 إستبدل ورقته المكشوفة (${c1.rank}${c1.rank}) بـ (${c2.rank}${c2.rank}) مع ${G.playerNames[target]}`;
   }
@@ -439,12 +451,19 @@ export function humanSwap(target: number) {
     startBidding();
   }, 3500);
 
-  setTimeout(() => { justPlayedLocalAction = false; }, 100);
+  if (forcePlayerIdx === undefined) setTimeout(() => { justPlayedLocalAction = false; }, 100);
 }
 
-export function humanSkipSwap() {
-  if (G.phase !== "swapping" || G.playerWithHighestScore !== myPlayerIndex) return;
-  justPlayedLocalAction = true;
+export function humanSkipSwap(forcePlayerIdx?: number) {
+  const actPlayer = forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
+  if (G.phase !== "swapping" || G.playerWithHighestScore !== actPlayer) return;
+  
+  if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
+    import("./multiplayer").then(m => m.sendPlayerAction({ type: "SKIP_SWAP", playerIdx: actPlayer }));
+    return;
+  }
+
+  if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
   G.gameMsg = `الكنق 👑 قرر عدم التبديل (محتفظ بورقته)`;
   updateUI();
   
@@ -452,7 +471,7 @@ export function humanSkipSwap() {
     startBidding();
   }, 2500);
 
-  setTimeout(() => { justPlayedLocalAction = false; }, 100);
+  if (forcePlayerIdx === undefined) setTimeout(() => { justPlayedLocalAction = false; }, 100);
 }
 
 function startBidding() {
@@ -568,15 +587,25 @@ export function selectBid(bid: number) {
   updateUI();
 }
 
-export function confirmBid() {
-  if (G.pendingBid !== null) {
-    justPlayedLocalAction = true;
-    G.bids[myPlayerIndex] = G.pendingBid;
-    G.bidOverlayVisible = false;
+export function confirmBid(forceBid?: number, forcePlayerIdx?: number) {
+  const actPlayer = forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
+  const theBid = forceBid !== undefined ? forceBid : G.pendingBid;
+
+  if (theBid !== null) {
+    if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
+      import("./multiplayer").then(m => m.sendPlayerAction({ type: "BID", bid: theBid, playerIdx: actPlayer }));
+      G.bidOverlayVisible = false;
+      updateUI();
+      return;
+    }
+
+    if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
+    G.bids[actPlayer] = theBid;
+    if (actPlayer === myPlayerIndex) G.bidOverlayVisible = false;
     sfxBid();
-    G.currentPlayer = (myPlayerIndex + 1) % 4;
+    G.currentPlayer = (actPlayer + 1) % 4;
     processNextBid();
-    setTimeout(() => { justPlayedLocalAction = false; }, 100);
+    if (forcePlayerIdx === undefined) setTimeout(() => { justPlayedLocalAction = false; }, 100);
   }
 }
 
@@ -716,12 +745,24 @@ export function handleSelectCard(idx: number) {
   updateUI();
 }
 
-export function executePlay() {
-  if (G.selectedCardIdx < 0 || G.currentPlayer !== myPlayerIndex || G.isGatheringTrick) return;
-  
-  justPlayedLocalAction = true;
+export function executePlay(forceIdx?: number, forcePlayerIdx?: number) {
+  const pIdx = forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
+  const cIdx = forceIdx !== undefined ? forceIdx : G.selectedCardIdx;
 
-  let card = G.hands[myPlayerIndex][G.selectedCardIdx];
+  if (cIdx < 0 || G.currentPlayer !== pIdx || G.isGatheringTrick) return;
+  
+  if (isMultiplayerMode && !isHostMode && forceIdx === undefined) {
+      import("./multiplayer").then(m => m.sendPlayerAction({ type: "PLAY_CARD", cardIdx: cIdx, playerIdx: pIdx }));
+      G.selectedCardIdx = -1;
+      updateUI();
+      return;
+  }
+
+  if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
+
+  let card = G.hands[pIdx]?.[cIdx];
+  if (!card) return;
+
   let isLeading = G.trickCards.every((c) => c === null);
   let leadSuit = isLeading ? null : G.trickCards[G.leadPlayer]?.suit || null;
 
@@ -742,10 +783,10 @@ export function executePlay() {
     sfxValidPlay();
   }
 
-  G.trickCards[myPlayerIndex] = card;
-  if (G.exposedCards[myPlayerIndex] && G.exposedCards[myPlayerIndex]!.suit === card.suit && G.exposedCards[myPlayerIndex]!.rank === card.rank) G.exposedCards[myPlayerIndex] = null;
-  G.hands[myPlayerIndex].splice(G.selectedCardIdx, 1);
-  G.selectedCardIdx = -1;
+  G.trickCards[pIdx] = card;
+  if (G.exposedCards[pIdx] && G.exposedCards[pIdx]!.suit === card.suit && G.exposedCards[pIdx]!.rank === card.rank) G.exposedCards[pIdx] = null;
+  G.hands[pIdx].splice(cIdx, 1);
+  if (pIdx === myPlayerIndex) G.selectedCardIdx = -1;
   G.playHint = "";
 
   sfxPlay();
@@ -753,7 +794,7 @@ export function executePlay() {
 
   advanceTurn();
 
-  setTimeout(() => { justPlayedLocalAction = false; }, 100);
+  if (forcePlayerIdx === undefined) setTimeout(() => { justPlayedLocalAction = false; }, 100);
 }
 
 function triggerParticle(type: "tarneb" | "trap") {

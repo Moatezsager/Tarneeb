@@ -19,9 +19,9 @@ let timerInterval: any = null;
 let pingInterval: any = null;
 
 // Timing constants for disconnect detection
-const HEARTBEAT_INTERVAL = 5000;      // 5 seconds between heartbeats
-const DISCONNECT_THRESHOLD = 15000;   // 15 seconds before considered disconnected
-const RECONNECT_GRACE_PERIOD = 3000;  // 3 seconds grace for reconnection
+const HEARTBEAT_INTERVAL = 10000;     // 10 seconds between heartbeats
+const DISCONNECT_THRESHOLD = 30000;   // 30 seconds before considered disconnected
+const RECONNECT_GRACE_PERIOD = 5000;  // 5 seconds grace for reconnection
 
 function startHeartbeat() {
   if (pingInterval) clearInterval(pingInterval);
@@ -307,6 +307,7 @@ export interface RoomData {
 
 let activeRoomId: string | null = null;
 let roomUnsubscribe: (() => void) | null = null;
+let actionsUnsubscribe: (() => void) | null = null;
 
 export const multiplayerState = {
   isMultiplayer: false,
@@ -315,8 +316,57 @@ export const multiplayerState = {
   spectators: [] as Spectator[],
   myPlayerIndex: -1,
   isHost: false,
+  hostId: "",
   isPublic: true,
 };
+
+function startActionsListener(roomId: string) {
+  if (actionsUnsubscribe) return; // already listening
+
+  const actionsRef = collection(db, "rooms", roomId, "actions");
+  actionsUnsubscribe = onSnapshot(actionsRef, (snapshot) => {
+    snapshot.docChanges().forEach((change) => {
+      if (change.type === "added") {
+        const action = change.doc.data();
+        if (multiplayerState.isHost) {
+           processPlayerAction(action);
+        }
+        // Only host deletes the action, or actually we can let anyone delete if it's their action? No, host deletes it to confirm it was processed.
+        if (multiplayerState.isHost) {
+           deleteDoc(change.doc.ref).catch(e => console.error("Failed to delete action", e));
+        }
+      }
+    });
+  });
+}
+
+function stopActionsListener() {
+  if (actionsUnsubscribe) {
+     actionsUnsubscribe();
+     actionsUnsubscribe = null;
+  }
+}
+
+async function processPlayerAction(action: any) {
+  try {
+    const engine = await import("./engine");
+    
+    if (action.type === "PLAY_CARD") {
+       engine.executePlay(action.cardIdx, action.playerIdx);
+    } else if (action.type === "BID") {
+       engine.confirmBid(action.bid, action.playerIdx);
+    } else if (action.type === "SWAP") {
+       engine.humanSwap(action.target, action.playerIdx);
+    } else if (action.type === "SKIP_SWAP") {
+       engine.humanSkipSwap(action.playerIdx);
+    }
+    
+    engine.updateUI();
+    updateGameState();
+  } catch(e) {
+    console.error("Error processing action", e);
+  }
+}
 
 function generateCode() {
   return Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -716,6 +766,7 @@ export function listenToRoom(roomId: string) {
     const data = doc.data() as RoomData;
     const wasHost = multiplayerState.isHost;
     multiplayerState.players = data.players;
+    multiplayerState.hostId = data.hostId;
     multiplayerState.isHost = data.hostId === auth.currentUser?.uid;
     
     if (wasHost !== multiplayerState.isHost) {
@@ -724,8 +775,15 @@ export function listenToRoom(roomId: string) {
     
     if (!wasHost && multiplayerState.isHost) {
       startHostTimer();
+      startActionsListener(roomId);
     } else if (wasHost && !multiplayerState.isHost) {
       stopHostTimer();
+      stopActionsListener();
+    }
+    
+    // Safety check in case we join as Host immediately
+    if (multiplayerState.isHost && !actionsUnsubscribe) {
+      startActionsListener(roomId);
     }
     
     G.spectators = data.spectators || [];
@@ -821,33 +879,25 @@ export async function updateGameState() {
   if (!activeRoomId || !multiplayerState.isMultiplayer) return;
   if (pendingStateUpdate) return; 
 
-  // Stability/Anti-Cheat: Only the host or the player whose turn it is should push state.
-  const isActingPlayer = 
-    (G.phase === "playing" && G.currentPlayer === multiplayerState.myPlayerIndex) ||
-    (G.phase === "bidding" && G.currentPlayer === multiplayerState.myPlayerIndex) ||
-    (G.phase === "swapping" && G.playerWithHighestScore === multiplayerState.myPlayerIndex);
+  // Stability/Anti-Cheat: ONLY THE HOST should push state.
+  if (!multiplayerState.isHost) return;  
   
-  const isAuthorized = multiplayerState.isHost || isActingPlayer;
-  
-  if (!isAuthorized) return;  
   const newState = serializeGameState({ ...G });
   if (newState === lastSerializedState) return;
 
   pendingStateUpdate = true;
-  // Shorter debounce for faster sync (80ms instead of 150ms)
   await new Promise(resolve => setTimeout(resolve, 80));
   pendingStateUpdate = false;
 
   const finalState = serializeGameState({ ...G });
   if (finalState === lastSerializedState) return;
 
-  const roomId = activeRoomId; // Capture in case it changes
+  const roomId = activeRoomId;
   for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
     try {
       lastSerializedState = finalState;
       const roomRef = doc(db, "rooms", roomId);
       
-      // Final existence check to avoid reported crash
       const roomSnap = await getDoc(roomRef);
       if (!roomSnap.exists()) {
         console.warn("Update Game State failed: Room no longer exists.");
@@ -860,25 +910,35 @@ export async function updateGameState() {
         lastActionBy: auth.currentUser?.uid,
         updatedAt: serverTimestamp()
       });
-      syncRetryCount = 0; // Reset on success
+      syncRetryCount = 0;
       return;
     } catch (error: any) {
-      lastSerializedState = ""; // Allow retry
+      lastSerializedState = "";
       if (attempt < MAX_SYNC_RETRIES) {
         const backoffMs = Math.min(200 * Math.pow(2, attempt), 2000);
-        console.warn(`Sync failed (attempt ${attempt + 1}/${MAX_SYNC_RETRIES + 1}), retrying in ${backoffMs}ms...`);
         await new Promise(resolve => setTimeout(resolve, backoffMs));
       } else {
-        console.error("Multiplayer Sync Error after all retries", error);
         syncRetryCount++;
-        // If we've had too many consecutive failures, warn the player
         if (syncRetryCount >= 3) {
-          G.gameMsg = "⚠️ مشكلة في الاتصال... جاري المحاولة";
+          G.gameMsg = "⚠️ مشكلة في الاتصال بـ سيرفر المضيف";
           G.gameMsgClass = "";
-          updateUI();
+          import("./engine").then(eng => eng.updateUI());
         }
       }
     }
+  }
+}
+
+export async function sendPlayerAction(action: any) {
+  if (!activeRoomId || !auth.currentUser) return;
+  try {
+     const actionRef = doc(collection(db, "rooms", activeRoomId, "actions"));
+     await setDoc(actionRef, {
+        ...action,
+        timestamp: serverTimestamp()
+     });
+  } catch (error) {
+     console.error("Failed to send action", error);
   }
 }
 
@@ -891,6 +951,7 @@ export async function leaveRoom(destroy = false) {
   stopHeartbeat();
   stopHostTimer();
   stopAntiHostFreezeTimer();
+  stopActionsListener();
   activeRoomId = null;
   multiplayerState.isMultiplayer = false;
   multiplayerState.roomCode = "";

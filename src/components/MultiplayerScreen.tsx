@@ -335,7 +335,7 @@ export function MultiplayerScreen() {
             )}
 
             <button 
-              onClick={leaveRoom}
+              onClick={() => leaveRoom()}
               className="w-full mt-4 py-3 bg-red-900/10 text-red-500/80 font-bold rounded-xl hover:bg-red-900/30 hover:text-red-400 transition-colors border border-transparent hover:border-red-500/20 active:scale-95"
             >
               مغادرة الغرفة

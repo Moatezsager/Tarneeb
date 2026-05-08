@@ -163,6 +163,13 @@ service cloud.firestore {
         request.auth.uid in existing().memberUids ||
         request.time > existing().updatedAt + duration.value(15, 'm')
       );
+      
+      match /actions/{actionId} {
+        allow create: if isSignedIn() && 
+                      (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids);
+        allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids);
+        allow delete: if isSignedIn() && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid;
+      }
     }
   }
 }

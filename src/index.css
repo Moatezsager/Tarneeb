@@ -60,14 +60,36 @@ body {
 }
 
 @keyframes activePulse {
-  0%,100% { box-shadow: 0 0 15px rgba(212,175,55,0.3); }
-  50% { box-shadow: 0 0 30px rgba(212,175,55,0.5); }
+  0%,100% { box-shadow: 0 0 15px rgba(212,175,55,0.4); border-color: rgba(212,175,55,1); }
+  50% { box-shadow: 0 0 30px rgba(212,175,55,0.8); border-color: rgba(249,230,152,1); }
+}
+
+@keyframes bluePulse {
+  0%,100% { box-shadow: 0 0 15px rgba(59,130,246,0.4); border-color: rgba(59,130,246,1); }
+  50% { box-shadow: 0 0 30px rgba(59,130,246,0.8); border-color: rgba(96,165,250,1); }
+}
+
+@keyframes redPulse {
+  0%,100% { box-shadow: 0 0 15px rgba(239,68,68,0.4); border-color: rgba(239,68,68,1); }
+  50% { box-shadow: 0 0 30px rgba(239,68,68,0.8); border-color: rgba(248,113,113,1); }
 }
 
 .active-turn {
-  background: rgba(212,175,55,0.2) !important;
-  box-shadow: 0 0 20px rgba(212,175,55,0.3);
   animation: activePulse 1.5s ease-in-out infinite;
+  z-index: 30;
+  transform: scale(1.05);
+}
+
+.active-turn-blue {
+  animation: bluePulse 1.5s ease-in-out infinite;
+  z-index: 30;
+  transform: scale(1.05);
+}
+
+.active-turn-red {
+  animation: redPulse 1.5s ease-in-out infinite;
+  z-index: 30;
+  transform: scale(1.05);
 }
 
 @keyframes trapWarn {
