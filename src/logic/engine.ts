@@ -1124,11 +1124,23 @@ function processNextPlay() {
   if (G.currentPlayer === myPlayerIndex) {
     G.selectedCardIdx = -1;
     let isLeading = G.trickCards.every((c) => c === null);
-    let canLeadK = isLeading ? canLeadKuba(myPlayerIndex) : true;
-    if (isLeading && !canLeadK && G.hands[myPlayerIndex].some((c) => c.suit !== "♥")) {
-      G.playHint = "لا يمكن البدء بالكبة";
+    
+    if (isLeading) {
+       if (canLeadKuba(myPlayerIndex)) {
+         G.playHint = "يمكنك البدء بأي ورقة أو الكبة";
+       } else {
+         G.playHint = "يمكنك البدء بأي ورقة (لا يمكنك بدء الكبة)";
+       }
     } else {
-      G.playHint = G.anyoneTarnebThisTrick ? "الكبة مسموحة" : "";
+        const leadSuit = G.trickCards[G.leadPlayer]?.suit;
+        if (leadSuit) {
+            const hasSuit = G.hands[myPlayerIndex].some(c => c.suit === leadSuit);
+            if (hasSuit) {
+                G.playHint = `يجب اتباع النوع: ${leadSuit}`;
+            } else {
+                G.playHint = "يمكنك قطع ورقة (كبة) أو رمي أي ورقة";
+            }
+        }
     }
     G.gameMsg = "🎯 دورك! اختر ورقة";
     G.gameMsgClass = "";
