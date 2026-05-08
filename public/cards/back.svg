@@ -1,0 +1,94 @@
+<svg width="200" height="300" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient Background -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1a1a4e"/>
+      <stop offset="50%" stop-color="#2a2a72"/>
+      <stop offset="100%" stop-color="#4a1a72"/>
+    </linearGradient>
+    
+    <!-- Gold Gradient for accents -->
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff9c4"/>
+      <stop offset="50%" stop-color="#ffeb3b"/>
+      <stop offset="100%" stop-color="#f57f17"/>
+    </linearGradient>
+    
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Modern pattern -->
+    <pattern id="modernPattern" width="60" height="60" patternUnits="userSpaceOnUse">
+      <g opacity="0.15">
+        <circle cx="30" cy="30" r="25" fill="none" stroke="url(#goldGradient)" stroke-width="1"/>
+        <path d="M30 5 L50 25 L30 45 L10 25 Z" fill="none" stroke="url(#goldGradient)" stroke-width="0.8"/>
+        <circle cx="30" cy="30" r="8" fill="url(#goldGradient)" opacity="0.3"/>
+      </g>
+    </pattern>
+    
+    <!-- Decorative corner element -->
+    <g id="cornerDecor">
+      <path d="M0 20 Q10 10 20 0 L25 0 L25 5 Q15 12 8 20 Z" fill="url(#goldGradient)"/>
+    </g>
+  </defs>
+  
+  <!-- Main Card Body with rounded corners -->
+  <rect width="200" height="300" rx="18" fill="url(#bgGradient)"/>
+  
+  <!-- Subtle noise texture overlay -->
+  <rect width="200" height="300" rx="18" fill="url(#modernPattern)" opacity="0.6"/>
+  
+  <!-- Outer decorative border with glow -->
+  <rect x="12" y="12" width="176" height="276" rx="14" 
+        fill="none" stroke="url(#goldGradient)" stroke-width="2.5" 
+        filter="url(#glow)" opacity="0.9"/>
+  
+  <!-- Inner border -->
+  <rect x="22" y="22" width="156" height="256" rx="10" 
+        fill="none" stroke="#ffeb3b" stroke-width="1" opacity="0.4"/>
+  
+  <!-- Corner decorations -->
+  <use href="#cornerDecor" x="25" y="25"/>
+  <use href="#cornerDecor" x="175" y="25" transform="rotate(90 175 25)"/>
+  <use href="#cornerDecor" x="175" y="275" transform="rotate(180 175 275)"/>
+  <use href="#cornerDecor" x="25" y="275" transform="rotate(270 25 275)"/>
+  
+  <!-- Central Emblem - Modern Design -->
+  <g transform="translate(100, 150)" filter="url(#glow)">
+    <!-- Outer glowing ring -->
+    <circle r="55" fill="none" stroke="url(#goldGradient)" stroke-width="2" opacity="0.6"/>
+    
+    <!-- Main emblem circle -->
+    <circle r="42" fill="none" stroke="url(#goldGradient)" stroke-width="3"/>
+    
+    <!-- Inner decorative ring -->
+    <circle r="32" fill="none" stroke="#fff9c4" stroke-width="1" opacity="0.5" stroke-dasharray="4 4"/>
+    
+    <!-- Central diamond with gradient -->
+    <path d="M0 -28 L24 0 L0 28 L-24 0 Z" fill="url(#goldGradient)" filter="url(#glow)"/>
+    
+    <!-- Diamond inner detail -->
+    <path d="M0 -18 L14 0 L0 18 L-14 0 Z" fill="#1a1a4e" opacity="0.7"/>
+    
+    <!-- Sparkle accents -->
+    <circle cx="0" cy="-28" r="3" fill="#fff"/>
+    <circle cx="24" cy="0" r="2" fill="#fff" opacity="0.8"/>
+    <circle cx="0" cy="28" r="3" fill="#fff"/>
+    <circle cx="-24" cy="0" r="2" fill="#fff" opacity="0.8"/>
+  </g>
+  
+  <!-- Subtle radial highlight -->
+  <ellipse cx="100" cy="150" rx="80" ry="120" 
+           fill="radial-gradient(ellipse at center, rgba(255,255,255,0.1) 0%, transparent 70%)" 
+           opacity="0.3"/>
+  
+  <!-- Bottom decorative line -->
+  <line x1="60" y1="260" x2="140" y2="260" 
+        stroke="url(#goldGradient)" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+</svg>
