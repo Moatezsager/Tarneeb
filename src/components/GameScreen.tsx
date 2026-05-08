@@ -17,7 +17,7 @@ function MiniCard({ card, isKuba }: { card: Card | null, isKuba: boolean }) {
   if (!card) return <div className="w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] bg-black/20 rounded-[4px] animate-pulse" />;
   return (
     <div className={`w-[36px] h-[52px] sm:w-[48px] sm:h-[68px] relative min-w-0 flex-shrink-0 ${isKuba ? 'drop-shadow-[0_0_8px_rgba(231,76,60,0.6)]' : 'drop-shadow-sm'}`}>
-      <img src={getCardImageUrl(card)} className="w-full h-full object-contain" draggable={false} alt={`${card?.rank}${card?.suit}`} loading="eager" fetchpriority="high" />
+      <img src={getCardImageUrl(card)} className="w-full h-full object-contain" draggable={false} alt={`${card?.rank}${card?.suit}`} loading="eager" fetchPriority="high" />
     </div>
   );
 }
@@ -51,7 +51,7 @@ function DealingAnimation() {
              transition={{ duration: 0.35, ease: "easeOut" }}
              className="absolute w-[32px] h-[46px] sm:w-[42px] sm:h-[60px] -ml-[16px] -mt-[23px] sm:-ml-[21px] sm:-mt-[30px]"
           >
-            <img src="/cards/back.svg" className="w-full h-full object-contain drop-shadow" loading="eager" fetchpriority="high" />
+            <img src="/cards/back.svg" className="w-full h-full object-contain drop-shadow" loading="eager" fetchPriority="high" />
           </motion.div>
         ))}
       </AnimatePresence>
@@ -405,7 +405,7 @@ function PlayerHand() {
                 `}
                 onClick={() => handleSelectCard(i)}
               >
-                <img src={getCardImageUrl(card)} className="w-full h-full object-contain rounded-[4px]" draggable={false} alt={`${card?.rank}${card?.suit}`} loading="eager" fetchpriority="high" />
+                <img src={getCardImageUrl(card)} className="w-full h-full object-contain rounded-[4px]" draggable={false} alt={`${card?.rank}${card?.suit}`} loading="eager" fetchPriority="high" />
                 {isSelected && <div className="absolute inset-[1px] rounded-[4px] border-[2px] border-[var(--color-gold)] pointer-events-none shadow-[inset_0_0_15px_rgba(212,175,55,0.5)]"></div>}
                 <div className="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent pointer-events-none rounded-[4px]"></div>
               </motion.div>
