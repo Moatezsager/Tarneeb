@@ -10,7 +10,8 @@ import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, 
 function getCardImageUrl(card: Card | null) {
   if (!card) return '/cards/back.svg';
   const suitMap: Record<string, string> = { "♠": "S", "♥": "H", "♦": "D", "♣": "C" };
-  return `/cards/${card.rank}${suitMap[card.suit]}.svg`;
+  const rank = card.rank === '10' ? 'T' : card.rank;
+  return `/cards/${rank}${suitMap[card.suit]}.svg`;
 }
 
 function MiniCard({ card, isKuba }: { card: Card | null, isKuba: boolean }) {
