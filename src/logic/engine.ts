@@ -868,7 +868,7 @@ function computerPlay(p: number) {
 
 function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | null, isLeading: boolean): Card {
   const tarnebSuit: Suit = "♥";
-  if (!valid || valid.length === 0) return G.hands[playerIdx][0];
+  if (!valid || valid.length === 0) return G.hands[playerIdx][0] || { suit: "♠", rank: "2" };
 
   const teammateIdx = G.gameMode === "Teams" ? (playerIdx + 2) % 4 : -1;
   const currentWinnerIdx = getTrickWinner();
@@ -877,170 +877,173 @@ function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | nul
   const aKubaPlayed = G.playedCards.some(c => c.suit === "♥" && c.rank === "A") || G.trickCards.some(c => c && c.suit === "♥" && c.rank === "A");
   const qKubaPlayed = G.playedCards.some(c => c.suit === "♥" && c.rank === "Q") || G.trickCards.some(c => c && c.suit === "♥" && c.rank === "Q");
 
-  const iHaveAKuba = G.hands[playerIdx].some(c => c.suit === "♥" && c.rank === "A");
-  const iHaveQKuba = G.hands[playerIdx].some(c => c.suit === "♥" && c.rank === "Q");
+  const iHaveAKuba = valid.some(c => c.suit === "♥" && c.rank === "A");
+  const iHaveQKuba = valid.some(c => c.suit === "♥" && c.rank === "Q");
 
   const trickCardsSoFar = G.trickCards.filter(c => c !== null) as Card[];
   const aKubaInTrick = trickCardsSoFar.some(c => c.suit === "♥" && c.rank === "A");
   const qKubaInTrick = trickCardsSoFar.some(c => c.suit === "♥" && c.rank === "Q");
 
+  // Determine the highest score player to target in FFA mode
+  let targetPlayerIdx = -1;
+  if (G.gameMode !== "Teams") {
+     let maxScore = -Infinity;
+     for(let i=0; i<4; i++) {
+        if(i !== playerIdx && G.scores[i] > maxScore) {
+           maxScore = G.scores[i];
+           targetPlayerIdx = i;
+        }
+     }
+  }
+
+  // Helper functions to safely get the highest and lowest cards from an array
+  const lowestCard = (cards: Card[]) => [...cards].sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+  const highestCard = (cards: Card[]) => [...cards].sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+
   // --- SPECIAL WARTHA (Q♥) LOGIC ---
-
-  // Scenario 1: AI holds Q♥
   if (iHaveQKuba) {
-    const validQKuba = valid.find(c => c.suit === "♥" && c.rank === "Q");
-    if (validQKuba) {
-      const otherValid = valid.filter(c => !(c.suit === "♥" && c.rank === "Q"));
-      
-      // If A♥ is already on the table, AVOID Q♥ at all costs
-      if (aKubaInTrick) {
-        if (otherValid.length > 0) return otherValid.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
-      }
-      
-      // If A♥ is still in play (not in playedCards and not in my hand)
-      if (!aKubaPlayed && !iHaveAKuba) {
-        // Try not to play Q♥ if we have any other card in the same suit (if following suit)
-        // or any other card at all (if leading/cutting)
-        if (otherValid.length > 0) return otherValid.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
-      }
-      // If A♥ is played, Q♥ is just another heart. Continue to regular logic.
-    }
+     const otherValid = valid.filter(c => !(c.suit === "♥" && c.rank === "Q"));
+     
+     if (aKubaInTrick) {
+        // A♥ is on the table! AVOID Q♥ AT ALL COSTS to prevent -5 penalty!
+        if (otherValid.length > 0) return lowestCard(otherValid);
+     } else if (!aKubaPlayed) {
+        // A♥ is still hiding. Do NOT throw Q♥ if we have other options.
+        if (leadSuit === "♥") {
+           const otherHearts = otherValid.filter(c => c.suit === "♥");
+           if (otherHearts.length > 0) return lowestCard(otherHearts); // Play lower heart to fly under the radar
+        } else {
+           if (otherValid.length > 0) return lowestCard(otherValid);
+        }
+     }
+     // If A♥ is already played, Q♥ is safe to use. Fall through to regular logic.
   }
 
-  // Scenario 2: AI holds A♥
   if (iHaveAKuba) {
-    const validAKuba = valid.find(c => c.suit === "♥" && c.rank === "A");
-    if (validAKuba) {
-      // Hunt! If Q♥ is on the table, EAT IT!
-      if (qKubaInTrick) return validAKuba;
-
-      // If Q♥ is still at large (not played, and not in my hand)
-      if (!qKubaPlayed && !iHaveQKuba) {
-        // Don't play A♥ unless forced (only one card in suit) or trick is very important
-        const otherValid = valid.filter(c => !(c.suit === "♥" && c.rank === "A"));
-        
-        // If we have other hearts when following a heart lead, play the highest one that isn't Ace
-        if (leadSuit === "♥" && otherValid.some(c => c.suit === "♥")) {
-           return otherValid.filter(c => c.suit === "♥").sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
-        }
-
-        // If leading, don't lead A♥ if we expect to catch Q♥ later
-        if (isLeading && otherValid.length > 0) {
-           // Lead something else to keep hands moving
-           return otherValid.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
-        }
-      }
-    }
-  }
-
-  // Scenario 3: Neither A♥ nor Q♥, but one is on table
-  if (!iHaveAKuba && !iHaveQKuba) {
-    const teammateHasExposedAKuba = teammateIdx !== -1 && G.exposedCards[teammateIdx]?.suit === "♥" && G.exposedCards[teammateIdx]?.rank === "A";
-    
-    if (qKubaInTrick) {
-      const currentWinner = getTrickWinner();
-      const isOpponentWinning = teammateIdx !== -1 && currentWinner !== teammateIdx && currentWinner !== playerIdx;
-      
-      if (isOpponentWinning) {
-        // Try to win the trick to "save" the teammate/team from losing points or giving catch to opponent
-        const winningCards = valid.filter(c => {
-          const winnerCard = G.trickCards[currentWinner]!;
-          if (c.suit === "♥" && winnerCard.suit !== "♥") return true;
-          if (c.suit === winnerCard.suit && RANK_VAL[c.rank] > RANK_VAL[winnerCard.rank]) return true;
-          return false;
-        });
-        if (winningCards.length > 0) return winningCards.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
-      }
-    } else if (teammateHasExposedAKuba && isLeading && G.tarnebPlayed && !qKubaPlayed) {
-      // "Open the way": Lead a heart to allow teammate to use their Ace to hunt
-      const hearts = valid.filter(c => c.suit === "♥");
-      if (hearts.length > 0) return hearts.sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0]; // Small heart to pass lead to them
-    }
+     const myAKuba = valid.find(c => c.suit === "♥" && c.rank === "A")!;
+     if (qKubaInTrick) {
+         // Hunt! Q♥ is on the table, eat it for +5 points!
+         return myAKuba;
+     }
+     if (!qKubaPlayed && !iHaveQKuba) {
+         // Q♥ is hiding. Do NOT play A♥ unless forced, we want to catch it later!
+         const otherValid = valid.filter(c => !(c.suit === "♥" && c.rank === "A"));
+         
+         if (isLeading && otherValid.length > 0) {
+             const otherHearts = otherValid.filter(c => c.suit === "♥");
+             if (otherHearts.length > 0) return lowestCard(otherHearts); // Bait out the Q♥
+             return lowestCard(otherValid);
+         }
+         
+         if (leadSuit === "♥" && otherValid.some(c => c.suit === "♥")) {
+            return highestCard(otherValid.filter(c => c.suit === "♥")); // Play highest non-A heart
+         }
+     }
   }
 
   // --- REGULAR PLAY LOGIC ---
 
   // 1. LEADING STRATEGY
   if (isLeading) {
-    const hand = G.hands[playerIdx];
-    const myTarnebs = hand.filter(c => c.suit === tarnebSuit);
-    
-    // Draw out trumps if AI has many and strong ones to weaken opponents
-    if (myTarnebs.length >= 4 && myTarnebs.some(c => ["A", "K", "Q"].includes(c.rank))) {
-      const topValidTarneb = valid.filter(c => c.suit === tarnebSuit).sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
-      if (topValidTarneb) return topValidTarneb;
-    }
+      // Play non-trump Aces if we have them (guaranteed win)
+      const aces = valid.filter(c => c.rank === "A" && c.suit !== "♥");
+      if (aces.length > 0) return aces[0];
 
-    // Play Aces first to secure tricks early
-    const aces = valid.filter(c => c.rank === "A" && c.suit !== tarnebSuit);
-    if (aces.length > 0) return aces[0];
+      // Play non-trump Kings if the Ace of that suit has been played
+      for (const suit of ["♠", "♣", "♦"]) {
+         const myKings = valid.filter(c => c.rank === "K" && c.suit === suit);
+         if (myKings.length > 0) {
+             const acePlayed = G.playedCards.some(c => c.rank === "A" && c.suit === suit);
+             if (acePlayed) return myKings[0];
+         }
+      }
 
-    // Strategic choice: Play from short suits to enable cutting (tarneb) in later rounds
-    const suitCounts: Record<string, number> = {};
-    hand.forEach(c => {
-      if (c.suit !== tarnebSuit) suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
-    });
-    
-    const nonTarneb = valid.filter(c => c.suit !== tarnebSuit);
-    if (nonTarneb.length > 0) {
-      const shortSuit = Object.keys(suitCounts).sort((a, b) => suitCounts[a] - suitCounts[b])[0] as Suit;
-      const suitCards = nonTarneb.filter(c => c.suit === shortSuit).sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank]);
-      if (suitCards.length > 0) return suitCards[0];
-    }
+      // Bleed trumps if we have strong ones
+      const myTarnebs = valid.filter(c => c.suit === tarnebSuit);
+      if (myTarnebs.length >= 4 && myTarnebs.some(c => ["A", "K", "Q"].includes(c.rank))) {
+          const safeTarnebs = myTarnebs.filter(c => !(c.rank === "A" && !qKubaPlayed) && !(c.rank === "Q" && !aKubaPlayed));
+          if (safeTarnebs.length > 0) return highestCard(safeTarnebs);
+      }
 
-    return valid.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0] || valid[0];
+      // Play from short suits to create a void (allowing us to cut later)
+      const suitCounts: Record<string, number> = {};
+      valid.forEach(c => {
+        if (c.suit !== tarnebSuit) suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
+      });
+      const nonTarneb = valid.filter(c => c.suit !== tarnebSuit);
+      if (nonTarneb.length > 0) {
+        const shortSuit = Object.keys(suitCounts).sort((a, b) => suitCounts[a] - suitCounts[b])[0] as Suit;
+        const suitCards = nonTarneb.filter(c => c.suit === shortSuit);
+        return lowestCard(suitCards);
+      }
+
+      return lowestCard(valid);
   }
 
   // 2. FOLLOWING STRATEGY
   const leadCards = G.trickCards.filter(c => c !== null) as Card[];
-  const mySuitCards = valid.filter(c => c && c.suit === leadSuit);
-  
-  if (mySuitCards.length > 0) {
-    const currentBestCard = G.trickCards[currentWinnerIdx];
-    
-    // Coordination: If teammate is already winning with a strong card, throw away a low card
-    if (isTeammateWinning && currentBestCard && (currentBestCard.rank === "A" || currentBestCard.rank === "K")) {
-      return mySuitCards.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
-    }
+  const mySuitCards = valid.filter(c => c.suit === leadSuit);
+  const currentBestCard = G.trickCards[currentWinnerIdx];
+  const isTargetWinning = targetPlayerIdx !== -1 && currentWinnerIdx === targetPlayerIdx;
 
-    // Attempt to win the trick against an opponent
-    if (currentBestCard) {
-      const winningCards = mySuitCards.filter(c => RANK_VAL[c.rank] > RANK_VAL[currentBestCard.rank]);
-      if (winningCards.length > 0) {
-        // Efficiency: Use the smallest card that is still enough to win
-        return winningCards.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+  if (mySuitCards.length > 0) {
+      if (currentBestCard) {
+          const winningCards = mySuitCards.filter(c => RANK_VAL[c.rank] > RANK_VAL[currentBestCard.rank]);
+          
+          if (isTeammateWinning) {
+              // Teammate is winning. Don't overtake them if they used a high card.
+              if (["A", "K", "Q"].includes(currentBestCard.rank)) {
+                  return lowestCard(mySuitCards); // Conserve our high cards
+              }
+          }
+
+          if (winningCards.length > 0) {
+              // Try to win against opponents! Use the SMALLEST card that is enough to win.
+              return lowestCard(winningCards);
+          }
       }
-    }
-    // Cannot win or teammate is winning, conserve power
-    return mySuitCards.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+      // Can't win or teammate is securely winning: Throw SMALLEST card (conserve K/Q/J)
+      return lowestCard(mySuitCards);
   }
 
   // 3. CUTTING STRATEGY (When out of the lead suit)
-  const tarnebs = valid.filter(c => c && c.suit === tarnebSuit);
+  const tarnebs = valid.filter(c => c.suit === tarnebSuit);
   if (tarnebs.length > 0) {
-    const currentBestCard = G.trickCards[currentWinnerIdx];
-    
-    // Tactical restraint: Don't spend a trump card if teammate is winning with a high lead-suit card
-    if (isTeammateWinning && currentBestCard && currentBestCard.suit === leadSuit && (currentBestCard.rank === "A" || currentBestCard.rank === "K")) {
-      return valid.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
-    }
-
-    const currentWinnerTarneb = leadCards.filter(c => c.suit === tarnebSuit).sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
-    
-    if (!currentWinnerTarneb) {
-      // First one to cut in this trick
-      return tarnebs.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
-    } else {
-      // Try to overcut another player's trump
-      const overCutCards = tarnebs.filter(t => RANK_VAL[t.rank] > RANK_VAL[currentWinnerTarneb.rank]);
-      if (overCutCards.length > 0) {
-        return overCutCards.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+      if (isTeammateWinning && currentBestCard && currentBestCard.suit === leadSuit && ["A", "K", "Q"].includes(currentBestCard.rank)) {
+          // Teammate is winning securely. Don't waste a trump card!
+          const nonTarnebs = valid.filter(c => c.suit !== tarnebSuit);
+          if (nonTarnebs.length > 0) return lowestCard(nonTarnebs);
+          return lowestCard(tarnebs); // Forced to play tarneb
       }
-    }
+
+      const currentWinnerTarneb = leadCards.filter(c => c.suit === tarnebSuit);
+      
+      if (currentWinnerTarneb.length === 0) {
+          // We are first to cut
+          return lowestCard(tarnebs);
+      } else {
+          // Someone already cut, try to overcut
+          const highestTarnebSoFar = highestCard(currentWinnerTarneb);
+          const overCutCards = tarnebs.filter(t => RANK_VAL[t.rank] > RANK_VAL[highestTarnebSoFar.rank]);
+          
+          if (isTeammateWinning) {
+              // Teammate already cut. Leave it to them.
+              const nonTarnebs = valid.filter(c => c.suit !== tarnebSuit);
+              if (nonTarnebs.length > 0) return lowestCard(nonTarnebs);
+          } else if (overCutCards.length > 0) {
+              // Try to overcut opponent!
+              return lowestCard(overCutCards);
+          }
+      }
   }
 
-  // Final Fallback: Play lowest available card
-  return valid.sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0] || valid[0];
+  // Final Fallback: Discard useless cards
+  // Prioritize discarding from non-trump suits, starting with lowest cards
+  const nonTarnebs = valid.filter(c => c.suit !== tarnebSuit);
+  if (nonTarnebs.length > 0) {
+      return lowestCard(nonTarnebs);
+  }
+  return lowestCard(valid);
 }
 
 export function isBot(playerIdx: number) {

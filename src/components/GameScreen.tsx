@@ -1,11 +1,11 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useGameState } from "./common";
-import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex, getTrickWinner } from "../logic/engine";
+import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex, getTrickWinner, humanSwap, humanSkipSwap } from "../logic/engine";
 import { multiplayerState } from "../logic/multiplayer";
 import { UserProfileModal } from "./UserProfileModal";
 import { UserProfile } from "../logic/userProfile";
-import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut, Wifi, WifiOff, Volume2, VolumeX } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut, Wifi, WifiOff, Volume2, VolumeX, BarChart2, Trophy, Crown, Medal, Menu } from "lucide-react";
 
 function getCardImageUrl(card: Card | null) {
   if (!card) return '/cards/back.svg';
@@ -125,7 +125,7 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
          activeClass = 'border-red-500 active-turn-red';
          activeHeaderBg = 'bg-red-600 text-white';
       }
-  }
+  };
 
   return (
     <div 
@@ -479,7 +479,30 @@ function BiddingOverlay() {
 
 function RoundEndOverlay() {
   const gs = useGameState();
+  const [timeLeft, setTimeLeft] = React.useState(15);
+  
+  React.useEffect(() => {
+    if (!gs.roundEndOverlayVisible) return;
+    if (gs.gameWinner !== null) return; // Don't auto close if game ended
+    
+    setTimeLeft(15);
+    const interval = setInterval(() => {
+       setTimeLeft(t => {
+         if (t <= 1) {
+            clearInterval(interval);
+            if (!multiplayerState.isMultiplayer || multiplayerState.isHost) {
+               closeRoundEnd(); // Host actually closes it
+            }
+            return 0;
+         }
+         return t - 1;
+       });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [gs.roundEndOverlayVisible, gs.gameWinner]);
+
   if (!gs.roundEndOverlayVisible) return null;
+  if (gs.gameWinner !== null) return null; // Let PodiumOverlay handle game end
   
   let results = gs.results || [];
   if (gs.gameMode === "Teams" && results.length >= 2) {
@@ -491,74 +514,249 @@ function RoundEndOverlay() {
   
   return (
     <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4">
-      <div className="bg-[var(--color-surface)] p-4 rounded-2xl border-2 border-[var(--color-gold)] w-full max-w-[380px] text-center">
-        <div className="text-[var(--color-gold)] mb-2 text-sm">📊 نتائج الجولة</div>
+      <div className="bg-[var(--color-surface)] p-4 rounded-2xl border-2 border-[var(--color-gold)] w-full max-w-[420px] text-center">
+        <div className="text-[var(--color-gold)] mb-2 text-sm font-black flex items-center justify-center gap-2">
+          <BarChart2 className="w-4 h-4" /> نتائج الجولة
+        </div>
         {gs.trapActive && (
-          <div className="text-[#f39c12] text-[0.6rem] mb-1.5">
+          <div className="text-[#f39c12] text-[0.6rem] mb-1.5 font-bold animate-pulse">
             💀 ورطة: {gs.playerNames[gs.trapCaughtBy]} أخذ Q♥ بـ A♥ (+5/-5)
           </div>
         )}
-        <table className="w-full border-collapse my-2 text-[0.65rem]" dir="rtl">
+        <table className="w-full border-collapse my-2 text-[0.65rem] sm:text-xs" dir="rtl">
           <thead>
             <tr>
-              <th className="text-[var(--color-gold)] p-1 border-b border-[var(--color-gold)]/30 text-[0.55rem]">اللاعب</th>
-              <th className="text-[var(--color-gold)] p-1 border-b border-[var(--color-gold)]/30 text-[0.55rem]">طلب</th>
-              <th className="text-[var(--color-gold)] p-1 border-b border-[var(--color-gold)]/30 text-[0.55rem]">جمع</th>
-              <th className="text-[var(--color-gold)] p-1 border-b border-[var(--color-gold)]/30 text-[0.55rem]">مضاعف</th>
-              <th className="text-[var(--color-gold)] p-1 border-b border-[var(--color-gold)]/30 text-[0.55rem]">النقاط</th>
+              <th className="text-[var(--color-gold)] p-1.5 border-b border-[var(--color-gold)]/30">اللاعب</th>
+              <th className="text-[var(--color-gold)] p-1.5 border-b border-[var(--color-gold)]/30">طلب</th>
+              <th className="text-[var(--color-gold)] p-1.5 border-b border-[var(--color-gold)]/30">جمع</th>
+              <th className="text-[var(--color-gold)] p-1.5 border-b border-[var(--color-gold)]/30">مضاعف</th>
+              <th className="text-[var(--color-gold)] p-1.5 border-b border-[var(--color-gold)]/30">النقاط</th>
+              <th className="text-[var(--color-gold)] p-1.5 border-b border-[var(--color-gold)]/30 font-black">المجموع</th>
             </tr>
           </thead>
           <tbody>
             {results.map((r, i) => (
-              <tr key={i}>
-                <td className="p-1 border-b border-white/5 font-black text-white/70">{(r as any).playerLabel || gs.playerNames[r.player]} {r.player === gs.bestInRound?.player ? '⭐' : ''}</td>
-                <td className="p-1 border-b border-white/5">{r.bid}</td>
-                <td className="p-1 border-b border-white/5">{r.taken} {r.bid === "-" ? '' : (r.taken >= r.bid ? '✅' : '❌')}</td>
-                <td className="p-1 border-b border-white/5">{r.multiplier || '-'}</td>
-                <td className={`p-1 border-b border-white/5 font-bold ${r.change > 0 ? 'text-[#2ecc71]' : 'text-[var(--color-kuba)]'}`}>
+              <tr key={i} className="hover:bg-white/5 transition-colors">
+                <td className="p-1.5 border-b border-white/5 font-black text-white/90">{(r as any).playerLabel || gs.playerNames[r.player]} {r.player === gs.bestInRound?.player ? '⭐' : ''}</td>
+                <td className="p-1.5 border-b border-white/5 text-[#ccc]">{r.bid}</td>
+                <td className="p-1.5 border-b border-white/5 text-[#ccc]">{r.taken} {r.bid === "-" ? '' : (r.taken >= r.bid ? '✅' : '❌')}</td>
+                <td className="p-1.5 border-b border-white/5 text-[#ccc]">{r.multiplier || '-'}</td>
+                <td className={`p-1.5 border-b border-white/5 font-black ${r.change > 0 ? 'text-[#2ecc71]' : 'text-[var(--color-kuba)]'}`}>
                   {r.change > 0 ? '+' : ''}{r.change}
+                </td>
+                <td className="p-1.5 border-b border-white/5 font-black text-[var(--color-gold)]">
+                  {gs.gameMode === "Teams" ? gs.scores[r.player % 2] : gs.scores[r.player]}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         {gs.bestInRound && gs.gameMode !== "Teams" && (
-          <div className="mt-1.5 text-[#2ecc71] text-[0.6rem]">
+          <div className="mt-2 text-[#2ecc71] text-xs font-bold">
             ⭐ أفضل لاعب: {gs.playerNames[gs.bestInRound.player]} ({gs.bestInRound.change > 0 ? '+' : ''}{gs.bestInRound.change})
           </div>
         )}
-        <div className="mt-1.5 text-[#aaa] text-[0.55rem] min-h-[14px]">
-          {gs.gameWinner !== null 
-            ? (gs.gameMode === "Teams" 
-                ? (gs.gameWinner === (myPlayerIndex % 2) ? '🏆 مبروك! فريقك بطل الطرنيب! 🏆' : `🏆 فريق ${gs.gameWinner === 0 ? 'نحن' : 'الخصم'} فاز باللعبة!`)
-                : (gs.gameWinner === myPlayerIndex && myPlayerIndex !== -1 ? '🏆 مبروك! أنت بطل الطرنيب! 🏆' : `🏆 ${gs.playerNames[gs.gameWinner]} فاز باللعبة!`)
-              )
-            : (results[0]?.change > 0 ? '🎉 نقاط إيجابية!' : '💔 خسارة نقاط')
-          }
-        </div>
-        {(!multiplayerState.isMultiplayer || multiplayerState.isHost) ? (
-          <button 
-            className="mt-3 px-6 py-2 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black rounded-full font-black text-sm active:scale-95"
-            onClick={() => closeRoundEnd()}
-          >
-            {gs.gameWinner !== null ? 'بداية جديدة' : '✅ متابعة'}
-          </button>
-        ) : (() => {
-          const hostPlayer = multiplayerState.players.find(p => p.uid === multiplayerState.players.find(pp => pp.index === 0)?.uid);
-          const hostRecord = multiplayerState.players.find(p => {
-            // Find the host by checking who matches the current host role
-            return !p.isBot && !p.uid.startsWith('bot_');
-          });
-          const isHostDisconnected = multiplayerState.players.some(p => p.status === "disconnected" && !p.isBot);
-          
-          return (
-            <div className="mt-4 px-6 py-2 bg-white/5 border border-white/10 text-white/60 rounded-full font-black text-xs flex justify-center items-center gap-2 max-w-[220px] mx-auto">
+        
+        <div className="mt-4 flex flex-col items-center gap-2">
+          {(!multiplayerState.isMultiplayer || multiplayerState.isHost) ? (
+            <button 
+              className="px-8 py-2.5 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black rounded-full font-black text-sm active:scale-95 shadow-[0_5px_15px_rgba(212,175,55,0.3)] hover:scale-105 transition-all w-full max-w-[200px]"
+              onClick={() => closeRoundEnd()}
+            >
+              ✅ متابعة ({timeLeft}ث)
+            </button>
+          ) : (
+            <div className="px-6 py-2 bg-white/5 border border-white/10 text-white/60 rounded-full font-black text-xs flex justify-center items-center gap-2 w-full max-w-[220px]">
               <span className="w-3.5 h-3.5 border-2 border-[var(--color-gold)]/20 border-t-[var(--color-gold)] rounded-full animate-spin"></span>
-              {isHostDisconnected ? 'متابعة تلقائية قريباً...' : 'في انتظار الكنق...'}
+              في انتظار المضيف... ({timeLeft}ث)
             </div>
-          );
-        })()}
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+function PodiumOverlay() {
+  const gs = useGameState();
+  
+  if (!gs.roundEndOverlayVisible || gs.gameWinner === null) return null;
+  
+  if (gs.gameMode === "Teams") {
+     const winningTeam = gs.gameWinner!;
+     const winnerName1 = gs.playerNames[winningTeam];
+     const winnerName2 = gs.playerNames[winningTeam + 2];
+     return (
+       <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4 overflow-hidden">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="flex flex-col items-center">
+             <Trophy className="w-24 h-24 text-[var(--color-gold)] mb-4 drop-shadow-[0_0_30px_rgba(212,175,55,0.8)]" />
+             <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f9e698] to-[#aa8d2e] mb-2 drop-shadow-lg text-center">🏆 الفريق الفائز 🏆</h1>
+             <p className="text-white/60 text-sm mb-8">نهاية المباراة</p>
+             
+             <div className="bg-gradient-to-b from-[var(--color-gold)]/20 to-transparent p-8 rounded-3xl border-2 border-[var(--color-gold)] flex flex-col items-center shadow-[0_0_50px_rgba(212,175,55,0.2)]">
+                <div className="text-3xl md:text-4xl font-black text-white text-center mb-4 leading-tight">{winnerName1} <br/><span className="text-[var(--color-gold)]">&</span><br/> {winnerName2}</div>
+                <div className="text-2xl font-black text-[var(--color-gold)] mt-2 bg-black/50 px-6 py-2 rounded-full border border-[var(--color-gold)]/30">{gs.scores[winningTeam]} نقطة</div>
+             </div>
+          </motion.div>
+          <div className="mt-12 flex gap-4">
+             <button onClick={() => returnToMenu()} className="px-10 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full font-black text-lg transition-all border border-white/20">
+                العودة للقائمة
+             </button>
+             {(!multiplayerState.isMultiplayer || multiplayerState.isHost) && (
+               <button onClick={() => closeRoundEnd()} className="px-10 py-3 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black rounded-full font-black text-lg transition-all shadow-[0_0_20px_rgba(212,175,55,0.5)]">
+                  مباراة جديدة
+               </button>
+             )}
+          </div>
+       </div>
+     );
+  } else {
+     const sortedPlayers = gs.scores.map((score, index) => ({ score, index, name: gs.playerNames[index] })).sort((a, b) => b.score - a.score);
+     const first = sortedPlayers[0];
+     const second = sortedPlayers[1];
+     const third = sortedPlayers[2];
+     
+     return (
+       <div className="fixed inset-0 bg-[#0a0a12] z-[100] flex flex-col items-center justify-center p-4 overflow-hidden">
+           <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="text-center mb-12">
+               <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f9e698] to-[#aa8d2e] drop-shadow-lg">🎉 نهاية اللعبة 🎉</h1>
+               <p className="text-white/50 text-sm mt-2">منصة التتويج الأسطورية</p>
+           </motion.div>
+           
+           <div className="flex items-end justify-center gap-3 sm:gap-6 h-[220px] md:h-[280px] mt-4 mb-8">
+              {/* Second Place */}
+              <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.8, type: "spring" }} className="flex flex-col items-center relative z-10 w-[80px] sm:w-[100px] md:w-[120px]">
+                 <div className="text-sm md:text-base text-white/90 font-bold mb-2 truncate w-full text-center px-1 drop-shadow-md">{second.name}</div>
+                 <div className="bg-gradient-to-t from-[#9ca3af] to-[#e5e7eb] w-full h-[120px] md:h-[150px] rounded-t-xl flex flex-col items-center pt-3 shadow-[0_0_30px_rgba(156,163,175,0.4)] border-t-4 border-white/80">
+                    <Medal className="w-8 h-8 text-[#6b7280] mb-1" />
+                    <span className="text-4xl md:text-5xl font-black text-[#4b5563] drop-shadow-sm">2</span>
+                 </div>
+                 <div className="absolute bottom-4 text-sm md:text-base font-black text-[#4b5563] drop-shadow-sm bg-white/40 px-3 py-1 rounded-full backdrop-blur-sm">{second.score}</div>
+              </motion.div>
+              
+              {/* First Place */}
+              <motion.div initial={{ y: 150, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 1.2, type: "spring" }} className="flex flex-col items-center relative z-20 w-[100px] sm:w-[120px] md:w-[140px]">
+                 <Crown className="w-12 h-12 md:w-16 md:h-16 text-[var(--color-gold)] mb-2 drop-shadow-[0_0_20px_rgba(212,175,55,1)] animate-bounce" />
+                 <div className="text-base md:text-lg text-[var(--color-gold)] font-black mb-2 truncate w-full text-center px-1 drop-shadow-lg">{first.name}</div>
+                 <div className="bg-gradient-to-t from-[#ca8a04] to-[#fde047] w-full h-[170px] md:h-[210px] rounded-t-xl flex flex-col items-center pt-4 shadow-[0_0_50px_rgba(234,179,8,0.6)] border-t-4 border-[#fef08a]">
+                    <Trophy className="w-10 h-10 text-[#713f12] mb-1 drop-shadow-md" />
+                    <span className="text-5xl md:text-6xl font-black text-[#713f12] drop-shadow-md">1</span>
+                 </div>
+                 <div className="absolute bottom-6 text-base md:text-lg font-black text-[#854d0e] drop-shadow-sm bg-white/40 px-4 py-1.5 rounded-full backdrop-blur-sm">{first.score}</div>
+              </motion.div>
+
+              {/* Third Place */}
+              <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5, type: "spring" }} className="flex flex-col items-center relative z-10 w-[80px] sm:w-[100px] md:w-[120px]">
+                 <div className="text-sm md:text-base text-white/90 font-bold mb-2 truncate w-full text-center px-1 drop-shadow-md">{third.name}</div>
+                 <div className="bg-gradient-to-t from-[#b45309] to-[#fb923c] w-full h-[90px] md:h-[110px] rounded-t-xl flex flex-col items-center pt-3 shadow-[0_0_30px_rgba(217,119,6,0.4)] border-t-4 border-[#fdba74]">
+                    <Medal className="w-8 h-8 text-[#78350f] mb-1" />
+                    <span className="text-4xl md:text-5xl font-black text-[#78350f] drop-shadow-sm">3</span>
+                 </div>
+                 <div className="absolute bottom-4 text-sm md:text-base font-black text-[#78350f] drop-shadow-sm bg-white/40 px-3 py-1 rounded-full backdrop-blur-sm">{third.score}</div>
+              </motion.div>
+           </div>
+
+           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 2.5 }} className="mt-8 flex gap-4 z-30">
+              <button 
+                className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full font-black text-lg transition-all border border-white/20"
+                onClick={() => returnToMenu()}
+              >
+                القائمة الرئيسية
+              </button>
+              {(!multiplayerState.isMultiplayer || multiplayerState.isHost) && (
+                <button 
+                  className="px-8 py-3 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black rounded-full font-black text-lg active:scale-95 shadow-[0_0_30px_rgba(212,175,55,0.5)] hover:scale-105 transition-all"
+                  onClick={() => closeRoundEnd()}
+                >
+                  مباراة جديدة
+                </button>
+              )}
+           </motion.div>
+       </div>
+     );
+  }
+}
+
+function ScoreboardOverlay({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) {
+  const gs = useGameState();
+  
+  if (!isOpen) return null;
+  
+  const sortedPlayers = gs.scores.map((score, index) => ({ 
+      score, 
+      index, 
+      name: gs.playerNames[index],
+      bid: gs.bids[index],
+      taken: gs.tricksTaken[index]
+  })).sort((a, b) => b.score - a.score);
+
+  return (
+    <div className="fixed inset-0 z-[450] flex flex-col p-4 bg-black/80 backdrop-blur-md justify-center items-center" onClick={onClose}>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }} 
+        animate={{ opacity: 1, scale: 1 }} 
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="w-full max-w-[400px] bg-[#1a1a2e] border-2 border-[var(--color-gold)] rounded-3xl p-5 shadow-[0_20px_60px_rgba(0,0,0,0.8)]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-3">
+           <h2 className="text-xl font-black text-[var(--color-gold)] flex items-center gap-2">
+             <BarChart2 className="w-5 h-5" /> ترتيب اللاعبين
+           </h2>
+           <button onClick={onClose} className="p-1.5 bg-white/5 rounded-full text-[#aaa] hover:text-white hover:bg-white/10 transition-colors">
+             ×
+           </button>
+        </div>
+        
+        {gs.gameMode === "Teams" ? (
+           <div className="flex flex-col gap-3" dir="rtl">
+              {[0, 1].map(teamId => {
+                 const p1 = gs.playerNames[teamId];
+                 const p2 = gs.playerNames[teamId + 2];
+                 const isMyTeam = myPlayerIndex !== -1 && (myPlayerIndex % 2 === teamId);
+                 
+                 return (
+                   <div key={teamId} className={`flex items-center justify-between p-3 rounded-xl border ${isMyTeam ? 'bg-blue-900/30 border-blue-500/50' : 'bg-red-900/30 border-red-500/50'}`}>
+                      <div className="flex flex-col">
+                         <span className="text-sm font-bold text-white/90">{isMyTeam ? 'فريقنا' : 'الخصم'}</span>
+                         <span className="text-xs text-[#aaa] mt-0.5">{p1} & {p2}</span>
+                      </div>
+                      <div className="text-3xl font-black text-[var(--color-gold)] drop-shadow-md">
+                         {gs.scores[teamId]}
+                      </div>
+                   </div>
+                 );
+              })}
+           </div>
+        ) : (
+           <div className="flex flex-col gap-2" dir="rtl">
+              {sortedPlayers.map((p, i) => (
+                <div key={p.index} className={`flex items-center justify-between p-3 rounded-xl border ${p.index === myPlayerIndex ? 'bg-[var(--color-gold)]/20 border-[var(--color-gold)]/50' : 'bg-white/5 border-white/10'} relative overflow-hidden`}>
+                   {i === 0 && <div className="absolute right-0 top-0 bottom-0 w-1 bg-[var(--color-gold)]" />}
+                   <div className="flex items-center gap-3">
+                      <div className={`w-6 text-center font-black ${i === 0 ? 'text-[var(--color-gold)]' : 'text-white/40'}`}>#{i + 1}</div>
+                      <div className="flex flex-col">
+                         <span className={`text-sm font-bold ${p.index === myPlayerIndex ? 'text-[var(--color-gold)]' : 'text-white/90'} flex items-center gap-1`}>
+                           {p.name} {i === 0 && <Crown className="w-3.5 h-3.5 text-[var(--color-gold)]" />}
+                         </span>
+                         <span className="text-[0.6rem] text-[#aaa] mt-0.5 flex gap-2">
+                           <span>الطلب: <strong className="text-white">{p.bid > 0 ? p.bid : '-'}</strong></span>
+                           <span>جمع: <strong className={p.taken >= p.bid && p.bid > 0 ? "text-green-400" : "text-white"}>{p.taken}</strong></span>
+                         </span>
+                      </div>
+                   </div>
+                   <div className="text-2xl font-black text-[var(--color-gold)] drop-shadow-md min-w-[40px] text-left">
+                      {p.score}
+                   </div>
+                </div>
+              ))}
+           </div>
+        )}
+        
+        <div className="mt-6 text-center bg-black/30 py-2 rounded-lg border border-white/5">
+           <div className="text-[0.7rem] text-[#888] font-bold">الهدف للانتصار: <span className="text-[var(--color-gold)]">{gs.target}</span> نقطة</div>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -634,6 +832,7 @@ export function GameScreen() {
   const [confirmAction, setConfirmAction] = React.useState<"leave" | "reset" | null>(null);
   const [profileModalUser, setProfileModalUser] = React.useState<UserProfile | null>(null);
   const [showSpectators, setShowSpectators] = React.useState(false);
+  const [showScoreboard, setShowScoreboard] = React.useState(false);
   const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
 
   React.useEffect(() => {
@@ -729,29 +928,7 @@ export function GameScreen() {
         <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)]/5 to-transparent pointer-events-none" />
         
         <div className="flex gap-3 items-center relative z-10">
-           <button 
-             onClick={() => { 
-                G.savedPhase = G.phase;
-                G.phase = 'intro'; 
-                updateUI(); 
-             }}
-             className="p-1 sm:p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
-             title="القائمة الرئيسية"
-           >
-             <Home className="w-4 h-4 sm:w-5 sm:h-5" />
-           </button>
-           <button 
-             onClick={() => { 
-                G.isMuted = !G.isMuted;
-                updateUI(); 
-             }}
-             className="p-1 sm:p-1.5 hover:bg-white/10 rounded-lg transition-colors text-white/60 hover:text-white"
-             title={gs.isMuted ? "تشغيل الصوت" : "كتم الصوت"}
-           >
-             {gs.isMuted ? <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" /> : <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />}
-           </button>
-           <div className="w-[1px] h-4 bg-white/10" />
-           <div className="flex flex-col">
+           <div className="flex flex-col pl-2">
               <div className="flex items-center gap-2">
                  <span className="text-[var(--color-gold)] font-black text-[0.6rem] bg-[var(--color-gold)]/10 px-1.5 py-0.5 rounded uppercase tracking-tighter">{gs.roundPhase}</span>
                  {headerScores}
@@ -764,13 +941,22 @@ export function GameScreen() {
               </div>
            </div>
         </div>
-
-        <button 
-          className="text-white/60 hover:text-[var(--color-gold)] p-1.5 hover:bg-[var(--color-gold)]/10 rounded-lg transition-all"
-          onClick={() => setMenuOpen(true)}
-        >
-          <Settings className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            className="text-white/60 hover:text-[var(--color-gold)] p-1.5 hover:bg-[var(--color-gold)]/10 rounded-lg transition-all shadow-sm"
+            onClick={() => setShowScoreboard(true)}
+            title="جدول النتائج"
+          >
+            <BarChart2 className="w-5 h-5" />
+          </button>
+          <button 
+            className="text-white/60 hover:text-[var(--color-gold)] p-1.5 hover:bg-[var(--color-gold)]/10 rounded-lg transition-all"
+            onClick={() => setMenuOpen(true)}
+            title="الخيارات"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <TableArea onProfileClick={handleProfileClick} />
@@ -795,6 +981,8 @@ export function GameScreen() {
       <SwapOverlay />
       <BiddingOverlay />
       <RoundEndOverlay />
+      <PodiumOverlay />
+      <ScoreboardOverlay isOpen={showScoreboard} onClose={() => setShowScoreboard(false)} />
       <ParticlesRenderer />
       <DealingAnimation />
       
@@ -812,15 +1000,35 @@ export function GameScreen() {
             className="absolute inset-0 z-[400] flex flex-col p-4 bg-black/80 backdrop-blur-sm justify-center items-center"
           >
             <div className="w-full max-w-[280px] flex flex-col gap-3">
+               <button 
+                 onClick={() => { 
+                    G.isMuted = !G.isMuted;
+                    updateUI(); 
+                 }}
+                 className="p-3.5 bg-[#222]/80 border border-white/10 text-white rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-white/10"
+               >
+                 <span className="text-xl">
+                   {gs.isMuted ? <VolumeX className="w-5 h-5 text-red-400 inline" /> : <Volume2 className="w-5 h-5 text-green-400 inline" />}
+                 </span>
+                 {gs.isMuted ? "تشغيل الصوت" : "كتم الصوت"}
+               </button>
                <button onClick={() => { setMenuOpen(false); setAboutOpen(true); }} className="p-3.5 bg-[#222]/80 border border-white/10 text-white rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-white/10">
                    <span className="text-xl">ℹ️</span> حول اللعبة
                </button>
-               <button onClick={() => { setMenuOpen(false); setConfirmAction('reset'); }} className="p-3.5 bg-[#222]/80 border border-white/10 text-white rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-white/10 mt-2">
-                   <span className="text-xl">🔄</span> إعادة المباراة
-               </button>
-               <button onClick={() => { setMenuOpen(false); setConfirmAction('leave'); }} className="p-3.5 bg-red-900/30 border border-red-500/30 text-red-400 rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-red-900/50 mt-4">
-                   <span className="text-xl">🚪</span> خروج للقائمة الرئيسية
-               </button>
+               {multiplayerState.isMultiplayer ? (
+                 <button onClick={() => { setMenuOpen(false); setConfirmAction('leave'); }} className="p-3.5 bg-red-900/30 border border-red-500/30 text-red-400 rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-red-900/50 mt-4">
+                     <span className="text-xl">🚪</span> مغادرة الغرفة
+                 </button>
+               ) : (
+                 <>
+                   <button onClick={() => { setMenuOpen(false); setConfirmAction('reset'); }} className="p-3.5 bg-[#222]/80 border border-white/10 text-white rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-white/10 mt-2">
+                       <span className="text-xl">🔄</span> إعادة المباراة
+                   </button>
+                   <button onClick={() => { setMenuOpen(false); setConfirmAction('leave'); }} className="p-3.5 bg-red-900/30 border border-red-500/30 text-red-400 rounded-2xl font-bold flex justify-center items-center gap-3 transition-colors hover:bg-red-900/50 mt-4">
+                       <span className="text-xl">🚪</span> خروج للقائمة الرئيسية
+                   </button>
+                 </>
+               )}
                <button onClick={() => setMenuOpen(false)} className="mt-4 p-3 bg-transparent text-[#aaa] font-bold w-full text-center hover:text-white transition-colors">
                    × إغلاق
                </button>
@@ -903,8 +1111,6 @@ export function GameScreen() {
     </div>
   );
 }
-
-import { humanSwap, humanSkipSwap } from "../logic/engine";
 
 function SwapOverlay() {
   const gs = useGameState();
