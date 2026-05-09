@@ -13,7 +13,7 @@ import {
   runTransaction
 } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
-import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning, justPlayedLocalAction, setJustPlayedLocalAction, resumeGameLoop, executeAISwap, setExecutingForcedAction } from "./engine";
+import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning, justPlayedLocalAction, setJustPlayedLocalAction, resumeGameLoop, executeAISwap, setExecutingForcedAction, isBot } from "./engine";
 import { getLocalProfile } from "./userProfile";
 
 let timerInterval: any = null;
@@ -193,7 +193,7 @@ function startHostTimer() {
     if (G.phase !== "playing" && G.phase !== "bidding" && G.phase !== "swapping") return;
     
     const actingPlayer = G.phase === "swapping" ? G.playerWithHighestScore : G.currentPlayer;
-    const currentPlayerIsBot = G.playerNames[actingPlayer]?.includes("كمبيوتر");
+    const currentPlayerIsBot = isBot(actingPlayer);
     
     // Check if the acting player is disconnected (even if not a bot)
     const actingPlayerRecord = multiplayerState.players.find(p => p.index === actingPlayer);

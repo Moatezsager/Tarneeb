@@ -1,7 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useGameState } from "./common";
-import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex, getTrickWinner, humanSwap, humanSkipSwap, resumeGameLoop } from "../logic/engine";
+import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex, getTrickWinner, humanSwap, humanSkipSwap, resumeGameLoop, isBot } from "../logic/engine";
 import { multiplayerState } from "../logic/multiplayer";
 import { UserProfileModal } from "./UserProfileModal";
 import { UserProfile } from "../logic/userProfile";
@@ -98,9 +98,9 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
   const cardCount = gs.hands[index].length;
   const isYou = index === myPlayerIndex && myPlayerIndex !== -1;
   const exposedCard = gs.exposedCards[index];
-  const isBot = name.includes("كمبيوتر");
+  const isBotPlayer = isBot(index);
 
-  const showTimer = isActive && !isBot && (gs.phase === 'playing' || gs.phase === 'bidding' || gs.phase === 'swapping');
+  const showTimer = isActive && !isBotPlayer && (gs.phase === 'playing' || gs.phase === 'bidding' || gs.phase === 'swapping');
   const timeLeft = useTurnTimer(gs.turnStartTime, gs.turnTimeout);
 
   const realPlayer = multiplayerState.players.find(p => p.index === index);
@@ -137,7 +137,7 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
       <div className={`w-full flex items-center py-1 px-2 gap-1.5 relative ${isActive ? activeHeaderBg : teamHeaderBg}`} dir="rtl">
         {/* Avatar */}
         <div className="w-5 h-5 rounded-full overflow-hidden bg-black/20 shrink-0 flex items-center justify-center text-[10px] relative border border-white/10">
-          {isBot ? '🤖' : realPlayer?.avatar?.startsWith('http') ? <img src={realPlayer.avatar} referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : realPlayer?.avatar || '👤'}
+          {isBotPlayer ? '🤖' : realPlayer?.avatar?.startsWith('http') ? <img src={realPlayer.avatar} referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : realPlayer?.avatar || '👤'}
           {isDisconnected && isActive && (
             <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center text-[10px]">🤖</div>
           )}
@@ -152,7 +152,7 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
                 <span title="مضيف الغرفة" className="drop-shadow-[0_0_5px_rgba(255,215,0,0.8)] text-[0.6rem]">👑</span>
               )}
             </span>
-            {multiplayerState.isMultiplayer && !isBot && (
+            {multiplayerState.isMultiplayer && !isBotPlayer && (
               <span className="shrink-0 flex items-center justify-center ml-0.5">
                 {isDisconnected ? (
                   <WifiOff size={10} className="text-red-500 bg-black/50 rounded-full p-[1px] animate-pulse" />
@@ -897,7 +897,7 @@ export function GameScreen() {
 
   const handleProfileClick = (index: number) => {
     const name = gs.playerNames[index];
-    if (name.includes("كمبيوتر")) {
+    if (isBot(index)) {
       setProfileModalUser({
         uid: "bot-" + index,
         name: name,

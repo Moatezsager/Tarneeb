@@ -100,7 +100,7 @@ export function isMyTurnToProcess(targetPlayer?: number): boolean {
   // If it's my turn, I process
   if (p === myPlayerIndex) return true;
   // If it's an AI turn (nobody joined at that slot), Host processes
-  const isAI = !G.playerNames[p] || G.playerNames[p].includes("كمبيوتر");
+  const isAI = isBot(p);
   if (isAI && isHostMode) return true;
   return false;
 }
@@ -1059,7 +1059,8 @@ function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | nul
 }
 
 export function isBot(playerIdx: number) {
-  return G.playerNames[playerIdx]?.includes("كمبيوتر");
+  if (!isMultiplayerMode) return playerIdx !== myPlayerIndex;
+  return G.playerNames[playerIdx]?.includes("كمبيوتر") || false;
 }
 
 export function getTrickWinner() {
@@ -1113,8 +1114,8 @@ function advanceTurn() {
   G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
   
   // Set timer for next player
-  const isBot = G.playerNames[G.currentPlayer].includes("كمبيوتر");
-  G.turnTimeout = isBot ? 3 : 20;
+  const botPlayer = isBot(G.currentPlayer);
+  G.turnTimeout = botPlayer ? 3 : 20;
   G.turnStartTime = Date.now();
   
   updateUI();
