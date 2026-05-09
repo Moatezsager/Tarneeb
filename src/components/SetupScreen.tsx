@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { initGame, G, updateUI } from "../logic/engine";
 import { getLocalProfile } from "../logic/userProfile";
-import { Settings, Play, Users, Target, BrainCircuit, ArrowRight, Dices, Sparkles } from "lucide-react";
+import { Settings, Play, Users, Target, BrainCircuit, ArrowRight, Dices, Sparkles, User, Swords, Smile, Brain, Flame } from "lucide-react";
 import { motion } from "motion/react";
 
 const RANDOM_NAMES = ["طارق", "سعيد", "سالم", "عمر", "خالد", "أحمد", "يوسف", "علي", "محمود", "حسن", "فهد"];
@@ -11,7 +11,7 @@ export function SetupScreen() {
   const [name, setName] = useState(profile?.name || "البطل");
   const [target, setTarget] = useState("51");
   const [diff, setDiff] = useState<"easy" | "medium" | "hard">("medium");
-  const [mode, setMode] = useState<"FFA" | "Teams" | "1v1">("Teams");
+  const [mode, setMode] = useState<"FFA" | "Teams" | "1v1">("FFA");
   const [aiNames, setAiNames] = useState<string[]>(["", "", ""]);
 
   useEffect(() => {
@@ -20,6 +20,11 @@ export function SetupScreen() {
         setName(profile.name);
      }
   }, [profile]);
+
+  useEffect(() => {
+     // Randomize AI names on load
+     randomizeAiNames();
+  }, []);
 
   const randomizeAiNames = () => {
     let shuffled = [...RANDOM_NAMES].sort(() => 0.5 - Math.random());
@@ -115,16 +120,16 @@ export function SetupScreen() {
                 </label>
                 <div className="flex gap-2.5 bg-black/40 p-1.5 rounded-2xl border border-white/5 shadow-inner">
                   {[
-                    { val: "Teams", label: "فرق 2v2", icon: "👥" },
-                    { val: "FFA", label: "فردي", icon: "🥷" },
-                    { val: "1v1", label: "لعب ثنائي", icon: "⚔️" }
+                    { val: "Teams", label: "فرق 2v2", icon: <Users className="w-5 h-5" /> },
+                    { val: "FFA", label: "فردي", icon: <User className="w-5 h-5" /> },
+                    { val: "1v1", label: "لعب ثنائي", icon: <Swords className="w-5 h-5" /> }
                   ].map(({val, label, icon}) => (
                     <button 
                       key={val}
                       onClick={() => setMode(val as "FFA" | "Teams" | "1v1")}
                       className={`flex-1 py-2.5 px-1 flex flex-col items-center gap-1 rounded-xl text-[10px] font-black transition-all ${mode === val ? 'bg-gradient-to-b from-[var(--color-gold)] to-yellow-600 text-black shadow-lg shadow-[var(--color-gold)]/20 scale-[1.03] z-10' : 'text-white/40 hover:text-white/70 hover:bg-white/5'}`}
                     >
-                      <span className="text-sm">{icon}</span>
+                      <span className="flex items-center justify-center p-1">{icon}</span>
                       {label}
                     </button>
                   ))}
@@ -157,21 +162,21 @@ export function SetupScreen() {
                     className={`py-3.5 rounded-[18px] text-[10px] font-black transition-all flex flex-col items-center gap-1 ${diff === 'easy' ? 'bg-[#22c55e]/20 text-[#22c55e] border border-[#22c55e]/40 shadow-lg' : 'text-white/30 border border-transparent'}`}
                     onClick={() => setDiff('easy')}
                   >
-                    <span className="text-base">😊</span>
+                    <Smile className={`w-5 h-5 mb-1 ${diff === 'easy' ? 'text-[#22c55e]' : 'opacity-50'}`} />
                     سهل
                   </button>
                   <button 
                     className={`py-3.5 rounded-[18px] text-[10px] font-black transition-all flex flex-col items-center gap-1 ${diff === 'medium' ? 'bg-[var(--color-gold)]/20 text-[var(--color-gold)] border border-[var(--color-gold)]/40 shadow-lg' : 'text-white/30 border border-transparent'}`}
                     onClick={() => setDiff('medium')}
                   >
-                    <span className="text-base">🤔</span>
+                    <Brain className={`w-5 h-5 mb-1 ${diff === 'medium' ? 'text-[var(--color-gold)]' : 'opacity-50'}`} />
                     متوسط
                   </button>
                   <button 
                     className={`py-3.5 rounded-[18px] text-[10px] font-black transition-all flex flex-col items-center gap-1 ${diff === 'hard' ? 'bg-red-500/20 text-red-400 border border-red-500/40 shadow-lg' : 'text-white/30 border border-transparent'}`}
                     onClick={() => setDiff('hard')}
                   >
-                    <span className="text-base">💀</span>
+                    <Flame className={`w-5 h-5 mb-1 ${diff === 'hard' ? 'text-red-400' : 'opacity-50'}`} />
                     صعب
                   </button>
                 </div>

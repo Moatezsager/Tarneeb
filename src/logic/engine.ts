@@ -555,7 +555,8 @@ function processNextBid() {
   } else {
     G.gameMsg = `⏳ دور ${G.playerNames[G.currentPlayer]}...`;
     updateUI();
-    setTimeout(() => {
+    clearEngineTimers();
+    _botPlayTimer = setTimeout(() => {
       if (!isMyTurnToProcess()) return;
       computerBid(G.currentPlayer);
       const numPlayers = G.gameMode === "1v1" ? 2 : 4;
@@ -825,8 +826,19 @@ export function removeParticle(id: number) {
   updateUI();
 }
 
+let _botPlayTimer: any = null;
+let _resolveTimer: any = null;
+
+export function clearEngineTimers() {
+  if (_botPlayTimer) clearTimeout(_botPlayTimer);
+  if (_resolveTimer) clearTimeout(_resolveTimer);
+  _botPlayTimer = null;
+  _resolveTimer = null;
+}
+
 function computerPlay(p: number) {
   if (G.phase !== "playing") return;
+  if (!isBot(p)) return; // Prevent AI from playing human cards by accident due to overlapping loops
   let hand = G.hands[p];
   let isLeading = G.trickCards.every((c) => c === null);
   let leadSuit: Suit | null = null;
@@ -1093,7 +1105,8 @@ function advanceTurn() {
     G.lastTrickCards = [...G.trickCards];
     updateUI();
 
-    setTimeout(resolveTrick, 900);
+    clearEngineTimers();
+    _resolveTimer = setTimeout(resolveTrick, 900);
     return;
   }
 
@@ -1110,13 +1123,14 @@ function advanceTurn() {
 
 export function resumeGameLoop() {
   if (!isMyTurnToProcess()) return;
+  clearEngineTimers();
   if (G.phase === "bidding") {
     processNextBid();
   } else if (G.phase === "playing") {
     // Make sure we resolve the trick if it's full, else process next play
     const numPlayers = G.gameMode === "1v1" ? 2 : 4;
     if (G.trickCards.slice(0, numPlayers).every((c) => c !== null)) {
-      setTimeout(resolveTrick, 700);
+      _resolveTimer = setTimeout(resolveTrick, 700);
     } else {
       processNextPlay();
     }
@@ -1124,7 +1138,8 @@ export function resumeGameLoop() {
     if (G.playerWithHighestScore === myPlayerIndex) {
       // It's me
     } else if (isBot(G.playerWithHighestScore)) {
-      setTimeout(() => {
+      clearEngineTimers();
+      _botPlayTimer = setTimeout(() => {
         executeAISwap();
       }, 1000);
     }
@@ -1173,7 +1188,8 @@ function processNextPlay() {
     G.playHint = "";
     updateUI();
 
-    setTimeout(() => {
+    clearEngineTimers();
+    _botPlayTimer = setTimeout(() => {
       if (!isMyTurnToProcess()) return;
       computerPlay(G.currentPlayer);
       advanceTurn();
@@ -1226,7 +1242,9 @@ function resolveTrick() {
   G.lastTrickCards = [...G.trickCards];
   updateUI();
 
-  setTimeout(() => {
+  clearEngineTimers();
+  _resolveTimer = setTimeout(() => {
+    if (!isMyTurnToProcess()) return;
     G.winnerSlot = null;
     G.trickCards = [null, null, null, null];
     G.anyoneTarnebThisTrick = false;
@@ -1236,7 +1254,9 @@ function resolveTrick() {
     G.currentPlayer = winner;
     updateUI();
 
-    setTimeout(() => {
+    clearEngineTimers();
+    _resolveTimer = setTimeout(() => {
+       if (!isMyTurnToProcess()) return;
        G.isGatheringTrick = false;
        updateUI();
        if (G.totalTricksPlayed >= 13) {
