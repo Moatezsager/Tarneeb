@@ -12,6 +12,33 @@ export interface UserProfile {
   lastSeen?: any;
   updatedAt?: any;
   createdAt?: any;
+  points?: number;
+}
+
+export function isUserOnline(user: UserProfile | undefined | null): boolean {
+  if (!user) return false;
+  if (user.status !== "online") return false;
+  
+  // If we don't have lastSeen but status is online, we assume online
+  // (though our heartbeat should provide lastSeen)
+  if (!user.lastSeen) return true;
+  
+  let lastSeenMs = 0;
+  if (user.lastSeen.toMillis) {
+    lastSeenMs = user.lastSeen.toMillis();
+  } else if (user.lastSeen instanceof Date) {
+    lastSeenMs = user.lastSeen.getTime();
+  } else if (typeof user.lastSeen === 'number') {
+    lastSeenMs = user.lastSeen;
+  } else if (user.lastSeen.seconds) {
+    lastSeenMs = user.lastSeen.seconds * 1000;
+  }
+
+  if (lastSeenMs === 0) return true;
+
+  const now = Date.now();
+  // If lastSeen was more than 2 minutes ago, consider offline even if status is 'online'
+  return (now - lastSeenMs) < 120000;
 }
 
 export function generateSearchId() {

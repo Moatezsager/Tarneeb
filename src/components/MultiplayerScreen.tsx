@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { multiplayerState, createRoom, joinRoom, leaveRoom, startGame, fetchPublicRooms, listenToPublicRooms, RoomData, sendRoomInvite, swapPlayerWithSpectator, listenToRoomInvites, respondToRoomInvite } from "../logic/multiplayer";
 import { G, updateUI, subscribe } from "../logic/engine";
 import { auth, db } from "../lib/firebase";
-import { getLocalProfile, COUNTRIES } from "../logic/userProfile";
+import { getLocalProfile, COUNTRIES, isUserOnline } from "../logic/userProfile";
 import { collection, onSnapshot, query, where, getDoc, doc } from "firebase/firestore";
 import { ShieldAlert, ShieldCheck, Lock, Unlock, Users, Plus, Share2, Play, Eye, Home, Send, X, ArrowRight, UserPlus, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -101,7 +101,7 @@ export function MultiplayerScreen() {
           // Check online status for each friend
           const friendRef = doc(db, "users", f.uid);
           const friendSnap = await getDoc(friendRef);
-          if (friendSnap.exists() && friendSnap.data().status === 'online') {
+          if (friendSnap.exists() && isUserOnline(friendSnap.data() as any)) {
             friendsWithStatus.push({
               uid: f.uid,
               name: f.name,

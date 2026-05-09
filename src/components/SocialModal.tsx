@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { UserProfile, getLocalProfile } from "../logic/userProfile";
+import { UserProfile, getLocalProfile, isUserOnline } from "../logic/userProfile";
 import {
   FriendRequest,
   listenToFriendRequests,
@@ -93,7 +93,7 @@ function FriendCard({ friend: friendSnapshot, onSelect }: FriendCardProps) {
             </motion.div>
           )}
           <div
-            className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 border-[#1a1a2e] ${f.status === "online" ? "bg-[var(--color-gold)] shadow-[0_0_10px_rgba(212,175,55,0.6)]" : "bg-gray-500"}`}
+            className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-4 border-[#1a1a2e] ${isUserOnline(f) ? "bg-[var(--color-gold)] shadow-[0_0_10px_rgba(212,175,55,0.6)]" : "bg-gray-500"}`}
           ></div>
         </div>
         <div className="text-right flex-1">
@@ -112,9 +112,9 @@ function FriendCard({ friend: friendSnapshot, onSelect }: FriendCardProps) {
               #{f.searchId}
             </div>
             <span
-              className={`text-[10px] font-black uppercase tracking-widest ${f.status === "online" ? "text-[var(--color-gold)]" : "text-white/20"}`}
+              className={`text-[10px] font-black uppercase tracking-widest ${isUserOnline(f) ? "text-[var(--color-gold)]" : "text-white/20"}`}
             >
-              {f.status === "online" ? "متصل الآن" : formatLastSeen(f.lastSeen)}
+              {isUserOnline(f) ? "متصل الآن" : formatLastSeen(f.lastSeen)}
             </span>
           </div>
         </div>
@@ -164,8 +164,8 @@ function FriendCard({ friend: friendSnapshot, onSelect }: FriendCardProps) {
             }
             setIsInviting(false);
           }}
-          disabled={isInviting || f.status !== "online"}
-          className={`w-full sm:w-auto px-6 py-3 sm:py-2.5 ${f.status === "online" ? "bg-gradient-to-r from-[var(--color-gold)] to-yellow-600 text-black shadow-[0_10px_20px_rgba(212,175,55,0.2)] hover:brightness-110 active:scale-95" : "bg-white/5 text-white/20 border border-white/5"} text-[11px] font-black rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 group-hover:px-8`}
+          disabled={isInviting || !isUserOnline(f)}
+          className={`w-full sm:w-auto px-6 py-3 sm:py-2.5 ${isUserOnline(f) ? "bg-gradient-to-r from-[var(--color-gold)] to-yellow-600 text-black shadow-[0_10px_20px_rgba(212,175,55,0.2)] hover:brightness-110 active:scale-95" : "bg-white/5 text-white/20 border border-white/5"} text-[11px] font-black rounded-xl transition-all disabled:opacity-50 flex items-center justify-center gap-2 group-hover:px-8`}
         >
           {isInviting ? (
             <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />

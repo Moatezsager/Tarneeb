@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { UserProfile, fetchUserProfile, COUNTRIES, getLocalProfile } from "../logic/userProfile";
+import { UserProfile, fetchUserProfile, COUNTRIES, getLocalProfile, isUserOnline } from "../logic/userProfile";
 import { unfriend } from "../logic/social";
 import { Clock, Mars, Venus, User, Calendar, Crown, Sword, Sparkles } from "lucide-react";
 import { multiplayerState, sendRoomInvite, createRoom } from "../logic/multiplayer";
@@ -207,7 +207,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                     )}
                 </motion.div>
                 
-                {displayUser.status === 'online' && (
+                {isUserOnline(displayUser) && (
                   <motion.div 
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
@@ -278,7 +278,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                       <span className="text-[10px] font-black text-white/40 uppercase tracking-widest">حالة النشاط</span>
                    </div>
                    <span className="text-[10px] font-black text-white/60">
-                      {displayUser.status === 'online' ? 'متصل الآن' : formatLastSeen(displayUser.lastSeen)}
+                      {isUserOnline(displayUser) ? 'متصل الآن' : formatLastSeen(displayUser.lastSeen)}
                    </span>
                 </div>
 
@@ -297,7 +297,7 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
               <div className="w-full mt-8 space-y-3">
                 {!showConfirm ? (
                   <>
-                    {isFriend && displayUser.status === 'online' && (
+                    {isFriend && isUserOnline(displayUser) && (
                       <button 
                         onClick={handleChallenge}
                         disabled={inviting}
