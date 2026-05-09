@@ -1095,21 +1095,23 @@ export async function startGame() {
   G.dealerIdx = Math.floor(Math.random() * 4);
   G.roundNumber = 0;
   
-  // Do not await here so the room status and basic state update immediately
-  // and clients can join the dealing phase. startNewRound triggers onSyncNeeded internally.
-  startNewRound();
+  // Save initial game state to avoid race condition with dealing animation clearing hands
+  const initialState = serializeGameState({ ...G });
   
   try {
     await updateDoc(roomRef, {
       status: "playing",
       players: updatedPlayers,
-      gameState: serializeGameState({ ...G }),
+      gameState: initialState,
       lastActionBy: auth.currentUser?.uid,
       updatedAt: serverTimestamp()
     });
   } catch (error) {
     console.error("Failed to start game", error);
   }
+
+  // Now start the round, which triggers dealing animation and syncs automatically
+  startNewRound();
 }
 
 /**
