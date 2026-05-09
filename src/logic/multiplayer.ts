@@ -9,7 +9,8 @@ import {
   where, 
   getDocs,
   deleteDoc,
-  getDoc
+  getDoc,
+  runTransaction
 } from "firebase/firestore";
 import { db, auth, handleFirestoreError, OperationType } from "../lib/firebase";
 import { G, updateUI, Phase, setOnSyncNeeded, setMyPlayerIndex, myPlayerIndex, setMultiplayerMode, startNewRound, dealCardsAnimation, forceAiAction, isDealingAnimationRunning, justPlayedLocalAction, setJustPlayedLocalAction, resumeGameLoop, executeAISwap, setExecutingForcedAction } from "./engine";
@@ -604,119 +605,122 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
   try {
     const profile = getLocalProfile();
     const roomRef = doc(db, "rooms", roomId);
-    const roomSnap = await getDoc(roomRef);
+    let finalHostId = "";
 
-    if (!roomSnap.exists()) throw new Error("الغرفة غير موجودة");
-    
-    const data = roomSnap.data() as RoomData;
-    
-    const isAlreadyMember = data.memberUids.includes(user.uid);
-    
-    if (!isAlreadyMember && data.password && data.password !== passwordAttempt) {
-      throw new Error("كلمة المرور غير صحيحة");
-    }
+    await runTransaction(db, async (transaction) => {
+      const roomSnap = await transaction.get(roomRef);
 
-    if (asSpectator) {
-      if (data.players.some(p => p.uid === user.uid)) {
-        throw new Error("لا يمكنك مشاهدة غرفة أنت لاعب فيها!");
-      }
-      const existingSpectator = data.spectators?.find(s => s.uid === user.uid);
-      if (!existingSpectator) {
-        const newSpectator: Spectator = {
-          uid: user.uid,
-          name: profile?.name || playerName,
-          avatar: profile?.avatar || "👤",
-          searchId: profile?.searchId || "0000",
-        };
-        const updatedSpectators = [...(data.spectators || []), newSpectator];
-        await updateDoc(roomRef, {
-          spectators: updatedSpectators,
-          memberUids: [...data.memberUids, user.uid],
-          updatedAt: serverTimestamp()
-        });
-      }
-      multiplayerState.myPlayerIndex = -1; // Spectator index
-    } else {
-      let updatedSpectators = data.spectators || [];
-      if (updatedSpectators.some(s => s.uid === user.uid)) {
-        updatedSpectators = updatedSpectators.filter(s => s.uid !== user.uid);
+      if (!roomSnap.exists()) throw new Error("الغرفة غير موجودة");
+      
+      const data = roomSnap.data() as RoomData;
+      finalHostId = data.hostId;
+      
+      const isAlreadyMember = data.memberUids.includes(user.uid);
+      
+      if (!isAlreadyMember && data.password && data.password !== passwordAttempt) {
+        throw new Error("كلمة المرور غير صحيحة");
       }
 
-      // Check if already in room as player
-      let existingPlayer = data.players.find(p => p.uid === user.uid);
-
-      if (!existingPlayer && data.status !== "waiting") {
-         // Try to take over a bot slot
-         const botToReplace = data.players.find(p => p.isBot || p.uid.startsWith('bot_'));
-         if (botToReplace) {
-             const updatedPlayers = data.players.map(p => {
-                 if (p.index === botToReplace.index) {
-                     return {
-                         ...p,
-                         uid: user.uid,
-                         name: profile?.name || playerName,
-                         avatar: profile?.avatar || "👨‍💼",
-                         country: profile?.country || "LY",
-                         searchId: profile?.searchId || "0000",
-                         isBot: false,
-                         status: "connected"
-                     } as Player;
-                 }
-                 return p;
-             });
-             
-             let updatedGameState = data.gameState || G;
-             if (updatedGameState && updatedGameState.playerNames) {
-                 updatedGameState.playerNames[botToReplace.index] = profile?.name || playerName;
-             }
-
-             const newUids = data.memberUids.includes(user.uid) ? data.memberUids : [...data.memberUids, user.uid];
-
-             await updateDoc(roomRef, {
-                 players: updatedPlayers,
-                 memberUids: newUids,
-                 gameState: updatedGameState,
-                 updatedAt: serverTimestamp()
-             });
-             
-             existingPlayer = updatedPlayers.find(p => p.uid === user.uid);
-             // use the updated players instead of the old data.players below
-             data.players = updatedPlayers;
-         }
-      }
-
-      if (existingPlayer) {
-         multiplayerState.myPlayerIndex = existingPlayer.index;
+      if (asSpectator) {
+        if (data.players.some(p => p.uid === user.uid)) {
+          throw new Error("لا يمكنك مشاهدة غرفة أنت لاعب فيها!");
+        }
+        const existingSpectator = data.spectators?.find(s => s.uid === user.uid);
+        if (!existingSpectator) {
+          const newSpectator: Spectator = {
+            uid: user.uid,
+            name: profile?.name || playerName,
+            avatar: profile?.avatar || "👤",
+            searchId: profile?.searchId || "0000",
+          };
+          const updatedSpectators = [...(data.spectators || []), newSpectator];
+          transaction.update(roomRef, {
+            spectators: updatedSpectators,
+            memberUids: [...data.memberUids, user.uid],
+            updatedAt: serverTimestamp()
+          });
+        }
+        multiplayerState.myPlayerIndex = -1; // Spectator index
       } else {
-         if (data.status !== "waiting") throw new Error("اللعبة بدأت بالفعل أو انتهت");
-         if (data.players.length >= 4) throw new Error("الغرفة ممتلئة. انضم كمشاهد!");
-         
-         const newPlayer: Player = {
-           uid: user.uid,
-           name: profile?.name || playerName,
-           avatar: profile?.avatar || "👨‍💼",
-           country: profile?.country || "LY",
-           searchId: profile?.searchId || "0000",
-           index: data.players.length,
-           status: "connected"
-         };
-         const updatedPlayers = [...data.players, newPlayer];
-         const updatedUids = [...data.memberUids, user.uid];
-         await updateDoc(roomRef, {
-           players: updatedPlayers,
-           spectators: updatedSpectators,
-           memberUids: updatedUids,
-           updatedAt: serverTimestamp()
-         });
-         multiplayerState.myPlayerIndex = newPlayer.index;
+        let updatedSpectators = data.spectators || [];
+        if (updatedSpectators.some(s => s.uid === user.uid)) {
+          updatedSpectators = updatedSpectators.filter(s => s.uid !== user.uid);
+        }
+
+        // Check if already in room as player
+        let existingPlayer = data.players.find(p => p.uid === user.uid);
+
+        if (!existingPlayer && data.status !== "waiting") {
+           // Try to take over a bot slot
+           const botToReplace = data.players.find(p => p.isBot || p.uid.startsWith('bot_'));
+           if (botToReplace) {
+               const updatedPlayers = data.players.map(p => {
+                   if (p.index === botToReplace.index) {
+                       return {
+                           ...p,
+                           uid: user.uid,
+                           name: profile?.name || playerName,
+                           avatar: profile?.avatar || "👨‍💼",
+                           country: profile?.country || "LY",
+                           searchId: profile?.searchId || "0000",
+                           isBot: false,
+                           status: "connected"
+                       } as Player;
+                   }
+                   return p;
+               });
+               
+               let updatedGameState = data.gameState || G;
+               if (updatedGameState && updatedGameState.playerNames) {
+                   updatedGameState.playerNames[botToReplace.index] = profile?.name || playerName;
+               }
+
+               const newUids = data.memberUids.includes(user.uid) ? data.memberUids : [...data.memberUids, user.uid];
+
+               transaction.update(roomRef, {
+                   players: updatedPlayers,
+                   memberUids: newUids,
+                   gameState: updatedGameState,
+                   updatedAt: serverTimestamp()
+               });
+               
+               existingPlayer = updatedPlayers.find(p => p.uid === user.uid);
+           }
+        }
+
+        if (existingPlayer) {
+           multiplayerState.myPlayerIndex = existingPlayer.index;
+        } else {
+           if (data.status !== "waiting") throw new Error("اللعبة بدأت بالفعل أو انتهت");
+           if (data.players.length >= 4) throw new Error("الغرفة ممتلئة. انضم كمشاهد!");
+           
+           const newPlayer: Player = {
+             uid: user.uid,
+             name: profile?.name || playerName,
+             avatar: profile?.avatar || "👨‍💼",
+             country: profile?.country || "LY",
+             searchId: profile?.searchId || "0000",
+             index: data.players.length,
+             status: "connected"
+           };
+           const updatedPlayers = [...data.players, newPlayer];
+           const updatedUids = [...data.memberUids, user.uid];
+           transaction.update(roomRef, {
+             players: updatedPlayers,
+             spectators: updatedSpectators,
+             memberUids: updatedUids,
+             updatedAt: serverTimestamp()
+           });
+           multiplayerState.myPlayerIndex = newPlayer.index;
+        }
       }
-    }
+    });
 
     activeRoomId = roomId;
     localStorage.setItem('tarneb_active_room', roomId);
     multiplayerState.isMultiplayer = true;
     multiplayerState.roomCode = roomId;
-    multiplayerState.isHost = data.hostId === user.uid;
+    multiplayerState.isHost = finalHostId === user.uid;
     
     setMyPlayerIndex(multiplayerState.myPlayerIndex);
     setMultiplayerMode(true, multiplayerState.isHost);

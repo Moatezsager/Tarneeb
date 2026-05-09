@@ -604,7 +604,7 @@ export function MultiplayerScreen() {
                       const accepted = await respondToRoomInvite(req.id, req.roomCode, 'accepted');
                       if (accepted) {
                          if (multiplayerState.isMultiplayer) { // Leave current room if in one
-                            leaveRoom();
+                            await leaveRoom();
                          }
                          await handleJoin(req.roomCode); // Using handleJoin handles password modal / spectator state
                       }
