@@ -17,14 +17,37 @@ import { addXPToProfile } from "./userProfile";
 import { auth } from "../lib/firebase";
 
 export type Suit = "♠" | "♥" | "♦" | "♣";
-export type Rank = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K" | "A";
+export type Rank =
+  | "2"
+  | "3"
+  | "4"
+  | "5"
+  | "6"
+  | "7"
+  | "8"
+  | "9"
+  | "10"
+  | "J"
+  | "Q"
+  | "K"
+  | "A";
 export interface Card {
   suit: Suit;
   rank: Rank;
   uid: string;
 }
 
-export type Phase = "intro" | "setup" | "stats" | "multiplayer" | "profile" | "dealing" | "swapping" | "bidding" | "playing" | "roundEnd";
+export type Phase =
+  | "intro"
+  | "setup"
+  | "stats"
+  | "multiplayer"
+  | "profile"
+  | "dealing"
+  | "swapping"
+  | "bidding"
+  | "playing"
+  | "roundEnd";
 
 export const G = {
   gameMode: "Teams" as "FFA" | "Teams" | "1v1",
@@ -70,19 +93,27 @@ export const G = {
   bidWarning: "",
   winnerSlot: null as number | null,
   playedCards: [] as Card[],
-  dealingCards: [] as { id: number; card: Card; player: number; rotate: number }[],
+  dealingCards: [] as {
+    id: number;
+    card: Card;
+    player: number;
+    rotate: number;
+  }[],
   roundEndOverlayVisible: false,
   isGatheringTrick: false,
   lastTrickWinnerIndex: -1,
   lastTrickCards: [null, null, null, null] as (Card | null)[],
-  isMuted: localStorage.getItem('tarneb_muted') === 'true',
+  isMuted: localStorage.getItem("tarneb_muted") === "true",
 };
 
 export let myPlayerIndex = 0;
-export const setMyPlayerIndex = (idx: number) => { myPlayerIndex = idx; };
+export const setMyPlayerIndex = (idx: number) => {
+  myPlayerIndex = idx;
+};
 
 export let isExecutingForcedAction = false;
-export const setExecutingForcedAction = (v: boolean) => isExecutingForcedAction = v;
+export const setExecutingForcedAction = (v: boolean) =>
+  (isExecutingForcedAction = v);
 
 let isMultiplayerMode = false;
 let isHostMode = false;
@@ -94,27 +125,39 @@ export const setMultiplayerMode = (multi: boolean, host: boolean) => {
 // Responsible identifies if THIS client should handle autonomous state transitions (AI, timers, etc)
 export function isMyTurnToProcess(targetPlayer?: number): boolean {
   if (!isMultiplayerMode) return true;
-  if (isExecutingForcedAction && isHostMode) return true;
-  
-  if (G.isGatheringTrick && isHostMode) return true;
+  if (isHostMode) return true;
 
   const p = targetPlayer ?? G.currentPlayer;
-  // If it's my turn, I process
   if (p === myPlayerIndex) return true;
-  // If it's an AI turn (nobody joined at that slot), Host processes
-  const isAI = isBot(p);
-  if (isAI && isHostMode) return true;
   return false;
 }
 
 let onSyncNeeded: (() => void) | null = null;
 export let justPlayedLocalAction = false;
-export const setJustPlayedLocalAction = (val: boolean) => { justPlayedLocalAction = val; };
+export const setJustPlayedLocalAction = (val: boolean) => {
+  justPlayedLocalAction = val;
+};
 
-export const setOnSyncNeeded = (fn: () => void) => { onSyncNeeded = fn; };
+export const setOnSyncNeeded = (fn: () => void) => {
+  onSyncNeeded = fn;
+};
 
 export const SUITS: Suit[] = ["♠", "♥", "♦", "♣"];
-export const RANKS: Rank[] = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+export const RANKS: Rank[] = [
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "J",
+  "Q",
+  "K",
+  "A",
+];
 export const RANK_VAL: Record<string, number> = {
   "2": 2,
   "3": 3,
@@ -132,7 +175,12 @@ export const RANK_VAL: Record<string, number> = {
 };
 export const VALID_BIDS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 13];
 export const PLAYER_NAMES = ["أنت", "كمبيوتر 1", "كمبيوتر 2", "كمبيوتر 3"];
-export const SUIT_ORDER: Record<string, number> = { "♥": 10, "♠": 3, "♦": 2, "♣": 1 };
+export const SUIT_ORDER: Record<string, number> = {
+  "♥": 10,
+  "♠": 3,
+  "♦": 2,
+  "♣": 1,
+};
 
 type Listener = () => void;
 const listeners: Listener[] = [];
@@ -144,7 +192,9 @@ export const subscribe = (l: Listener) => {
   };
 };
 let isSyncLocked = false;
-export const setSyncLocked = (locked: boolean) => { isSyncLocked = locked; };
+export const setSyncLocked = (locked: boolean) => {
+  isSyncLocked = locked;
+};
 
 export const updateUI = () => {
   listeners.forEach((l) => l());
@@ -156,16 +206,16 @@ export function initGame(
   targetPoints: number,
   diff: "easy" | "medium" | "hard",
   aiNames: string[] = [],
-  mode: "FFA" | "Teams" | "1v1" = "Teams"
+  mode: "FFA" | "Teams" | "1v1" = "Teams",
 ) {
   G.gameMode = mode;
   G.target = targetPoints;
   G.difficulty = diff;
   G.playerNames = [
-    pname || "البطل", 
-    aiNames[0] || PLAYER_NAMES[1], 
-    aiNames[1] || PLAYER_NAMES[2], 
-    aiNames[2] || PLAYER_NAMES[3]
+    pname || "البطل",
+    aiNames[0] || PLAYER_NAMES[1],
+    aiNames[1] || PLAYER_NAMES[2],
+    aiNames[2] || PLAYER_NAMES[3],
   ];
   G.scores = [0, 0, 0, 0];
   G.teamScores = [0, 0];
@@ -181,11 +231,15 @@ export function initGame(
 function shuffleDeck(): Card[] {
   let deck: Card[] = [];
   // Ensure exactly 52 unique cards
-  SUITS.forEach((s) => RANKS.forEach((r) => deck.push({ 
-    suit: s, 
-    rank: r, 
-    uid: `${s}${r}-${Math.random().toString(36).substring(2, 9)}` 
-  })));
+  SUITS.forEach((s) =>
+    RANKS.forEach((r) =>
+      deck.push({
+        suit: s,
+        rank: r,
+        uid: `${s}${r}-${Math.random().toString(36).substring(2, 9)}`,
+      }),
+    ),
+  );
 
   // Perform multiple shuffle passes (Fisher-Yates)
   for (let round = 0; round < 6; round++) {
@@ -201,7 +255,7 @@ export let isDealingAnimationRunning = false;
 export async function dealCardsAnimation(): Promise<void> {
   if (isDealingAnimationRunning) return;
   isDealingAnimationRunning = true;
-  
+
   // Extra safety: reset round-specific laws at every dealing animation start
   G.tarnebPlayed = false;
   G.anyoneTarnebThisTrick = false;
@@ -211,64 +265,72 @@ export async function dealCardsAnimation(): Promise<void> {
     const distribution: { card: Card; player: number }[] = [];
     const numPlayers = G.gameMode === "1v1" ? 2 : 4;
     let playerIdx = (G.dealerIdx + 1) % numPlayers;
-    
+
     // Flatten hands into distribution order
-    const tempHands = G.hands.map(h => [...h]);
+    const tempHands = G.hands.map((h) => [...h]);
     G.hands = [[], [], [], []]; // Clear for animation
     G.dealingCards = [];
-    
+
     const totalCardsToDeal = numPlayers * 13;
     for (let i = 0; i < totalCardsToDeal; i++) {
-        const p = playerIdx;
-        playerIdx = (playerIdx + 1) % numPlayers;
-        const card = tempHands[p].shift();
-        if (card) distribution.push({ card, player: p });
+      const p = playerIdx;
+      playerIdx = (playerIdx + 1) % numPlayers;
+      const card = tempHands[p].shift();
+      if (card) distribution.push({ card, player: p });
     }
 
     let current = 0;
     isSyncLocked = true; // Don't sync during animation
     const interval = setInterval(() => {
-        if (current >= distribution.length) {
-            clearInterval(interval);
-            setTimeout(() => {
-                G.dealingCards = [];
-                for (let p = 0; p < numPlayers; p++) {
-                  // Ensure all cards are fully inserted and sorted
-                  G.hands[p] = [...distribution.filter(d => d.player === p).map(d => d.card)];
-                  G.hands[p].sort((a, b) => {
-                    if (a.suit !== b.suit) return SUIT_ORDER[b.suit] - SUIT_ORDER[a.suit];
-                    return RANK_VAL[b.rank] - RANK_VAL[a.rank];
-                  });
-                }
-
-                G.trapHolder = -1;
-                for (let p = 0; p < numPlayers; p++) {
-                  if (G.hands[p].some((c) => c.suit === "♥" && c.rank === "Q")) {
-                    G.trapHolder = p;
-                    break;
-                  }
-                }
-                isSyncLocked = false;
-                isDealingAnimationRunning = false;
-                updateUI();
-                resolve();
-            }, 600); // Wait for the final flying cards to land
-            return;
-        }
-
-        const item = distribution[current];
-        // 1. Spawn flying card
-        G.dealingCards.push({ id: current, card: item.card, player: item.player, rotate: Math.random() * 60 - 30 });
-        
-        // 2. Add to hand after the flying animation duration (350ms)
+      if (current >= distribution.length) {
+        clearInterval(interval);
         setTimeout(() => {
-            G.hands[item.player].push(item.card);
-            updateUI();
-        }, 350);
+          G.dealingCards = [];
+          for (let p = 0; p < numPlayers; p++) {
+            // Ensure all cards are fully inserted and sorted
+            G.hands[p] = [
+              ...distribution.filter((d) => d.player === p).map((d) => d.card),
+            ];
+            G.hands[p].sort((a, b) => {
+              if (a.suit !== b.suit)
+                return SUIT_ORDER[b.suit] - SUIT_ORDER[a.suit];
+              return RANK_VAL[b.rank] - RANK_VAL[a.rank];
+            });
+          }
 
-        if (current % 2 === 0) sfxDeal(); // play sound more realistically
+          G.trapHolder = -1;
+          for (let p = 0; p < numPlayers; p++) {
+            if (G.hands[p].some((c) => c.suit === "♥" && c.rank === "Q")) {
+              G.trapHolder = p;
+              break;
+            }
+          }
+          isSyncLocked = false;
+          isDealingAnimationRunning = false;
+          updateUI();
+          resolve();
+        }, 600); // Wait for the final flying cards to land
+        return;
+      }
+
+      const item = distribution[current];
+      // 1. Spawn flying card
+      G.dealingCards.push({
+        id: current,
+        card: item.card,
+        player: item.player,
+        rotate: Math.random() * 60 - 30,
+      });
+
+      // 2. Add to hand after the flying animation duration (350ms)
+      setTimeout(() => {
+        G.hands[item.player].push(item.card);
         updateUI();
-        current++;
+      }, 350);
+
+      if (current % 2 === 0) sfxDeal(); // play sound more realistically
+      updateUI();
+      current++;
     }, 45); // Slower dealing for "card by card" feel
   });
 }
@@ -297,7 +359,7 @@ export async function startNewRound() {
   G.dealingCards = [];
   G.exposedCards = [null, null, null, null];
   G.playerWithHighestScore = -1;
-  
+
   // Shuffling logic
   if (!isMultiplayerMode || isHostMode) {
     const deck = shuffleDeck();
@@ -312,7 +374,7 @@ export async function startNewRound() {
 
   updateUI();
   if (isMultiplayerMode && isHostMode && onSyncNeeded && !isSyncLocked) {
-     onSyncNeeded();
+    onSyncNeeded();
   }
 
   await dealCardsAnimation();
@@ -336,7 +398,7 @@ export async function startNewRound() {
     updateUI();
 
     if (!isMyTurnToProcess(G.playerWithHighestScore)) return;
-    if (G.playerWithHighestScore !== myPlayerIndex) {
+    if (isBot(G.playerWithHighestScore)) {
       setTimeout(() => {
         executeAISwap();
       }, 2000);
@@ -408,9 +470,13 @@ export function swapCards(p1: number, p2: number) {
   if (!c1 || !c2) return;
 
   // Swap in hands
-  let h1Idx = G.hands[p1].findIndex(c => c.suit === c1.suit && c.rank === c1.rank);
-  let h2Idx = G.hands[p2].findIndex(c => c.suit === c2.suit && c.rank === c2.rank);
-  
+  let h1Idx = G.hands[p1].findIndex(
+    (c) => c.suit === c1.suit && c.rank === c1.rank,
+  );
+  let h2Idx = G.hands[p2].findIndex(
+    (c) => c.suit === c2.suit && c.rank === c2.rank,
+  );
+
   if (h1Idx >= 0 && h2Idx >= 0) {
     G.hands[p1][h1Idx] = c2;
     G.hands[p2][h2Idx] = c1;
@@ -440,11 +506,12 @@ export function swapCards(p1: number, p2: number) {
 }
 
 export function humanSwap(target: number, forcePlayerIdx?: number) {
-  const actPlayer = forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
+  const actPlayer =
+    forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
   if (G.phase !== "swapping" || G.playerWithHighestScore !== actPlayer) return;
-  
+
   if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
-    import("./multiplayer").then(m => {
+    import("./multiplayer").then((m) => {
       m.sendPlayerAction({ type: "SWAP", target, playerIdx: actPlayer });
       m.setLocalActionLock(1500);
     });
@@ -461,22 +528,26 @@ export function humanSwap(target: number, forcePlayerIdx?: number) {
     G.gameMsg = `الكنق 👑 إستبدل ورقته المكشوفة (${c1.rank}${c1.rank}) بـ (${c2.rank}${c2.rank}) مع ${G.playerNames[target]}`;
   }
   updateUI();
-  
+
   setTimeout(() => {
     startBidding();
   }, 3500);
 
-  if (forcePlayerIdx === undefined) setTimeout(() => { justPlayedLocalAction = false; }, 100);
+  if (forcePlayerIdx === undefined)
+    setTimeout(() => {
+      justPlayedLocalAction = false;
+    }, 100);
 }
 
 export function humanSkipSwap(forcePlayerIdx?: number) {
-  const actPlayer = forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
+  const actPlayer =
+    forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
   if (G.phase !== "swapping" || G.playerWithHighestScore !== actPlayer) return;
-  
+
   if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
-    import("./multiplayer").then(m => {
-       m.sendPlayerAction({ type: "SKIP_SWAP", playerIdx: actPlayer });
-       m.setLocalActionLock(1500);
+    import("./multiplayer").then((m) => {
+      m.sendPlayerAction({ type: "SKIP_SWAP", playerIdx: actPlayer });
+      m.setLocalActionLock(1500);
     });
     // Optimistic Execution:
     humanSkipSwap(actPlayer);
@@ -486,12 +557,15 @@ export function humanSkipSwap(forcePlayerIdx?: number) {
   if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
   G.gameMsg = `الكنق 👑 قرر عدم التبديل (محتفظ بورقته)`;
   updateUI();
-  
+
   setTimeout(() => {
     startBidding();
   }, 2500);
 
-  if (forcePlayerIdx === undefined) setTimeout(() => { justPlayedLocalAction = false; }, 100);
+  if (forcePlayerIdx === undefined)
+    setTimeout(() => {
+      justPlayedLocalAction = false;
+    }, 100);
 }
 
 function startBidding() {
@@ -506,46 +580,62 @@ function startBidding() {
 
 export function forceAiAction(playerIdx: number) {
   if (G.phase === "bidding") {
-      const avail = getAvailableBids(playerIdx);
-      // AI usually bids something safe or passes if timed out
-      const estimate = 2; // Default for timeout
-      let best = avail[0], minDiff = Infinity;
-      for (let bid of avail) {
-          let diff = Math.abs(bid - estimate);
-          if (diff < minDiff) { minDiff = diff; best = bid; }
+    const avail = getAvailableBids(playerIdx);
+    // AI usually bids something safe or passes if timed out
+    const estimate = 2; // Default for timeout
+    let best = avail[0],
+      minDiff = Infinity;
+    for (let bid of avail) {
+      let diff = Math.abs(bid - estimate);
+      if (diff < minDiff) {
+        minDiff = diff;
+        best = bid;
       }
-      G.bids[playerIdx] = best;
-      const numPlayers = G.gameMode === "1v1" ? 2 : 4;
-      G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
-      processNextBid();
+    }
+    G.bids[playerIdx] = best;
+    const numPlayers = G.gameMode === "1v1" ? 2 : 4;
+    G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
+    processNextBid();
   } else if (G.phase === "playing") {
-      const hand = G.hands[playerIdx];
-      if (!hand || hand.length === 0) return;
-      const isLeading = G.trickCards.every((c) => c === null);
-      let leadSuit: Suit | null = null;
-      if (!isLeading) {
-          leadSuit = G.trickCards[G.leadPlayer]?.suit || null;
-      }
-      const valid = getValidCards(hand, leadSuit, isLeading, G.anyoneTarnebThisTrick);
-      if (valid.length === 0) return;
-      const card = selectBestCardAI(playerIdx, valid, leadSuit, isLeading);
-      if (!card) return;
-      
-      const idx = hand.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
-      if (idx >= 0) {
-          G.trickCards[playerIdx] = hand[idx];
-          if (G.exposedCards[playerIdx] && G.exposedCards[playerIdx]!.suit === hand[idx].suit && G.exposedCards[playerIdx]!.rank === hand[idx].rank) G.exposedCards[playerIdx] = null;
-          hand.splice(idx, 1);
-          sfxPlay();
-          advanceTurn();
-      }
+    const hand = G.hands[playerIdx];
+    if (!hand || hand.length === 0) return;
+    const isLeading = G.trickCards.every((c) => c === null);
+    let leadSuit: Suit | null = null;
+    if (!isLeading) {
+      leadSuit = G.trickCards[G.leadPlayer]?.suit || null;
+    }
+    const valid = getValidCards(
+      hand,
+      leadSuit,
+      isLeading,
+      G.anyoneTarnebThisTrick,
+    );
+    if (valid.length === 0) return;
+    const card = selectBestCardAI(playerIdx, valid, leadSuit, isLeading);
+    if (!card) return;
+
+    const idx = hand.findIndex(
+      (c) => c.suit === card.suit && c.rank === card.rank,
+    );
+    if (idx >= 0) {
+      G.trickCards[playerIdx] = hand[idx];
+      if (
+        G.exposedCards[playerIdx] &&
+        G.exposedCards[playerIdx]!.suit === hand[idx].suit &&
+        G.exposedCards[playerIdx]!.rank === hand[idx].rank
+      )
+        G.exposedCards[playerIdx] = null;
+      hand.splice(idx, 1);
+      sfxPlay();
+      advanceTurn();
+    }
   }
 }
 
 function processNextBid() {
   if (!isMyTurnToProcess()) return;
   const numPlayers = G.gameMode === "1v1" ? 2 : 4;
-  
+
   const relevantBids = G.bids.slice(0, numPlayers);
   if (G.currentPlayer === G.dealerIdx && relevantBids.every((b) => b > 0)) {
     finishBidding();
@@ -566,13 +656,15 @@ function processNextBid() {
     G.gameMsg = `⏳ دور ${G.playerNames[G.currentPlayer]}...`;
     updateUI();
     clearEngineTimers();
-    _botPlayTimer = setTimeout(() => {
-      if (!isMyTurnToProcess()) return;
-      computerBid(G.currentPlayer);
-      const numPlayers = G.gameMode === "1v1" ? 2 : 4;
-      G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
-      processNextBid();
-    }, bot ? 400 : 1500);
+    if (bot) {
+      _botPlayTimer = setTimeout(() => {
+        if (!isMyTurnToProcess()) return;
+        computerBid(G.currentPlayer);
+        const numPlayers = G.gameMode === "1v1" ? 2 : 4;
+        G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
+        processNextBid();
+      }, 400);
+    }
   }
 }
 
@@ -583,7 +675,9 @@ export function getAvailableBids(p: number) {
   avail = avail.filter((b) => total + b !== 13);
 
   if (p === G.dealerIdx) {
-    let all2 = G.bids.slice(0, numPlayers).every((b, i) => i === G.dealerIdx || b === 2);
+    let all2 = G.bids
+      .slice(0, numPlayers)
+      .every((b, i) => i === G.dealerIdx || b === 2);
     if (all2) avail = avail.filter((b) => b >= 5);
   }
   return avail;
@@ -593,9 +687,14 @@ function showBidUI() {
   G.bidOverlayVisible = true;
   G.pendingBid = null;
 
-  if (G.dealerIdx === myPlayerIndex && G.bids.filter((b) => b === 0).length === 1) {
+  if (
+    G.dealerIdx === myPlayerIndex &&
+    G.bids.filter((b) => b === 0).length === 1
+  ) {
     let all2 = G.bids.every((b, i) => i === myPlayerIndex || b === 2);
-    G.bidWarning = all2 ? "⚠️ الجميع طلب 2 - عليك طلب 5+" : "⚠️ لا تجعل المجموع 13";
+    G.bidWarning = all2
+      ? "⚠️ الجميع طلب 2 - عليك طلب 5+"
+      : "⚠️ لا تجعل المجموع 13";
   } else {
     G.bidWarning = G.trapHolder === myPlayerIndex ? "⚠️ معك Q♥ البنت كبة!" : "";
   }
@@ -609,14 +708,15 @@ export function selectBid(bid: number) {
 }
 
 export function confirmBid(forceBid?: number, forcePlayerIdx?: number) {
-  const actPlayer = forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
+  const actPlayer =
+    forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
   const theBid = forceBid !== undefined ? forceBid : G.pendingBid;
 
   if (theBid !== null) {
     if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
-      import("./multiplayer").then(m => {
-         m.sendPlayerAction({ type: "BID", bid: theBid, playerIdx: actPlayer });
-         m.setLocalActionLock(1500);
+      import("./multiplayer").then((m) => {
+        m.sendPlayerAction({ type: "BID", bid: theBid, playerIdx: actPlayer });
+        m.setLocalActionLock(1500);
       });
       G.bidOverlayVisible = false;
       // Optimistic Execution:
@@ -630,7 +730,10 @@ export function confirmBid(forceBid?: number, forcePlayerIdx?: number) {
     sfxBid();
     G.currentPlayer = (actPlayer + 1) % 4;
     processNextBid();
-    if (forcePlayerIdx === undefined) setTimeout(() => { justPlayedLocalAction = false; }, 100);
+    if (forcePlayerIdx === undefined)
+      setTimeout(() => {
+        justPlayedLocalAction = false;
+      }, 100);
   }
 }
 
@@ -639,47 +742,51 @@ function computerBid(p: number) {
   const avail = getAvailableBids(p);
 
   let bidVal = 0;
-  const kubaCards = hand.filter((c) => c.suit === "♥").sort((a,b)=>RANK_VAL[b.rank]-RANK_VAL[a.rank]);
+  const kubaCards = hand
+    .filter((c) => c.suit === "♥")
+    .sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank]);
   const kubaCount = kubaCards.length;
 
   // Value of Tarot (Kuba) cards - Higher weights for key cards
-  if (kubaCards.some(c=>c.rank==='A')) bidVal += 1.3;
-  if (kubaCards.some(c=>c.rank==='K')) bidVal += 1.0;
-  if (kubaCards.some(c=>c.rank==='Q')) bidVal += 0.7;
-  if (kubaCards.some(c=>c.rank==='J')) bidVal += 0.5;
+  if (kubaCards.some((c) => c.rank === "A")) bidVal += 1.3;
+  if (kubaCards.some((c) => c.rank === "K")) bidVal += 1.0;
+  if (kubaCards.some((c) => c.rank === "Q")) bidVal += 0.7;
+  if (kubaCards.some((c) => c.rank === "J")) bidVal += 0.5;
 
   // Strategic trump distribution value
   if (kubaCount > 3) {
     bidVal += (kubaCount - 3) * 0.9;
   } else if (kubaCount > 0) {
-    bidVal += kubaCount * 0.25; 
+    bidVal += kubaCount * 0.25;
   }
 
-  for (const s of (['♠', '♦', '♣'] as Suit[])) {
-      const suitCards = hand.filter(c => c.suit === s).sort((a,b)=>RANK_VAL[b.rank]-RANK_VAL[a.rank]);
-      const count = suitCards.length;
-      
-      if (count === 0 && kubaCount >= 1) {
-          bidVal += 1.2; // High value for void suit if trumps exist
-          continue;
-      }
-      
-      if (count === 1 && kubaCount >= 2) {
-          bidVal += 0.6; // singleton value
-      }
-      
-      const topRank = suitCards[0].rank;
-      if (topRank === 'A') {
-          bidVal += 1.2;
-          if (count > 1 && suitCards[1].rank === 'K') bidVal += 1.0;
-          if (count > 2 && suitCards[2].rank === 'Q') bidVal += 0.7;
-      } else if (topRank === 'K' && count > 1) {
-          bidVal += 0.6;
-          if (count > 2 && suitCards[2].rank === 'Q') bidVal += 0.5;
-      }
+  for (const s of ["♠", "♦", "♣"] as Suit[]) {
+    const suitCards = hand
+      .filter((c) => c.suit === s)
+      .sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank]);
+    const count = suitCards.length;
+
+    if (count === 0 && kubaCount >= 1) {
+      bidVal += 1.2; // High value for void suit if trumps exist
+      continue;
+    }
+
+    if (count === 1 && kubaCount >= 2) {
+      bidVal += 0.6; // singleton value
+    }
+
+    const topRank = suitCards[0].rank;
+    if (topRank === "A") {
+      bidVal += 1.2;
+      if (count > 1 && suitCards[1].rank === "K") bidVal += 1.0;
+      if (count > 2 && suitCards[2].rank === "Q") bidVal += 0.7;
+    } else if (topRank === "K" && count > 1) {
+      bidVal += 0.6;
+      if (count > 2 && suitCards[2].rank === "Q") bidVal += 0.5;
+    }
   }
 
-  let estimate = Math.floor(bidVal + 0.3); 
+  let estimate = Math.floor(bidVal + 0.3);
 
   if (G.difficulty === "easy") {
     estimate = Math.max(2, estimate - 1);
@@ -691,7 +798,8 @@ function computerBid(p: number) {
 
   estimate = Math.max(2, Math.min(13, estimate));
 
-  let best = avail[0], minDiff = Infinity;
+  let best = avail[0],
+    minDiff = Infinity;
   for (const bid of avail) {
     const diff = Math.abs(bid - estimate);
     // Prefer bidding slightly lower than estimate to be safe, unless diff is large
@@ -720,11 +828,16 @@ function finishBidding() {
   processNextPlay();
 }
 
-export function getValidCards(hand: Card[], leadSuit: Suit | null, isLeading: boolean, anyoneTarneb: boolean) {
+export function getValidCards(
+  hand: Card[],
+  leadSuit: Suit | null,
+  isLeading: boolean,
+  anyoneTarneb: boolean,
+) {
   if (isLeading) {
     // If Tarneb has been played at any point in the round, or someone cut this trick (rare case for leading, but kept for safety)
     if (G.tarnebPlayed || anyoneTarneb) return hand;
-    
+
     // Arabic: لا يمكن البدء بالكبة إلا إذا كانت "مكشوفة" أو لا يملك اللاعب غيرها
     let nonKuba = hand.filter((c) => c.suit !== "♥");
     if (nonKuba.length > 0) return nonKuba;
@@ -743,7 +856,12 @@ export function canLeadKuba(playerIdx: number) {
 }
 
 export function handleSelectCard(idx: number) {
-  if (G.phase !== "playing" || G.currentPlayer !== myPlayerIndex || G.isGatheringTrick) return;
+  if (
+    G.phase !== "playing" ||
+    G.currentPlayer !== myPlayerIndex ||
+    G.isGatheringTrick
+  )
+    return;
 
   let isLeading = G.trickCards.every((c) => c === null);
   let leadSuit: Suit | null = null;
@@ -751,7 +869,12 @@ export function handleSelectCard(idx: number) {
     leadSuit = G.trickCards[G.leadPlayer]?.suit || null;
   }
 
-  let valid = getValidCards(G.hands[myPlayerIndex], leadSuit, isLeading, G.anyoneTarnebThisTrick);
+  let valid = getValidCards(
+    G.hands[myPlayerIndex],
+    leadSuit,
+    isLeading,
+    G.anyoneTarnebThisTrick,
+  );
   let card = G.hands[myPlayerIndex][idx];
 
   if (!valid.some((c) => c.suit === card.suit && c.rank === card.rank)) {
@@ -759,8 +882,8 @@ export function handleSelectCard(idx: number) {
       isLeading && card.suit === "♥"
         ? "⚠️ لا يمكنك البدء بالكبة! لديك أنواع أخرى"
         : leadSuit
-        ? `⚠️ يجب لعب ${leadSuit}`
-        : "⚠️ لا يمكنك لعب هذه";
+          ? `⚠️ يجب لعب ${leadSuit}`
+          : "⚠️ لا يمكنك لعب هذه";
     updateUI();
     return;
   }
@@ -775,16 +898,16 @@ export function executePlay(forceIdx?: number, forcePlayerIdx?: number) {
   const cIdx = forceIdx !== undefined ? forceIdx : G.selectedCardIdx;
 
   if (cIdx < 0 || G.currentPlayer !== pIdx || G.isGatheringTrick) return;
-  
+
   if (isMultiplayerMode && !isHostMode && forceIdx === undefined) {
-      import("./multiplayer").then(m => {
-          m.sendPlayerAction({ type: "PLAY_CARD", cardIdx: cIdx, playerIdx: pIdx });
-          m.setLocalActionLock(2000); // Lock for 2 seconds to ensure trick resolves locally without jitter
-      });
-      G.selectedCardIdx = -1;
-      // Optimistic Execution:
-      executePlay(cIdx, pIdx);
-      return;
+    import("./multiplayer").then((m) => {
+      m.sendPlayerAction({ type: "PLAY_CARD", cardIdx: cIdx, playerIdx: pIdx });
+      m.setLocalActionLock(2000); // Lock for 2 seconds to ensure trick resolves locally without jitter
+    });
+    G.selectedCardIdx = -1;
+    // Optimistic Execution:
+    executePlay(cIdx, pIdx);
+    return;
   }
 
   if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
@@ -813,7 +936,12 @@ export function executePlay(forceIdx?: number, forcePlayerIdx?: number) {
   }
 
   G.trickCards[pIdx] = card;
-  if (G.exposedCards[pIdx] && G.exposedCards[pIdx]!.suit === card.suit && G.exposedCards[pIdx]!.rank === card.rank) G.exposedCards[pIdx] = null;
+  if (
+    G.exposedCards[pIdx] &&
+    G.exposedCards[pIdx]!.suit === card.suit &&
+    G.exposedCards[pIdx]!.rank === card.rank
+  )
+    G.exposedCards[pIdx] = null;
   G.hands[pIdx].splice(cIdx, 1);
   if (pIdx === myPlayerIndex) G.selectedCardIdx = -1;
   G.playHint = "";
@@ -823,11 +951,18 @@ export function executePlay(forceIdx?: number, forcePlayerIdx?: number) {
 
   advanceTurn();
 
-  if (forcePlayerIdx === undefined) setTimeout(() => { justPlayedLocalAction = false; }, 100);
+  if (forcePlayerIdx === undefined)
+    setTimeout(() => {
+      justPlayedLocalAction = false;
+    }, 100);
 }
 
 function triggerParticle(type: "tarneb" | "trap") {
-  G.particles.push({ id: Date.now() + Math.random(), type, key: Math.random() });
+  G.particles.push({
+    id: Date.now() + Math.random(),
+    type,
+    key: Math.random(),
+  });
   updateUI();
 }
 
@@ -876,7 +1011,12 @@ function computerPlay(p: number) {
   let idx = hand.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
   if (idx >= 0) {
     G.trickCards[p] = hand[idx];
-    if (G.exposedCards[p] && G.exposedCards[p]!.suit === hand[idx].suit && G.exposedCards[p]!.rank === hand[idx].rank) G.exposedCards[p] = null;
+    if (
+      G.exposedCards[p] &&
+      G.exposedCards[p]!.suit === hand[idx].suit &&
+      G.exposedCards[p]!.rank === hand[idx].rank
+    )
+      G.exposedCards[p] = null;
     hand.splice(idx, 1);
     sfxPlay();
 
@@ -888,182 +1028,223 @@ function computerPlay(p: number) {
   }
 }
 
-function selectBestCardAI(playerIdx: number, valid: Card[], leadSuit: Suit | null, isLeading: boolean): Card {
+function selectBestCardAI(
+  playerIdx: number,
+  valid: Card[],
+  leadSuit: Suit | null,
+  isLeading: boolean,
+): Card {
   const tarnebSuit: Suit = "♥";
-  if (!valid || valid.length === 0) return G.hands[playerIdx][0] || { suit: "♠", rank: "2" };
+  if (!valid || valid.length === 0)
+    return G.hands[playerIdx][0] || { suit: "♠", rank: "2" };
 
   const teammateIdx = G.gameMode === "Teams" ? (playerIdx + 2) % 4 : -1;
   const currentWinnerIdx = getTrickWinner();
-  const isTeammateWinning = teammateIdx !== -1 && currentWinnerIdx === teammateIdx;
+  const isTeammateWinning =
+    teammateIdx !== -1 && currentWinnerIdx === teammateIdx;
 
-  const aKubaPlayed = G.playedCards.some(c => c.suit === "♥" && c.rank === "A") || G.trickCards.some(c => c && c.suit === "♥" && c.rank === "A");
-  const qKubaPlayed = G.playedCards.some(c => c.suit === "♥" && c.rank === "Q") || G.trickCards.some(c => c && c.suit === "♥" && c.rank === "Q");
+  const aKubaPlayed =
+    G.playedCards.some((c) => c.suit === "♥" && c.rank === "A") ||
+    G.trickCards.some((c) => c && c.suit === "♥" && c.rank === "A");
+  const qKubaPlayed =
+    G.playedCards.some((c) => c.suit === "♥" && c.rank === "Q") ||
+    G.trickCards.some((c) => c && c.suit === "♥" && c.rank === "Q");
 
-  const iHaveAKuba = valid.some(c => c.suit === "♥" && c.rank === "A");
-  const iHaveQKuba = valid.some(c => c.suit === "♥" && c.rank === "Q");
+  const iHaveAKuba = valid.some((c) => c.suit === "♥" && c.rank === "A");
+  const iHaveQKuba = valid.some((c) => c.suit === "♥" && c.rank === "Q");
 
-  const trickCardsSoFar = G.trickCards.filter(c => c !== null) as Card[];
-  const aKubaInTrick = trickCardsSoFar.some(c => c.suit === "♥" && c.rank === "A");
-  const qKubaInTrick = trickCardsSoFar.some(c => c.suit === "♥" && c.rank === "Q");
+  const trickCardsSoFar = G.trickCards.filter((c) => c !== null) as Card[];
+  const aKubaInTrick = trickCardsSoFar.some(
+    (c) => c.suit === "♥" && c.rank === "A",
+  );
+  const qKubaInTrick = trickCardsSoFar.some(
+    (c) => c.suit === "♥" && c.rank === "Q",
+  );
 
   // Determine the highest score player to target in FFA mode
   let targetPlayerIdx = -1;
   if (G.gameMode !== "Teams") {
-     let maxScore = -Infinity;
-     for(let i=0; i<4; i++) {
-        if(i !== playerIdx && G.scores[i] > maxScore) {
-           maxScore = G.scores[i];
-           targetPlayerIdx = i;
-        }
-     }
+    let maxScore = -Infinity;
+    for (let i = 0; i < 4; i++) {
+      if (i !== playerIdx && G.scores[i] > maxScore) {
+        maxScore = G.scores[i];
+        targetPlayerIdx = i;
+      }
+    }
   }
 
   // Helper functions to safely get the highest and lowest cards from an array
-  const lowestCard = (cards: Card[]) => [...cards].sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
-  const highestCard = (cards: Card[]) => [...cards].sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
+  const lowestCard = (cards: Card[]) =>
+    [...cards].sort((a, b) => RANK_VAL[a.rank] - RANK_VAL[b.rank])[0];
+  const highestCard = (cards: Card[]) =>
+    [...cards].sort((a, b) => RANK_VAL[b.rank] - RANK_VAL[a.rank])[0];
 
   // --- SPECIAL WARTHA (Q♥) LOGIC ---
   if (iHaveQKuba) {
-     const otherValid = valid.filter(c => !(c.suit === "♥" && c.rank === "Q"));
-     
-     if (aKubaInTrick) {
-        // A♥ is on the table! AVOID Q♥ AT ALL COSTS to prevent -5 penalty!
+    const otherValid = valid.filter((c) => !(c.suit === "♥" && c.rank === "Q"));
+
+    if (aKubaInTrick) {
+      // A♥ is on the table! AVOID Q♥ AT ALL COSTS to prevent -5 penalty!
+      if (otherValid.length > 0) return lowestCard(otherValid);
+    } else if (!aKubaPlayed) {
+      // A♥ is still hiding. Do NOT throw Q♥ if we have other options.
+      if (leadSuit === "♥") {
+        const otherHearts = otherValid.filter((c) => c.suit === "♥");
+        if (otherHearts.length > 0) return lowestCard(otherHearts); // Play lower heart to fly under the radar
+      } else {
         if (otherValid.length > 0) return lowestCard(otherValid);
-     } else if (!aKubaPlayed) {
-        // A♥ is still hiding. Do NOT throw Q♥ if we have other options.
-        if (leadSuit === "♥") {
-           const otherHearts = otherValid.filter(c => c.suit === "♥");
-           if (otherHearts.length > 0) return lowestCard(otherHearts); // Play lower heart to fly under the radar
-        } else {
-           if (otherValid.length > 0) return lowestCard(otherValid);
-        }
-     }
-     // If A♥ is already played, Q♥ is safe to use. Fall through to regular logic.
+      }
+    }
+    // If A♥ is already played, Q♥ is safe to use. Fall through to regular logic.
   }
 
   if (iHaveAKuba) {
-     const myAKuba = valid.find(c => c.suit === "♥" && c.rank === "A")!;
-     if (qKubaInTrick) {
-         // Hunt! Q♥ is on the table, eat it for +5 points!
-         return myAKuba;
-     }
-     if (!qKubaPlayed && !iHaveQKuba) {
-         // Q♥ is hiding. Do NOT play A♥ unless forced, we want to catch it later!
-         const otherValid = valid.filter(c => !(c.suit === "♥" && c.rank === "A"));
-         
-         if (isLeading && otherValid.length > 0) {
-             const otherHearts = otherValid.filter(c => c.suit === "♥");
-             if (otherHearts.length > 0) return lowestCard(otherHearts); // Bait out the Q♥
-             return lowestCard(otherValid);
-         }
-         
-         if (leadSuit === "♥" && otherValid.some(c => c.suit === "♥")) {
-            return highestCard(otherValid.filter(c => c.suit === "♥")); // Play highest non-A heart
-         }
-     }
+    const myAKuba = valid.find((c) => c.suit === "♥" && c.rank === "A")!;
+    if (qKubaInTrick) {
+      // Hunt! Q♥ is on the table, eat it for +5 points!
+      return myAKuba;
+    }
+    if (!qKubaPlayed && !iHaveQKuba) {
+      // Q♥ is hiding. Do NOT play A♥ unless forced, we want to catch it later!
+      const otherValid = valid.filter(
+        (c) => !(c.suit === "♥" && c.rank === "A"),
+      );
+
+      if (isLeading && otherValid.length > 0) {
+        const otherHearts = otherValid.filter((c) => c.suit === "♥");
+        if (otherHearts.length > 0) return lowestCard(otherHearts); // Bait out the Q♥
+        return lowestCard(otherValid);
+      }
+
+      if (leadSuit === "♥" && otherValid.some((c) => c.suit === "♥")) {
+        return highestCard(otherValid.filter((c) => c.suit === "♥")); // Play highest non-A heart
+      }
+    }
   }
 
   // --- REGULAR PLAY LOGIC ---
 
   // 1. LEADING STRATEGY
   if (isLeading) {
-      // Play non-trump Aces if we have them (guaranteed win)
-      const aces = valid.filter(c => c.rank === "A" && c.suit !== "♥");
-      if (aces.length > 0) return aces[0];
+    // Play non-trump Aces if we have them (guaranteed win)
+    const aces = valid.filter((c) => c.rank === "A" && c.suit !== "♥");
+    if (aces.length > 0) return aces[0];
 
-      // Play non-trump Kings if the Ace of that suit has been played
-      for (const suit of ["♠", "♣", "♦"]) {
-         const myKings = valid.filter(c => c.rank === "K" && c.suit === suit);
-         if (myKings.length > 0) {
-             const acePlayed = G.playedCards.some(c => c.rank === "A" && c.suit === suit);
-             if (acePlayed) return myKings[0];
-         }
+    // Play non-trump Kings if the Ace of that suit has been played
+    for (const suit of ["♠", "♣", "♦"]) {
+      const myKings = valid.filter((c) => c.rank === "K" && c.suit === suit);
+      if (myKings.length > 0) {
+        const acePlayed = G.playedCards.some(
+          (c) => c.rank === "A" && c.suit === suit,
+        );
+        if (acePlayed) return myKings[0];
       }
+    }
 
-      // Bleed trumps if we have strong ones
-      const myTarnebs = valid.filter(c => c.suit === tarnebSuit);
-      if (myTarnebs.length >= 4 && myTarnebs.some(c => ["A", "K", "Q"].includes(c.rank))) {
-          const safeTarnebs = myTarnebs.filter(c => !(c.rank === "A" && !qKubaPlayed) && !(c.rank === "Q" && !aKubaPlayed));
-          if (safeTarnebs.length > 0) return highestCard(safeTarnebs);
-      }
+    // Bleed trumps if we have strong ones
+    const myTarnebs = valid.filter((c) => c.suit === tarnebSuit);
+    if (
+      myTarnebs.length >= 4 &&
+      myTarnebs.some((c) => ["A", "K", "Q"].includes(c.rank))
+    ) {
+      const safeTarnebs = myTarnebs.filter(
+        (c) =>
+          !(c.rank === "A" && !qKubaPlayed) &&
+          !(c.rank === "Q" && !aKubaPlayed),
+      );
+      if (safeTarnebs.length > 0) return highestCard(safeTarnebs);
+    }
 
-      // Play from short suits to create a void (allowing us to cut later)
-      const suitCounts: Record<string, number> = {};
-      valid.forEach(c => {
-        if (c.suit !== tarnebSuit) suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
-      });
-      const nonTarneb = valid.filter(c => c.suit !== tarnebSuit);
-      if (nonTarneb.length > 0) {
-        const shortSuit = Object.keys(suitCounts).sort((a, b) => suitCounts[a] - suitCounts[b])[0] as Suit;
-        const suitCards = nonTarneb.filter(c => c.suit === shortSuit);
-        return lowestCard(suitCards);
-      }
+    // Play from short suits to create a void (allowing us to cut later)
+    const suitCounts: Record<string, number> = {};
+    valid.forEach((c) => {
+      if (c.suit !== tarnebSuit)
+        suitCounts[c.suit] = (suitCounts[c.suit] || 0) + 1;
+    });
+    const nonTarneb = valid.filter((c) => c.suit !== tarnebSuit);
+    if (nonTarneb.length > 0) {
+      const shortSuit = Object.keys(suitCounts).sort(
+        (a, b) => suitCounts[a] - suitCounts[b],
+      )[0] as Suit;
+      const suitCards = nonTarneb.filter((c) => c.suit === shortSuit);
+      return lowestCard(suitCards);
+    }
 
-      return lowestCard(valid);
+    return lowestCard(valid);
   }
 
   // 2. FOLLOWING STRATEGY
-  const leadCards = G.trickCards.filter(c => c !== null) as Card[];
-  const mySuitCards = valid.filter(c => c.suit === leadSuit);
+  const leadCards = G.trickCards.filter((c) => c !== null) as Card[];
+  const mySuitCards = valid.filter((c) => c.suit === leadSuit);
   const currentBestCard = G.trickCards[currentWinnerIdx];
-  const isTargetWinning = targetPlayerIdx !== -1 && currentWinnerIdx === targetPlayerIdx;
+  const isTargetWinning =
+    targetPlayerIdx !== -1 && currentWinnerIdx === targetPlayerIdx;
 
   if (mySuitCards.length > 0) {
-      if (currentBestCard) {
-          const winningCards = mySuitCards.filter(c => RANK_VAL[c.rank] > RANK_VAL[currentBestCard.rank]);
-          
-          if (isTeammateWinning) {
-              // Teammate is winning. Don't overtake them if they used a high card.
-              if (["A", "K", "Q"].includes(currentBestCard.rank)) {
-                  return lowestCard(mySuitCards); // Conserve our high cards
-              }
-          }
+    if (currentBestCard) {
+      const winningCards = mySuitCards.filter(
+        (c) => RANK_VAL[c.rank] > RANK_VAL[currentBestCard.rank],
+      );
 
-          if (winningCards.length > 0) {
-              // Try to win against opponents! Use the SMALLEST card that is enough to win.
-              return lowestCard(winningCards);
-          }
+      if (isTeammateWinning) {
+        // Teammate is winning. Don't overtake them if they used a high card.
+        if (["A", "K", "Q"].includes(currentBestCard.rank)) {
+          return lowestCard(mySuitCards); // Conserve our high cards
+        }
       }
-      // Can't win or teammate is securely winning: Throw SMALLEST card (conserve K/Q/J)
-      return lowestCard(mySuitCards);
+
+      if (winningCards.length > 0) {
+        // Try to win against opponents! Use the SMALLEST card that is enough to win.
+        return lowestCard(winningCards);
+      }
+    }
+    // Can't win or teammate is securely winning: Throw SMALLEST card (conserve K/Q/J)
+    return lowestCard(mySuitCards);
   }
 
   // 3. CUTTING STRATEGY (When out of the lead suit)
-  const tarnebs = valid.filter(c => c.suit === tarnebSuit);
+  const tarnebs = valid.filter((c) => c.suit === tarnebSuit);
   if (tarnebs.length > 0) {
-      if (isTeammateWinning && currentBestCard && currentBestCard.suit === leadSuit && ["A", "K", "Q"].includes(currentBestCard.rank)) {
-          // Teammate is winning securely. Don't waste a trump card!
-          const nonTarnebs = valid.filter(c => c.suit !== tarnebSuit);
-          if (nonTarnebs.length > 0) return lowestCard(nonTarnebs);
-          return lowestCard(tarnebs); // Forced to play tarneb
-      }
+    if (
+      isTeammateWinning &&
+      currentBestCard &&
+      currentBestCard.suit === leadSuit &&
+      ["A", "K", "Q"].includes(currentBestCard.rank)
+    ) {
+      // Teammate is winning securely. Don't waste a trump card!
+      const nonTarnebs = valid.filter((c) => c.suit !== tarnebSuit);
+      if (nonTarnebs.length > 0) return lowestCard(nonTarnebs);
+      return lowestCard(tarnebs); // Forced to play tarneb
+    }
 
-      const currentWinnerTarneb = leadCards.filter(c => c.suit === tarnebSuit);
-      
-      if (currentWinnerTarneb.length === 0) {
-          // We are first to cut
-          return lowestCard(tarnebs);
-      } else {
-          // Someone already cut, try to overcut
-          const highestTarnebSoFar = highestCard(currentWinnerTarneb);
-          const overCutCards = tarnebs.filter(t => RANK_VAL[t.rank] > RANK_VAL[highestTarnebSoFar.rank]);
-          
-          if (isTeammateWinning) {
-              // Teammate already cut. Leave it to them.
-              const nonTarnebs = valid.filter(c => c.suit !== tarnebSuit);
-              if (nonTarnebs.length > 0) return lowestCard(nonTarnebs);
-          } else if (overCutCards.length > 0) {
-              // Try to overcut opponent!
-              return lowestCard(overCutCards);
-          }
+    const currentWinnerTarneb = leadCards.filter((c) => c.suit === tarnebSuit);
+
+    if (currentWinnerTarneb.length === 0) {
+      // We are first to cut
+      return lowestCard(tarnebs);
+    } else {
+      // Someone already cut, try to overcut
+      const highestTarnebSoFar = highestCard(currentWinnerTarneb);
+      const overCutCards = tarnebs.filter(
+        (t) => RANK_VAL[t.rank] > RANK_VAL[highestTarnebSoFar.rank],
+      );
+
+      if (isTeammateWinning) {
+        // Teammate already cut. Leave it to them.
+        const nonTarnebs = valid.filter((c) => c.suit !== tarnebSuit);
+        if (nonTarnebs.length > 0) return lowestCard(nonTarnebs);
+      } else if (overCutCards.length > 0) {
+        // Try to overcut opponent!
+        return lowestCard(overCutCards);
       }
+    }
   }
 
   // Final Fallback: Discard useless cards
   // Prioritize discarding from non-trump suits, starting with lowest cards
-  const nonTarnebs = valid.filter(c => c.suit !== tarnebSuit);
+  const nonTarnebs = valid.filter((c) => c.suit !== tarnebSuit);
   if (nonTarnebs.length > 0) {
-      return lowestCard(nonTarnebs);
+    return lowestCard(nonTarnebs);
   }
   return lowestCard(valid);
 }
@@ -1080,12 +1261,12 @@ export function getTrickWinner() {
     li = G.trickCards.findIndex((c) => c !== null);
     if (li === -1) return -1;
   }
-  
+
   let leadSuit = G.trickCards[li]?.suit || null;
   if (!leadSuit) return li;
 
   let winner = li;
-  let highest = RANK_VAL[G.trickCards[li]?.rank || '2'];
+  let highest = RANK_VAL[G.trickCards[li]?.rank || "2"];
 
   for (let i = 0; i < 4; i++) {
     if (i === li || !G.trickCards[i]) continue;
@@ -1093,10 +1274,13 @@ export function getTrickWinner() {
     let currentWinnerCard = G.trickCards[winner];
     if (!card || !currentWinnerCard) continue;
 
-    if (card.suit === "♥" && currentWinnerCard.suit !== '♥') {
+    if (card.suit === "♥" && currentWinnerCard.suit !== "♥") {
       winner = i;
       highest = RANK_VAL[card.rank];
-    } else if (card.suit === currentWinnerCard.suit && RANK_VAL[card.rank] > highest) {
+    } else if (
+      card.suit === currentWinnerCard.suit &&
+      RANK_VAL[card.rank] > highest
+    ) {
       winner = i;
       highest = RANK_VAL[card.rank];
     }
@@ -1107,7 +1291,7 @@ export function getTrickWinner() {
 function advanceTurn() {
   if (!isMyTurnToProcess()) return;
   if (G.phase !== "playing") return;
-  
+
   const numPlayers = G.gameMode === "1v1" ? 2 : 4;
   if (G.trickCards.slice(0, numPlayers).every((c) => c !== null)) {
     G.isGatheringTrick = true;
@@ -1122,12 +1306,12 @@ function advanceTurn() {
   }
 
   G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
-  
+
   // Set timer for next player
   const botPlayer = isBot(G.currentPlayer);
   G.turnTimeout = botPlayer ? 3 : 20;
   G.turnStartTime = Date.now();
-  
+
   updateUI();
   processNextPlay();
 }
@@ -1171,23 +1355,23 @@ function processNextPlay() {
   if (G.currentPlayer === myPlayerIndex) {
     G.selectedCardIdx = -1;
     let isLeading = G.trickCards.every((c) => c === null);
-    
+
     if (isLeading) {
-       if (canLeadKuba(myPlayerIndex)) {
-         G.playHint = "يمكنك البدء بأي ورقة أو الكبة";
-       } else {
-         G.playHint = "يمكنك البدء بأي ورقة (لا يمكنك بدء الكبة)";
-       }
+      if (canLeadKuba(myPlayerIndex)) {
+        G.playHint = "يمكنك البدء بأي ورقة أو الكبة";
+      } else {
+        G.playHint = "يمكنك البدء بأي ورقة (لا يمكنك بدء الكبة)";
+      }
     } else {
-        const leadSuit = G.trickCards[G.leadPlayer]?.suit;
-        if (leadSuit) {
-            const hasSuit = G.hands[myPlayerIndex].some(c => c.suit === leadSuit);
-            if (hasSuit) {
-                G.playHint = `يجب اتباع النوع: ${leadSuit}`;
-            } else {
-                G.playHint = "يمكنك قطع ورقة (كبة) أو رمي أي ورقة";
-            }
+      const leadSuit = G.trickCards[G.leadPlayer]?.suit;
+      if (leadSuit) {
+        const hasSuit = G.hands[myPlayerIndex].some((c) => c.suit === leadSuit);
+        if (hasSuit) {
+          G.playHint = `يجب اتباع النوع: ${leadSuit}`;
+        } else {
+          G.playHint = "يمكنك قطع ورقة (كبة) أو رمي أي ورقة";
         }
+      }
     }
     G.gameMsg = "🎯 دورك! اختر ورقة";
     G.gameMsgClass = "";
@@ -1200,11 +1384,13 @@ function processNextPlay() {
     updateUI();
 
     clearEngineTimers();
-    _botPlayTimer = setTimeout(() => {
-      if (!isMyTurnToProcess()) return;
-      computerPlay(G.currentPlayer);
-      advanceTurn();
-    }, bot ? 400 : 1500);
+    if (bot) {
+      _botPlayTimer = setTimeout(() => {
+        if (!isMyTurnToProcess()) return;
+        computerPlay(G.currentPlayer);
+        advanceTurn();
+      }, 400);
+    }
   }
 }
 
@@ -1217,8 +1403,12 @@ function resolveTrick() {
   let winner = getTrickWinner();
   if (winner < 0) winner = 0;
 
-  let queenIdx = G.trickCards.findIndex((c) => c && c.suit === "♥" && c.rank === "Q");
-  let aceIdx = G.trickCards.findIndex((c) => c && c.suit === "♥" && c.rank === "A");
+  let queenIdx = G.trickCards.findIndex(
+    (c) => c && c.suit === "♥" && c.rank === "Q",
+  );
+  let aceIdx = G.trickCards.findIndex(
+    (c) => c && c.suit === "♥" && c.rank === "A",
+  );
 
   let trapHappened = false;
   if (queenIdx >= 0 && aceIdx >= 0 && queenIdx !== aceIdx) {
@@ -1235,8 +1425,8 @@ function resolveTrick() {
 
   G.tricksTaken[winner]++;
   G.totalTricksPlayed++;
-  
-  const currentTrickCards = G.trickCards.filter(c => c !== null) as Card[];
+
+  const currentTrickCards = G.trickCards.filter((c) => c !== null) as Card[];
   G.playedCards.push(...currentTrickCards);
 
   if (!trapHappened) {
@@ -1244,7 +1434,7 @@ function resolveTrick() {
     G.gameMsgClass = "";
   }
 
-  if (G.trickCards.some(c => c && c.suit === "♥")) {
+  if (G.trickCards.some((c) => c && c.suit === "♥")) {
     sfxKubaCapture();
   }
   sfxWin();
@@ -1267,14 +1457,14 @@ function resolveTrick() {
 
     clearEngineTimers();
     _resolveTimer = setTimeout(() => {
-       if (!isMyTurnToProcess()) return;
-       G.isGatheringTrick = false;
-       updateUI();
-       if (G.totalTricksPlayed >= 13) {
-         endRound();
-       } else {
-         processNextPlay();
-       }
+      if (!isMyTurnToProcess()) return;
+      G.isGatheringTrick = false;
+      updateUI();
+      if (G.totalTricksPlayed >= 13) {
+        endRound();
+      } else {
+        processNextPlay();
+      }
     }, 600);
   }, 1000); // reduced from 1200 since we have 600ms gather anim
 }
@@ -1286,7 +1476,7 @@ function endRound() {
 
   let results = [];
   const numPlayers = G.gameMode === "1v1" ? 2 : 4;
-  
+
   let change0 = 0;
   let change1 = 0;
   let mult0 = "";
@@ -1299,38 +1489,82 @@ function endRound() {
     if (G.roundNumber === 1) {
       change0 = taken0;
     } else {
-      if (taken0 >= bid0) { change0 = bid0; if(bid0 >= 11) { change0*=3; mult0="×3"; } else if(bid0>=9) { change0*=2; mult0="×2"; } }
-      else { change0 = -bid0; }
+      if (taken0 >= bid0) {
+        change0 = bid0;
+        if (bid0 >= 11) {
+          change0 *= 3;
+          mult0 = "×3";
+        } else if (bid0 >= 9) {
+          change0 *= 2;
+          mult0 = "×2";
+        }
+      } else {
+        change0 = -bid0;
+      }
     }
-    
+
     // Team 2 (idx 1, 3)
     let bid1 = G.bids[1] + G.bids[3];
     let taken1 = G.tricksTaken[1] + G.tricksTaken[3];
     if (G.roundNumber === 1) {
       change1 = taken1;
     } else {
-      if (taken1 >= bid1) { change1 = bid1; if(bid1 >= 11) { change1*=3; mult1="×3"; } else if(bid1>=9) { change1*=2; mult1="×2"; } }
-      else { change1 = -bid1; }
+      if (taken1 >= bid1) {
+        change1 = bid1;
+        if (bid1 >= 11) {
+          change1 *= 3;
+          mult1 = "×3";
+        } else if (bid1 >= 9) {
+          change1 *= 2;
+          mult1 = "×2";
+        }
+      } else {
+        change1 = -bid1;
+      }
     }
-    
+
     G.teamScores[0] += change0;
     G.teamScores[1] += change1;
-    
+
     // Assign to players for results display
-    results.push({ player: 0, bid: G.roundNumber === 1 ? "-" : bid0, taken: taken0, change: change0, multiplier: mult0 });
-    results.push({ player: 1, bid: G.roundNumber === 1 ? "-" : bid1, taken: taken1, change: change1, multiplier: mult1 });
-    results.push({ player: 2, bid: G.roundNumber === 1 ? "-" : bid0, taken: taken0, change: change0, multiplier: mult0 });
-    results.push({ player: 3, bid: G.roundNumber === 1 ? "-" : bid1, taken: taken1, change: change1, multiplier: mult1 });
-    
+    results.push({
+      player: 0,
+      bid: G.roundNumber === 1 ? "-" : bid0,
+      taken: taken0,
+      change: change0,
+      multiplier: mult0,
+    });
+    results.push({
+      player: 1,
+      bid: G.roundNumber === 1 ? "-" : bid1,
+      taken: taken1,
+      change: change1,
+      multiplier: mult1,
+    });
+    results.push({
+      player: 2,
+      bid: G.roundNumber === 1 ? "-" : bid0,
+      taken: taken0,
+      change: change0,
+      multiplier: mult0,
+    });
+    results.push({
+      player: 3,
+      bid: G.roundNumber === 1 ? "-" : bid1,
+      taken: taken1,
+      change: change1,
+      multiplier: mult1,
+    });
+
     // Keep individual scores somewhat matching for backwards compatibility if needed
-    for(let p=0; p<4; p++) G.scores[p] = G.teamScores[p%2];
+    for (let p = 0; p < 4; p++) G.scores[p] = G.teamScores[p % 2];
   } else {
     for (let p = 0; p < numPlayers; p++) {
       let bid = G.bids[p],
         taken = G.tricksTaken[p];
       let change = 0,
         multiplier = "";
-        
+
       if (G.roundNumber === 1) {
         change = taken;
       } else {
@@ -1348,7 +1582,7 @@ function endRound() {
           change = -bid;
         }
       }
-      
+
       let displayBid: string | number = G.roundNumber === 1 ? "-" : bid;
       results.push({ player: p, bid: displayBid, taken, change, multiplier });
       G.scores[p] += change;
@@ -1362,7 +1596,9 @@ function endRound() {
     const myChange = myTeamIdx === 0 ? change0 : change1;
     if (myChange > 0 || G.roundNumber === 1) humanSuccess = true;
   } else {
-    const myRes = results.find(r => r.player === (myPlayerIndex === -1 ? 0 : myPlayerIndex));
+    const myRes = results.find(
+      (r) => r.player === (myPlayerIndex === -1 ? 0 : myPlayerIndex),
+    );
     if (myRes && (myRes.change > 0 || G.roundNumber === 1)) humanSuccess = true;
   }
 
@@ -1374,16 +1610,16 @@ function endRound() {
     for (let p = 0; p < numPlayers; p++) {
       let isRoundWinner = false;
       if (G.gameMode === "Teams") {
-        isRoundWinner = (p % 2 === 0) ? change0 > 0 : change1 > 0;
+        isRoundWinner = p % 2 === 0 ? change0 > 0 : change1 > 0;
       } else {
-        const pRes = results.find(r => r.player === p);
+        const pRes = results.find((r) => r.player === p);
         isRoundWinner = pRes ? pRes.change > 0 : false;
       }
-      
+
       roundStats.push({
-        name: G.playerNames[p] || `لاعب ${p+1}`,
+        name: G.playerNames[p] || `لاعب ${p + 1}`,
         isRoundWinner: G.roundNumber === 1 ? true : isRoundWinner,
-        tricks: G.tricksTaken[p]
+        tricks: G.tricksTaken[p],
       });
     }
     recordRoundResult(roundStats);
@@ -1391,7 +1627,7 @@ function endRound() {
 
   let bestInRound = results.reduce(
     (best, r) => (r.change > best.change ? r : best),
-    results[0]
+    results[0],
   );
   G.results = results;
   G.bestInRound = bestInRound;
@@ -1402,24 +1638,29 @@ function endRound() {
   if (gameWinner !== null) {
     if (G.gameWinner === null) {
       if (myPlayerIndex !== -1) {
-        const isWin = G.gameMode === "Teams" ? (gameWinner === (myPlayerIndex % 2)) : (gameWinner === myPlayerIndex);
+        const isWin =
+          G.gameMode === "Teams"
+            ? gameWinner === myPlayerIndex % 2
+            : gameWinner === myPlayerIndex;
         recordGameResult(G.scores[myPlayerIndex], isWin);
-        
+
         // Add XP for games
         if (auth.currentUser) {
-           let xpGained = isWin ? 100 : 20;
-           // If it's a long game (like target 51 or 61), it should reward more depending on how close it was.
-           xpGained += isWin ? Math.floor(G.target / 3) : Math.floor(G.target / 5);
-           // Also add based on player score (only if positive)
-           const finalScore = G.scores[myPlayerIndex];
-           if (finalScore > 0) {
-              xpGained += Math.floor(finalScore / 2);
-           }
-           // Single player gives 50% XP
-           if (!isMultiplayerMode) {
-              xpGained = Math.floor(xpGained * 0.5);
-           }
-           addXPToProfile(auth.currentUser.uid, xpGained);
+          let xpGained = isWin ? 100 : 20;
+          // If it's a long game (like target 51 or 61), it should reward more depending on how close it was.
+          xpGained += isWin
+            ? Math.floor(G.target / 3)
+            : Math.floor(G.target / 5);
+          // Also add based on player score (only if positive)
+          const finalScore = G.scores[myPlayerIndex];
+          if (finalScore > 0) {
+            xpGained += Math.floor(finalScore / 2);
+          }
+          // Single player gives 50% XP
+          if (!isMultiplayerMode) {
+            xpGained = Math.floor(xpGained * 0.5);
+          }
+          addXPToProfile(auth.currentUser.uid, xpGained);
         }
       }
     }
@@ -1431,7 +1672,8 @@ function endRound() {
 function checkWinner() {
   const numPlayers = G.gameMode === "1v1" ? 2 : 4;
   if (G.gameMode === "Teams") {
-    if (G.teamScores[0] >= G.target) return (G.teamScores[0] > G.teamScores[1]) ? 0 : 1;
+    if (G.teamScores[0] >= G.target)
+      return G.teamScores[0] > G.teamScores[1] ? 0 : 1;
     if (G.teamScores[1] >= G.target) return 1;
     if (G.teamScores[0] <= -G.target) return 1;
     if (G.teamScores[1] <= -G.target) return 0;
@@ -1439,13 +1681,15 @@ function checkWinner() {
     for (let p = 0; p < numPlayers; p++) {
       if (G.scores[p] >= G.target) {
         let maxP = p;
-        for (let j = 0; j < numPlayers; j++) if (G.scores[j] > G.scores[maxP]) maxP = j;
+        for (let j = 0; j < numPlayers; j++)
+          if (G.scores[j] > G.scores[maxP]) maxP = j;
         return maxP;
       }
       if (G.scores[p] <= -G.target) {
         // If someone loses, the one with highest score wins
         let maxP = p === 0 ? 1 : 0;
-        for (let j = 0; j < numPlayers; j++) if (j !== p && G.scores[j] > G.scores[maxP]) maxP = j;
+        for (let j = 0; j < numPlayers; j++)
+          if (j !== p && G.scores[j] > G.scores[maxP]) maxP = j;
         return maxP;
       }
     }
@@ -1459,7 +1703,7 @@ export function closeRoundEnd() {
   else {
     if (isMultiplayerMode) {
       // Disconnect smoothly if we're multiplayer
-      window.dispatchEvent(new Event('tarneb-leave-room-end'));
+      window.dispatchEvent(new Event("tarneb-leave-room-end"));
     } else {
       resetGame();
     }
@@ -1477,7 +1721,7 @@ export function resetGame() {
 
 export function returnToMenu() {
   if (isMultiplayerMode) {
-    window.dispatchEvent(new Event('tarneb-leave-room'));
+    window.dispatchEvent(new Event("tarneb-leave-room"));
   } else {
     G.phase = "intro";
     G.gameStarted = false;
