@@ -279,6 +279,7 @@ export interface Player {
   avatar: string;
   country: string;
   searchId?: string;
+  points?: number;
   index: number;
   status: "connected" | "disconnected";
   isBot?: boolean;
@@ -558,6 +559,7 @@ export async function createRoom(playerName: string, isPublic = true, password =
         avatar: profile?.avatar || "👨‍💼",
         country: profile?.country || "LY",
         searchId: profile?.searchId || "0000",
+        points: profile?.points || 0,
         index: 0, 
         status: "connected" 
       }
@@ -663,6 +665,7 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
                            avatar: profile?.avatar || "👨‍💼",
                            country: profile?.country || "LY",
                            searchId: profile?.searchId || "0000",
+                           points: profile?.points || 0,
                            isBot: false,
                            status: "connected"
                        } as Player;
@@ -700,6 +703,7 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
              avatar: profile?.avatar || "👨‍💼",
              country: profile?.country || "LY",
              searchId: profile?.searchId || "0000",
+             points: profile?.points || 0,
              index: data.players.length,
              status: "connected"
            };

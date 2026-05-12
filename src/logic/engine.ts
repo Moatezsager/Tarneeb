@@ -13,6 +13,8 @@ import {
 } from "../lib/audio";
 
 import { recordGameResult, recordRoundResult } from "./stats";
+import { addXPToProfile } from "./userProfile";
+import { auth } from "../lib/firebase";
 
 export type Suit = "♠" | "♥" | "♦" | "♣";
 export type Rank = "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" | "10" | "J" | "Q" | "K" | "A";
@@ -231,6 +233,7 @@ export async function dealCardsAnimation(): Promise<void> {
             setTimeout(() => {
                 G.dealingCards = [];
                 for (let p = 0; p < numPlayers; p++) {
+                  // Ensure all cards are fully inserted and sorted
                   G.hands[p] = [...distribution.filter(d => d.player === p).map(d => d.card)];
                   G.hands[p].sort((a, b) => {
                     if (a.suit !== b.suit) return SUIT_ORDER[b.suit] - SUIT_ORDER[a.suit];
@@ -249,17 +252,24 @@ export async function dealCardsAnimation(): Promise<void> {
                 isDealingAnimationRunning = false;
                 updateUI();
                 resolve();
-            }, 500);
+            }, 600); // Wait for the final flying cards to land
             return;
         }
 
         const item = distribution[current];
-        G.hands[item.player].push(item.card); 
-        G.dealingCards.push({ id: current, card: item.card, player: item.player, rotate: Math.random() * 360 - 180 });
-        if (current % 3 === 0) sfxDeal();
+        // 1. Spawn flying card
+        G.dealingCards.push({ id: current, card: item.card, player: item.player, rotate: Math.random() * 60 - 30 });
+        
+        // 2. Add to hand after the flying animation duration (350ms)
+        setTimeout(() => {
+            G.hands[item.player].push(item.card);
+            updateUI();
+        }, 350);
+
+        if (current % 2 === 0) sfxDeal(); // play sound more realistically
         updateUI();
         current++;
-    }, 30);
+    }, 45); // Slower dealing for "card by card" feel
   });
 }
 
@@ -1394,6 +1404,23 @@ function endRound() {
       if (myPlayerIndex !== -1) {
         const isWin = G.gameMode === "Teams" ? (gameWinner === (myPlayerIndex % 2)) : (gameWinner === myPlayerIndex);
         recordGameResult(G.scores[myPlayerIndex], isWin);
+        
+        // Add XP for games
+        if (auth.currentUser) {
+           let xpGained = isWin ? 100 : 20;
+           // If it's a long game (like target 51 or 61), it should reward more depending on how close it was.
+           xpGained += isWin ? Math.floor(G.target / 3) : Math.floor(G.target / 5);
+           // Also add based on player score (only if positive)
+           const finalScore = G.scores[myPlayerIndex];
+           if (finalScore > 0) {
+              xpGained += Math.floor(finalScore / 2);
+           }
+           // Single player gives 50% XP
+           if (!isMultiplayerMode) {
+              xpGained = Math.floor(xpGained * 0.5);
+           }
+           addXPToProfile(auth.currentUser.uid, xpGained);
+        }
       }
     }
     G.gameWinner = gameWinner;

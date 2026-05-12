@@ -1,5 +1,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "motion/react";
+import Confetti from "react-confetti";
+import { useWindowSize } from "react-use";
 import { useGameState } from "./common";
 import { G, updateUI, getAvailableBids, selectBid, confirmBid, handleSelectCard, executePlay, closeRoundEnd, returnToMenu, removeParticle, Card, resetGame, myPlayerIndex, getTrickWinner, humanSwap, humanSkipSwap, resumeGameLoop, isBot } from "../logic/engine";
 import { multiplayerState } from "../logic/multiplayer";
@@ -135,12 +137,39 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
 
       {/* Header (Avatar, Name, Status) */}
       <div className={`w-full flex items-center py-1 px-2 gap-1.5 relative ${isActive ? activeHeaderBg : teamHeaderBg}`} dir="rtl">
-        {/* Avatar */}
-        <div className="w-5 h-5 rounded-full overflow-hidden bg-black/20 shrink-0 flex items-center justify-center text-[10px] relative border border-white/10">
-          {isBotPlayer ? '🤖' : realPlayer?.avatar?.startsWith('http') ? <img src={realPlayer.avatar} referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : realPlayer?.avatar || '👤'}
-          {isDisconnected && isActive && (
-            <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center text-[10px]">🤖</div>
+        {/* Avatar with Circular Progress */}
+        <div className="relative shrink-0 w-[26px] h-[26px] flex items-center justify-center">
+          {showTimer && (
+            <svg viewBox="0 0 36 36" className="absolute inset-0 w-full h-full -rotate-90 pointer-events-none drop-shadow-md z-10">
+              <circle
+                cx="18"
+                cy="18"
+                r="16"
+                fill="none"
+                stroke="rgba(0,0,0,0.2)"
+                strokeWidth="3"
+              />
+              <motion.circle
+                cx="18"
+                cy="18"
+                r="16"
+                fill="none"
+                stroke={timeLeft <= 5 ? "#ef4444" : isActive ? "black" : "var(--color-gold)"}
+                strokeWidth="3"
+                strokeDasharray="100.53" /* 2 * PI * 16 = 100.53 */
+                initial={{ strokeDashoffset: 0 }}
+                animate={{ strokeDashoffset: 100.53 }}
+                transition={{ duration: gs.turnTimeout, ease: "linear" }}
+                key={gs.turnStartTime}
+              />
+            </svg>
           )}
+          <div className="w-5 h-5 rounded-full overflow-hidden bg-black/20 flex items-center justify-center text-[10px] relative border border-white/10 z-0">
+            {isBotPlayer ? '🤖' : realPlayer?.avatar?.startsWith('http') ? <img src={realPlayer.avatar} referrerPolicy="no-referrer" className="w-full h-full object-cover" /> : realPlayer?.avatar || '👤'}
+            {isDisconnected && isActive && (
+              <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center text-[10px]">🤖</div>
+            )}
+          </div>
         </div>
 
         {/* Name and Status Container */}
@@ -167,18 +196,6 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
         {/* Dealer Marker */}
         {isDealer && <span className={`absolute -right-1 -top-1 w-4 h-4 rounded-full flex items-center justify-center border-2 ${isActive ? 'bg-black border-[var(--color-gold)] text-[var(--color-gold)]' : 'bg-[var(--color-gold)] border-[#222] text-black'} text-[0.55rem] font-black leading-none animate-bounce shadow-lg z-10`}>م</span>}
 
-        {/* Turn Timer Progress Bar */}
-        {showTimer && (
-          <div className="absolute bottom-0 left-0 w-full h-[2.5px] bg-black/20 overflow-hidden">
-            <motion.div
-              initial={{ width: "100%" }}
-              animate={{ width: "0%" }}
-              transition={{ duration: gs.turnTimeout, ease: "linear" }}
-              key={gs.turnStartTime}
-              className={`h-full ${isActive ? 'bg-black' : 'bg-[var(--color-gold)]'}`}
-            />
-          </div>
-        )}
       </div>
 
       {/* Body (Score & Extra Info) */}
@@ -192,12 +209,6 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
         <div className={`z-10 text-xl sm:text-2xl font-black leading-none drop-shadow-md my-0.5 ${score < 0 ? 'text-[var(--color-kuba)]' : 'text-[var(--color-gold)]'}`}>
           {score}
         </div>
-
-        {showTimer && (
-          <div className={`absolute top-1 right-2 font-mono font-black text-xs drop-shadow-md z-20 ${timeLeft <= 5 ? 'text-red-500 animate-[ping_1s_ease-in-out_infinite]' : 'text-[var(--color-gold)]'}`}>
-            {timeLeft}
-          </div>
-        )}
       </div>
 
       {/* Footer (Stats/Cards) */}
@@ -579,6 +590,7 @@ function RoundEndOverlay() {
 
 function PodiumOverlay() {
   const gs = useGameState();
+  const { width, height } = useWindowSize();
 
   if (!gs.roundEndOverlayVisible || gs.gameWinner === null) return null;
 
@@ -588,17 +600,29 @@ function PodiumOverlay() {
     const winnerName2 = gs.playerNames[winningTeam + 2];
     return (
       <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center p-4 overflow-hidden">
-        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="flex flex-col items-center">
-          <Trophy className="w-24 h-24 text-[var(--color-gold)] mb-4 drop-shadow-[0_0_30px_rgba(212,175,55,0.8)]" />
-          <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f9e698] to-[#aa8d2e] mb-2 drop-shadow-lg text-center">🏆 الفريق الفائز 🏆</h1>
-          <p className="text-white/60 text-sm mb-8">نهاية المباراة</p>
+        <Confetti width={width} height={height} recycle={true} numberOfPieces={300} colors={['#C9A84C', '#f9e698', '#aa8d2e', '#ffffff']} />
+        <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="flex flex-col items-center z-10">
+          <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
+            <Trophy className="w-32 h-32 text-[var(--color-gold)] mb-4 drop-shadow-[0_0_50px_rgba(212,175,55,1)]" />
+          </motion.div>
+          <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f9e698] to-[#aa8d2e] mb-2 drop-shadow-lg text-center leading-tight">🏆 الفريق الفائز 🏆</h1>
+          <p className="text-[var(--color-gold)] text-lg mb-8 font-bold tracking-widest uppercase opacity-80 mt-2">نهاية المباراة الأسطورية</p>
 
-          <div className="bg-gradient-to-b from-[var(--color-gold)]/20 to-transparent p-8 rounded-3xl border-2 border-[var(--color-gold)] flex flex-col items-center shadow-[0_0_50px_rgba(212,175,55,0.2)]">
-            <div className="text-3xl md:text-4xl font-black text-white text-center mb-4 leading-tight">{winnerName1} <br /><span className="text-[var(--color-gold)]">&</span><br /> {winnerName2}</div>
-            <div className="text-2xl font-black text-[var(--color-gold)] mt-2 bg-black/50 px-6 py-2 rounded-full border border-[var(--color-gold)]/30">{gs.scores[winningTeam]} نقطة</div>
+          <div className="bg-gradient-to-b from-[var(--color-gold)]/30 to-black/80 p-10 rounded-[3rem] border-[3px] border-[var(--color-gold)] flex flex-col items-center shadow-[0_0_80px_rgba(212,175,55,0.4)] backdrop-blur-md">
+            <div className="text-4xl md:text-5xl font-black text-white text-center mb-6 leading-relaxed">
+              <span className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{winnerName1}</span> 
+              <br />
+              <span className="text-[var(--color-gold)] text-3xl font-serif px-4 py-1 bg-black/40 rounded-full border border-[var(--color-gold)]/40 mx-2">&</span>
+              <br /> 
+              <span className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{winnerName2}</span>
+            </div>
+            <div className="text-4xl font-black text-white mt-4 bg-gradient-to-r from-[#aa8d2e] via-[#f9e698] to-[#aa8d2e] px-8 py-3 rounded-full shadow-[0_0_30px_rgba(212,175,55,0.6)] border border-white/50 text-black">
+              {gs.scores[winningTeam]} نقطة
+            </div>
           </div>
         </motion.div>
-        <div className="mt-12 flex gap-4">
+        
+        <div className="mt-12 flex gap-4 z-10 relative">
           <button onClick={() => returnToMenu()} className="px-10 py-3 bg-white/10 hover:bg-white/20 text-white rounded-full font-black text-lg transition-all border border-white/20">
             العودة للقائمة
           </button>
@@ -618,12 +642,14 @@ function PodiumOverlay() {
 
     return (
       <div className="fixed inset-0 bg-[#0a0a12] z-[100] flex flex-col items-center justify-center p-4 overflow-hidden">
-        <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="text-center mb-12">
+        <Confetti width={width} height={height} recycle={true} numberOfPieces={300} colors={['#C9A84C', '#f9e698', '#aa8d2e', '#ffffff']} />
+        
+        <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="text-center mb-12 z-10">
           <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f9e698] to-[#aa8d2e] drop-shadow-lg">🎉 نهاية اللعبة 🎉</h1>
           <p className="text-white/50 text-sm mt-2">منصة التتويج الأسطورية</p>
         </motion.div>
 
-        <div className="flex items-end justify-center gap-3 sm:gap-6 h-[220px] md:h-[280px] mt-4 mb-8">
+        <div className="flex items-end justify-center gap-3 sm:gap-6 h-[220px] md:h-[280px] mt-4 mb-8 z-10">
           {/* Second Place */}
           <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.8, type: "spring" }} className="flex flex-col items-center relative z-10 w-[80px] sm:w-[100px] md:w-[120px]">
             <div className="text-sm md:text-base text-white/90 font-bold mb-2 truncate w-full text-center px-1 drop-shadow-md">{second.name}</div>

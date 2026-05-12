@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { UserProfile, fetchUserProfile, COUNTRIES, getLocalProfile, isUserOnline } from "../logic/userProfile";
+import { UserProfile, fetchUserProfile, COUNTRIES, getLocalProfile, isUserOnline, getXPProgress, getRankInfo } from "../logic/userProfile";
 import { unfriend } from "../logic/social";
 import { Clock, Mars, Venus, User, Calendar, Crown, Sword, Sparkles } from "lucide-react";
+import { RankIcon } from "./RankIcon";
 import { multiplayerState, sendRoomInvite, createRoom } from "../logic/multiplayer";
 import { G, updateUI } from "../logic/engine";
 import { onSnapshot, doc } from "firebase/firestore";
@@ -246,28 +247,56 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
               </div>
               
               {/* Stats Dashboard */}
-              <div className="grid grid-cols-2 gap-4 w-full mt-8">
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--color-gold)]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl" />
-                  <div className="bg-white/5 border border-white/5 p-4 rounded-3xl text-center space-y-1 transition-all group-hover:translate-y-[-4px]">
-                    <div className="text-[9px] text-white/30 font-black uppercase tracking-widest">رتبة اللاعب</div>
-                    <div className="text-2xl font-black text-white flex items-center justify-center gap-2">
-                       <span className="text-[var(--color-gold)] text-sm">LVL</span> 
-                       {displayUser.points ? Math.floor(displayUser.points / 100) + 1 : 1}
+              <div className="w-full mt-8">
+                {(() => {
+                  const xpInfo = getXPProgress(displayUser.points || 0);
+                  const rankInfo = getRankInfo(xpInfo.currentLevel);
+                  return (
+                    <div className="bg-white/5 border border-white/5 p-5 rounded-[24px] space-y-4">
+                       <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                           <div className={`w-12 h-12 rounded-xl bg-black/40 border border-white/10 flex items-center justify-center text-2xl shadow-inner ${rankInfo.color}`}>
+                             <RankIcon iconId={rankInfo.iconId} className="w-6 h-6" />
+                           </div>
+                           <div>
+                             <div className="text-[10px] text-white/50 font-black uppercase tracking-widest">{rankInfo.name}</div>
+                             <div className="text-xl font-black text-white flex items-center gap-1">
+                               <span className="text-[var(--color-gold)] text-xs">LVL</span>
+                               {xpInfo.currentLevel}
+                             </div>
+                           </div>
+                         </div>
+                         <div className="text-right">
+                           <div className="text-[10px] text-white/50 font-black uppercase tracking-widest">إجمالي النقاط</div>
+                           <div className="text-xl font-black text-white flex items-center justify-end gap-1">
+                             <Sparkles className="w-4 h-4 text-blue-400" />
+                             {displayUser.points || 0}
+                           </div>
+                         </div>
+                       </div>
+                       
+                       <div className="space-y-1.5 pt-2">
+                         <div className="flex justify-between text-[10px] font-black text-white/60 px-1">
+                           <span>{xpInfo.levelProgressXP} XP</span>
+                           <span>{xpInfo.levelRequiredXP} XP</span>
+                         </div>
+                         <div className="h-2.5 w-full bg-black/50 rounded-full overflow-hidden border border-white/5 relative">
+                           <motion.div 
+                             className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full"
+                             initial={{ width: 0 }}
+                             animate={{ width: `${xpInfo.progressPercent}%` }}
+                             transition={{ duration: 1, delay: 0.2, ease: "easeOut" }}
+                           />
+                           {/* Decorative shine on progress bar */}
+                           <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent mix-blend-overlay" />
+                         </div>
+                         <div className="text-[9px] text-center text-[var(--color-gold)] font-bold mt-1">
+                           المستوى القادم: {xpInfo.nextLevel}
+                         </div>
+                       </div>
                     </div>
-                  </div>
-                </div>
-
-                <div className="relative group">
-                   <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity rounded-3xl" />
-                   <div className="bg-white/5 border border-white/5 p-4 rounded-3xl text-center space-y-1 transition-all group-hover:translate-y-[-4px]">
-                    <div className="text-[9px] text-white/30 font-black uppercase tracking-widest">إجمالي النقاط</div>
-                    <div className="text-2xl font-black text-white flex items-center justify-center gap-1">
-                       <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                       {displayUser.points || 0}
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
 
               {/* Status & Activity */}

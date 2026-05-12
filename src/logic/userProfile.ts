@@ -124,6 +124,58 @@ export function clearLocalProfile() {
   currentUserProfile = null;
 }
 
+export function getLevelFromXP(xp: number) {
+  // Simple quadratic curve for leveling
+  const level = Math.floor((1 + Math.sqrt(1 + 8 * xp / 100)) / 2);
+  return level;
+}
+
+export function getRankInfo(level: number): { name: string; color: string; iconId: string } {
+    if (level < 5) return { name: "مبتدئ", color: "text-gray-400", iconId: "leaf" };
+    if (level < 10) return { name: "هاوي", color: "text-green-400", iconId: "wheat" };
+    if (level < 20) return { name: "محترف", color: "text-blue-400", iconId: "swords" };
+    if (level < 40) return { name: "خبير", color: "text-purple-400", iconId: "crystal" };
+    if (level < 60) return { name: "أستاذ", color: "text-[#c0c0c0]", iconId: "shield" };
+    if (level < 80) return { name: "أسطورة", color: "text-[var(--color-gold)]", iconId: "crown" };
+    return { name: "زعيم الطرنيب", color: "text-red-500", iconId: "flame" };
+}
+
+export function getXPProgress(xp: number) {
+  const currentLevel = getLevelFromXP(xp);
+  const nextLevel = currentLevel + 1;
+  const currentLevelXP = (currentLevel * (currentLevel - 1) / 2) * 100;
+  const nextLevelXP = (nextLevel * (nextLevel - 1) / 2) * 100;
+  
+  // Safe bounds just in case
+  let progressXP = xp - currentLevelXP;
+  let requiredXP = nextLevelXP - currentLevelXP;
+  if (progressXP < 0) progressXP = 0;
+  if (requiredXP <= 0) requiredXP = 1;
+
+  let progressPercent = (progressXP / requiredXP) * 100;
+  if (progressPercent > 100) progressPercent = 100;
+
+  return {
+    currentLevel,
+    nextLevel,
+    xp,
+    levelProgressXP: progressXP,
+    levelRequiredXP: requiredXP,
+    progressPercent
+  };
+}
+
+export async function addXPToProfile(uid: string, xpAmount: number) {
+  try {
+    const profile = await fetchUserProfile(uid);
+    if (!profile) return;
+    const newPoints = (profile.points || 0) + xpAmount;
+    await saveUserProfile(uid, { ...profile, points: newPoints });
+  } catch (error) {
+    console.error("Failed to add XP to profile", error);
+  }
+}
+
 export async function fetchUserProfile(uid: string): Promise<UserProfile | null> {
   try {
     const docRef = doc(db, "users", uid);

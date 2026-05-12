@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
+import { RankIcon } from "./RankIcon";
 import { multiplayerState, createRoom, joinRoom, leaveRoom, startGame, fetchPublicRooms, listenToPublicRooms, RoomData, sendRoomInvite, swapPlayerWithSpectator, listenToRoomInvites, respondToRoomInvite } from "../logic/multiplayer";
 import { G, updateUI, subscribe } from "../logic/engine";
 import { auth, db } from "../lib/firebase";
-import { getLocalProfile, COUNTRIES, isUserOnline } from "../logic/userProfile";
+import { getLocalProfile, COUNTRIES, isUserOnline, getLevelFromXP, getRankInfo } from "../logic/userProfile";
 import { collection, onSnapshot, query, where, getDoc, doc } from "firebase/firestore";
-import { ShieldAlert, ShieldCheck, Lock, Unlock, Users, Plus, Share2, Play, Eye, Home, Send, X, ArrowRight, UserPlus, EyeOff } from "lucide-react";
+import { ShieldAlert, ShieldCheck, Lock, Unlock, Users, Plus, Share2, Play, Eye, Home, Send, X, ArrowRight, UserPlus, EyeOff, Crown, User, Swords, Rocket, Mail, Search, Hash } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 interface FriendInvite {
@@ -24,11 +25,11 @@ export function MultiplayerScreen() {
   
   // Player Event Notifications
   const [lastPlayers, setLastPlayers] = useState<typeof multiplayerState.players>([]);
-  const [roomToast, setRoomToast] = useState<{message: string, icon: string} | null>(null);
+  const [roomToast, setRoomToast] = useState<{message: string, icon: React.ReactNode} | null>(null);
 
   const toastTimeoutRef = React.useRef<any>(null);
 
-  const showRoomToast = (message: string, icon: string) => {
+  const showRoomToast = (message: string, icon: React.ReactNode) => {
     setRoomToast({ message, icon });
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     toastTimeoutRef.current = setTimeout(() => {
@@ -49,18 +50,18 @@ export function MultiplayerScreen() {
         const prev = lastPlayers.find(lp => lp.uid === p.uid);
         if (!prev) {
           if (!p.isBot) {
-            showRoomToast(`${p.name} دخل الغرفة الآن`, "⚔️");
+            showRoomToast(`${p.name} دخل الغرفة الآن`, <Swords className="w-5 h-5 text-[var(--color-gold)]" />);
           } else {
-            showRoomToast(`الكمبيوتر أخذ مكان لاعب`, "🤖");
+            showRoomToast(`الكمبيوتر أخذ مكان لاعب`, <User className="w-5 h-5 text-gray-400" />);
           }
         } else {
           // 2. Detect Connection Changes
           const wasDisconnected = prev.status === "disconnected";
           const isDisconnected = p.status === "disconnected";
           if (isDisconnected && !wasDisconnected && !p.isBot) {
-            showRoomToast(`${p.name} فقد الاتصال.. جاري انتظاره`, "📡");
+            showRoomToast(`${p.name} فقد الاتصال.. جاري انتظاره`, <ShieldAlert className="w-5 h-5 text-red-500" />);
           } else if (!isDisconnected && wasDisconnected && !p.isBot) {
-            showRoomToast(`${p.name} عاد إلى قلب المعركة!`, "⚡");
+            showRoomToast(`${p.name} عاد إلى قلب المعركة!`, <ShieldCheck className="w-5 h-5 text-green-500" />);
           }
         }
       });
@@ -69,7 +70,7 @@ export function MultiplayerScreen() {
       lastPlayers.forEach(lp => {
         const missing = !currentPlayers.find(p => p.uid === lp.uid);
         if (missing && !lp.isBot) {
-          showRoomToast(`${lp.name} غادر المباراة`, "🏃‍♂️");
+          showRoomToast(`${lp.name} غادر المباراة`, <X className="w-5 h-5 text-red-500" />);
         }
       });
     }
@@ -231,7 +232,7 @@ export function MultiplayerScreen() {
                 onClick={() => setShowInviteModal(true)}
                 className="flex-1 py-4 bg-white/5 border border-white/10 text-white font-bold rounded-2xl hover:bg-white/10 active:scale-95 transition-all shadow-inner flex items-center justify-center gap-2"
               >
-                <span className="text-xl">➕</span> دعوة صديق
+                <UserPlus className="w-5 h-5 text-white/80" /> دعوة صديق
               </button>
               <div className="flex-1 py-4 bg-gradient-to-br from-black/60 to-black/40 border border-white/10 rounded-2xl flex flex-col items-center justify-center shadow-inner relative group">
                 <span className="text-[10px] text-[var(--color-gold)] font-bold uppercase tracking-widest leading-none mb-1.5 opacity-80">رمز الغرفة</span>
@@ -251,23 +252,30 @@ export function MultiplayerScreen() {
                 {[0, 1, 2, 3].map(i => {
                   const p = multiplayerState.players.find(x => x.index === i);
                   const country = COUNTRIES.find(c => c.code === p?.country);
+                  const pLevel = p ? getLevelFromXP(p.points || 0) : 1;
+                  const targetRank = getRankInfo(pLevel);
+
                   return (
-                     <div key={i} className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all ${p ? 'bg-gradient-to-b from-white/10 to-transparent border border-white/10 shadow-sm' : 'bg-black/20 border border-dashed border-white/10 opacity-50'}`}>
+                     <div key={i} className={`p-3 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all relative overflow-hidden ${p ? 'bg-gradient-to-b from-white/10 to-transparent border border-white/10 shadow-sm' : 'bg-black/20 border border-dashed border-white/10 opacity-50'}`}>
+                       {p && !p.isBot && <div className="absolute top-1 left-1.5 flex items-center justify-center bg-black/40 px-1.5 py-0.5 rounded text-[8px] font-black tracking-widest text-[var(--color-gold)] border border-[var(--color-gold)]/20 shadow-md">LVL {pLevel}</div>}
                        {p ? (
                          <>
-                           <div className="relative">
+                           <div className="relative mt-2">
                              <div className={`text-3xl filter drop-shadow-md p-1 rounded-2xl ${p.searchId === '01' ? 'bg-[var(--color-gold)]/20 border border-[var(--color-gold)]/50' : ''}`}>
                                {p.avatar?.startsWith('http') ? <img src={p.avatar} alt="Avatar" className="w-10 h-10 object-contain" referrerPolicy="no-referrer" /> : p.avatar}
                              </div>
-                             {i === 0 && p.searchId !== '01' && <span className="absolute -bottom-1 -right-1 text-[10px] bg-[var(--color-gold)] text-black w-4 h-4 flex items-center justify-center rounded-full leading-none shadow-md">👑</span>}
-                             {p.searchId === '01' && <span className="absolute -top-2 -right-2 text-[10px] bg-[var(--color-gold)] text-black w-5 h-5 flex items-center justify-center rounded-full leading-none shadow-[0_0_10px_rgba(212,175,55,0.8)] border border-black animate-pulse z-10 text-xs">👑</span>}
+                             {i === 0 && p.searchId !== '01' && <span className="absolute -bottom-1 -right-1 bg-[var(--color-gold)] text-black w-4 h-4 flex items-center justify-center rounded-full shadow-md"><Crown className="w-2.5 h-2.5" /></span>}
+                             {p.searchId === '01' && <span className="absolute -top-2 -right-2 bg-[var(--color-gold)] text-black w-5 h-5 flex items-center justify-center rounded-full shadow-[0_0_10px_rgba(212,175,55,0.8)] border border-black animate-pulse z-10"><Crown className="w-3 h-3" /></span>}
                            </div>
                            <div className="flex flex-col items-center text-center max-w-full">
                              <div className="flex items-center gap-1 justify-center max-w-full">
                                <span className={`font-black text-xs truncate max-w-full leading-tight ${p.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white'}`}>{p.name}</span>
                                {p.searchId === '01' && <span className="px-1 py-0.5 bg-[var(--color-gold)] text-black rounded text-[6px] font-black uppercase tracking-tighter">مطور</span>}
                              </div>
-                             <span className="text-[9px] text-[#888] font-bold truncate max-w-full">{country?.flag} {country?.name} {p.uid === auth.currentUser?.uid ? "(أنت)" : ""}</span>
+                             <div className="flex items-center gap-1 opacity-80 mt-0.5">
+                               {!p.isBot && <span className={`flex items-center ${targetRank.color}`}><RankIcon iconId={targetRank.iconId} className="w-3 h-3" /></span>}
+                               <span className="text-[9px] text-[#888] font-bold truncate max-w-full">{country?.flag} {country?.name} {p.uid === auth.currentUser?.uid ? "(أنت)" : ""}</span>
+                             </div>
                            </div>
                          </>
                        ) : (
@@ -293,7 +301,7 @@ export function MultiplayerScreen() {
                         <span className="text-sm">
                           {s.avatar?.startsWith('http') ? <img src={s.avatar} alt="Avatar" className="w-5 h-5 object-contain" referrerPolicy="no-referrer" /> : s.avatar}
                         </span>
-                        {s.searchId === '01' && <span className="absolute -top-1.5 -right-1.5 text-[6px] bg-[var(--color-gold)] text-black w-3 h-3 flex items-center justify-center rounded-full leading-none shadow-md border border-black z-10">👑</span>}
+                        {s.searchId === '01' && <span className="absolute -top-1.5 -right-1.5 bg-[var(--color-gold)] text-black w-3 h-3 flex items-center justify-center rounded-full shadow-md border border-black z-10"><Crown className="w-2 h-2" /></span>}
                       </div>
                       <span className={`text-xs font-bold ${s.searchId === '01' ? 'text-[var(--color-gold)]' : 'text-white/70'}`}>{s.name}</span>
                       {multiplayerState.isHost && multiplayerState.players.length < 4 && (
@@ -320,7 +328,7 @@ export function MultiplayerScreen() {
                   onClick={startGame}
                   className="w-full py-4 bg-gradient-to-b from-[#f9e698] to-[#aa8d2e] text-black font-black text-lg rounded-2xl shadow-[0_5px_20px_rgba(212,175,55,0.4)] active:scale-95 transition-all hover:brightness-110 flex justify-center items-center gap-2"
                 >
-                  <span>🚀</span> ابدأ اللعبة {multiplayerState.players.length < 4 ? "(مع بوتات)" : ""}
+                  <Rocket className="w-5 h-5 fill-black/20 stroke-[2.5px]" /> ابدأ اللعبة {multiplayerState.players.length < 4 ? "(مع بوتات)" : ""}
                 </button>
                 <div className="text-[10px] text-[#666] font-bold text-center">المقاعد الشاغرة سيتم ملؤها بذكاء اصطناعي</div>
               </div>
@@ -362,9 +370,9 @@ export function MultiplayerScreen() {
                       </div>
                       <button 
                         onClick={() => handleInvite(f.uid)}
-                        className="p-2 bg-[var(--color-gold)] text-black rounded-xl text-[10px] font-black active:scale-95 transition-transform"
+                        className="px-3 py-2 bg-[var(--color-gold)] text-black rounded-xl text-xs font-black active:scale-95 transition-transform flex items-center gap-1.5"
                       >
-                        إرسال 📩
+                        إرسال <Send className="w-3 h-3" />
                       </button>
                     </div>
                   ))
@@ -493,16 +501,17 @@ export function MultiplayerScreen() {
               </label>
               <div className="flex gap-2">
                  {[
-                   { val: "Teams", icon: "👥" },
-                   { val: "FFA", icon: "🥷" },
-                   { val: "1v1", icon: "⚔️" }
-                 ].map(({val, icon}) => (
+                   { val: "Teams", icon: <Users className="w-5 h-5" />, label: "فرق" },
+                   { val: "FFA", icon: <User className="w-5 h-5" />, label: "فردي" },
+                   { val: "1v1", icon: <Swords className="w-5 h-5" />, label: "1ضد1" }
+                 ].map(({val, icon, label}) => (
                    <button 
                      key={val}
                      onClick={() => setMode(val as any)}
-                     className={`flex-1 py-2.5 rounded-xl text-lg font-black border transition-all ${mode === val ? 'bg-[var(--color-gold)] text-black border-[var(--color-gold)] shadow-md' : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'}`}
+                     className={`flex-1 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold border transition-all ${mode === val ? 'bg-[var(--color-gold)] text-black border-[var(--color-gold)] shadow-md' : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'}`}
                    >
                      {icon}
+                     <span className="text-xs">{label}</span>
                    </button>
                  ))}
               </div>
@@ -537,35 +546,42 @@ export function MultiplayerScreen() {
               ) : (
                 publicRooms.map(room => (
                   <div key={room.code} className="group p-4 bg-black/40 border border-white/5 rounded-[20px] flex gap-3 cursor-pointer hover:bg-white/5 hover:border-[var(--color-gold)]/30 transition-all active:scale-[0.98]">
-                    <div className="w-12 h-12 shrink-0 bg-gradient-to-br from-[var(--color-gold)]/20 to-[var(--color-gold)]/5 rounded-[14px] flex items-center justify-center border border-[var(--color-gold)]/20 shadow-inner group-hover:from-[var(--color-gold)]/30 transition-colors">
-                        <Home className="w-6 h-6 text-[var(--color-gold)]" />
+                    <div className="w-12 h-12 shrink-0 bg-gradient-to-br from-[var(--color-gold)]/20 to-[var(--color-gold)]/5 rounded-[14px] flex items-center justify-center border border-[var(--color-gold)]/20 shadow-inner group-hover:from-[var(--color-gold)]/30 transition-colors relative overflow-hidden">
+                        <div className="absolute inset-0 bg-[var(--color-gold)]/10 blur-xl rounded-full" />
+                        {room.password ? <Lock className="w-6 h-6 text-[var(--color-gold)] relative z-10 drop-shadow-md" /> : <Home className="w-6 h-6 text-[var(--color-gold)] relative z-10 drop-shadow-md" />}
                     </div>
                     <div className="flex-1 flex flex-col justify-center text-right overflow-hidden">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                            <div className="text-white font-bold text-sm truncate">{room.hostName}</div>
-                            <div className="text-[var(--color-gold)] font-black text-xs tracking-widest bg-[var(--color-gold)]/10 px-1.5 py-0.5 rounded shadow-sm">
-                              {room.code}
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="text-white font-bold text-sm truncate drop-shadow-sm flex items-center gap-1.5">
+                              {room.hostName}
+                            </div>
+                            <div className="text-[var(--color-gold)] font-black text-[10px] tracking-widest bg-gradient-to-r from-[var(--color-gold)]/10 to-transparent px-2 py-1 rounded shadow-sm border border-[var(--color-gold)]/20 flex items-center gap-1">
+                              <Hash className="w-3 h-3" /> {room.code}
                             </div>
                         </div>
                         <div className="flex items-center justify-between">
-                            <div className="text-[10px] text-[#888] font-bold flex items-center gap-1.5">
-                                <Users className="w-3 h-3" />
-                                {room.players.length}/4 لاعبين
-                                {room.password && <span className="text-blue-400 flex items-center gap-0.5 ml-1"><Lock className="w-2.5 h-2.5"/>محمي</span>}
+                            <div className="flex flex-col gap-1">
+                              <div className="text-[10px] text-white/50 font-bold flex items-center gap-1.5">
+                                  <Users className="w-3 h-3 text-[var(--color-gold)]" />
+                                  {room.players.length}/4 لاعبين
+                              </div>
+                              <div className="text-[9px] text-[#888] flex items-center gap-1 font-bold">
+                                {room.mode === "Teams" ? "فرق 2v2" : room.mode === "FFA" ? "فردي" : "1ضد1"} • {room.winLimit} نقطة
+                              </div>
                             </div>
-                            <div className="flex gap-1.5">
+                            <div className="flex gap-1.5 shrink-0">
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); room.password ? setShowPasswordInput({code: room.code, asSpectator: false}) : handleJoin(room.code); }}
-                                  className="text-[10px] bg-[var(--color-gold)] text-black px-2.5 py-1.5 rounded-lg font-black shadow-sm active:scale-95 flex items-center gap-1"
+                                  className="text-[10px] bg-gradient-to-b from-[var(--color-gold)] to-[#cca628] text-black px-3 py-1.5 rounded-lg font-black shadow-lg active:scale-95 flex items-center gap-1.5 transition-transform"
                                 >
-                                  لعب
+                                  <Play className="w-3 h-3 fill-black/60" /> لعب
                                 </button>
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); room.password ? setShowPasswordInput({code: room.code, asSpectator: true}) : handleJoin(room.code, "", true); }}
-                                  className="text-[10px] bg-white/10 text-white/70 px-2 py-1.5 rounded-lg border border-white/5 hover:bg-white/20 active:scale-95 transition-colors flex items-center gap-1"
+                                  className="text-[10px] bg-[#222]/80 text-white/70 px-2 py-1.5 rounded-lg border border-white/10 hover:bg-white/20 hover:text-white active:scale-95 transition-all flex items-center gap-1 shadow-inner backdrop-blur-md"
                                   title="مشاهدة"
                                 >
-                                  <Eye className="w-3 h-3" />
+                                  <Eye className="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         </div>
