@@ -2,12 +2,12 @@ import React, { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { UserProfile, fetchUserProfile, COUNTRIES, getLocalProfile, isUserOnline, getXPProgress, getRankInfo } from "../logic/userProfile";
 import { unfriend } from "../logic/social";
-import { Clock, Mars, Venus, User, Calendar, Crown, Sword, Sparkles } from "lucide-react";
+import { Clock, Mars, Venus, User, Calendar, Crown, Sword, Sparkles, Edit2 } from "lucide-react";
 import { RankIcon } from "./RankIcon";
 import { multiplayerState, sendRoomInvite, createRoom } from "../logic/multiplayer";
-import { G, updateUI } from "../logic/engine";
+import { G, updateUI, myPlayerIndex } from "../logic/engine";
 import { onSnapshot, doc } from "firebase/firestore";
-import { db } from "../lib/firebase";
+import { db, auth } from "../lib/firebase";
 
 export function formatLastSeen(lastSeen: any): string {
   if (!lastSeen) return "غير متوفر";
@@ -189,6 +189,26 @@ export const UserProfileModal: React.FC<Props> = ({ isOpen, onClose, user, isFri
                 <span className="text-[10px] font-black text-white/80 uppercase tracking-widest">Player Profile</span>
               </div>
             </div>
+
+            {/* Edit Profile Button (for own profile) */}
+            {(displayUser.uid === auth.currentUser?.uid || displayUser.uid === `local-${myPlayerIndex}`) && (
+               <button
+                 onClick={(e) => {
+                   e.stopPropagation();
+                   onClose();
+                   if (!multiplayerState.isMultiplayer) {
+                     G.phase = 'profile';
+                     updateUI();
+                   } else {
+                     alert("لا يمكن تعديل البيانات أثناء اللعب الجماعي");
+                   }
+                 }}
+                 title="تحرير عرض البروفايل"
+                 className="absolute top-4 right-4 p-2 bg-black/40 backdrop-blur-md rounded-xl border border-white/10 hover:bg-white/10 text-white transition-colors z-30 shadow-lg"
+               >
+                 <Edit2 className="w-4 h-4" />
+               </button>
+            )}
 
             <div className="px-8 pb-10 pt-16 flex flex-col items-center">
               {/* Profile Avatar with Hero Ring */}

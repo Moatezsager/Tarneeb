@@ -6,6 +6,7 @@ import { getLocalProfile, COUNTRIES, UserProfile } from "../logic/userProfile";
 import { ProfileSetupScreen } from "./ProfileSetupScreen";
 import { SocialModal } from "./SocialModal";
 import { SettingsModal } from "./SettingsModal";
+import { UserProfileModal } from "./UserProfileModal";
 import { Settings, LogOut, Users, Play, Gamepad2, UserCircle, Crown } from "lucide-react";
 import { 
   listenToFriendRequests, 
@@ -24,6 +25,7 @@ export function IntroScreen() {
   const country = COUNTRIES.find(c => c.code === profile?.country);
   const [showSocial, setShowSocial] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [requestsCount, setRequestsCount] = useState(0);
   const [acceptedCount, setAcceptedCount] = useState(0);
   const [invites, setInvites] = useState<any[]>([]);
@@ -305,7 +307,7 @@ export function IntroScreen() {
         >
           {/* Profile Quick Info */}
           <button 
-            onClick={() => { G.phase = 'profile'; updateUI(); }}
+            onClick={() => { setShowProfileModal(true); }}
             className="flex items-center gap-2.5 hover:bg-white/5 p-1 px-2 rounded-2xl transition-colors min-w-0"
           >
             <div className={`relative w-10 h-10 rounded-full flex-shrink-0 ${profile?.searchId === '01' ? 'p-0.5 bg-gradient-to-tr from-[var(--color-gold)] to-yellow-200' : 'p-0.5 bg-white/10'}`}>
@@ -350,6 +352,7 @@ export function IntroScreen() {
       {/* 🧩 Modals & Overlays */}
       <SocialModal isOpen={showSocial} onClose={() => setShowSocial(false)} myProfile={profile} />
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
+      <UserProfileModal isOpen={showProfileModal} onClose={() => setShowProfileModal(false)} user={profile} isFriend={false} />
 
       {/* 🔔 Notifications Layer */}
       <AnimatePresence>

@@ -81,7 +81,6 @@ export const G = {
   results: [] as any[],
   bestInRound: null as any,
   gameWinner: null as number | null,
-  isMuted: false,
   particles: [] as { id: number; type: "tarneb" | "trap"; key: number }[],
   spectators: [] as any[],
   savedPhase: null as Phase | null,
@@ -1036,7 +1035,7 @@ function selectBestCardAI(
 ): Card {
   const tarnebSuit: Suit = "♥";
   if (!valid || valid.length === 0)
-    return G.hands[playerIdx][0] || { suit: "♠", rank: "2" };
+    return G.hands[playerIdx][0] || { suit: "♠", rank: "2", uid: "fallback_card" };
 
   const teammateIdx = G.gameMode === "Teams" ? (playerIdx + 2) % 4 : -1;
   const currentWinnerIdx = getTrickWinner();
@@ -1445,7 +1444,6 @@ function resolveTrick() {
 
   clearEngineTimers();
   _resolveTimer = setTimeout(() => {
-    if (!isMyTurnToProcess()) return;
     G.winnerSlot = null;
     G.trickCards = [null, null, null, null];
     G.anyoneTarnebThisTrick = false;
@@ -1457,9 +1455,9 @@ function resolveTrick() {
 
     clearEngineTimers();
     _resolveTimer = setTimeout(() => {
-      if (!isMyTurnToProcess()) return;
       G.isGatheringTrick = false;
       updateUI();
+      if (!isMyTurnToProcess()) return;
       if (G.totalTricksPlayed >= 13) {
         endRound();
       } else {
