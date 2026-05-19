@@ -79,6 +79,7 @@ export const G = {
   gameMsg: "",
   gameMsgClass: "",
   results: [] as any[],
+  roundHistory: [] as any[],
   bestInRound: null as any,
   gameWinner: null as number | null,
   particles: [] as { id: number; type: "tarneb" | "trap"; key: number }[],
@@ -392,6 +393,7 @@ export async function startNewRound() {
     G.playerWithHighestScore = highestPlayers[0];
 
     G.phase = "swapping";
+    G.turnTimeout = isBot(G.playerWithHighestScore) ? 3 : 15;
     G.turnStartTime = Date.now();
     G.gameMsg = `الكنق 👑 ${G.playerNames[G.playerWithHighestScore]} يفكر في التبديل...`;
     updateUI();
@@ -1629,6 +1631,12 @@ function endRound() {
   );
   G.results = results;
   G.bestInRound = bestInRound;
+  G.roundHistory.push({
+    round: G.roundNumber,
+    results: JSON.parse(JSON.stringify(results)),
+    scores: [...G.scores],
+    teamScores: [...G.teamScores]
+  });
   G.roundEndOverlayVisible = true;
   updateUI();
 
@@ -1712,6 +1720,8 @@ export function resetGame() {
   G.roundEndOverlayVisible = false;
   G.gameWinner = null;
   G.scores = [0, 0, 0, 0];
+  G.teamScores = [0, 0];
+  G.roundHistory = [];
   G.dealerIdx = Math.floor(Math.random() * 4);
   G.roundNumber = 0;
   startNewRound();
