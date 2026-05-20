@@ -57,51 +57,9 @@ function startHeartbeat() {
 async function sendHeartbeat() {
   if (!activeRoomId || !auth.currentUser) return;
   try {
-    const roomRef = doc(db, "rooms", activeRoomId);
-    const players = multiplayerState.players;
-    if (players.length === 0) return;
-
-    let hasChange = false;
-    const now = Date.now();
-    const updatedPlayers = players.map(p => {
-      if (p.uid === auth.currentUser!.uid) {
-        const wasDisconnected = p.status === "disconnected";
-        hasChange = true;
-        if (wasDisconnected) {
-          console.log("Reconnected! Restoring player status.");
-        }
-        return { ...p, lastPing: now, status: "connected" as const };
-      }
-      // Only host detects disconnected players to avoid conflicts
-      if (multiplayerState.isHost && !p.isBot && p.lastPing && p.status === "connected") {
-        if (now - p.lastPing > DISCONNECT_THRESHOLD) {
-          hasChange = true;
-          console.log(`Player ${p.name} (idx ${p.index}) disconnected (${Math.round((now - p.lastPing) / 1000)}s since last ping)`);
-          return { ...p, status: "disconnected" as const, disconnectedAt: now };
-        }
-      }
-      // Detect reconnection: player was disconnected but now sending pings again
-      if (multiplayerState.isHost && !p.isBot && p.status === "disconnected" && p.lastPing && now - p.lastPing < DISCONNECT_THRESHOLD) {
-        hasChange = true;
-        console.log(`Player ${p.name} (idx ${p.index}) reconnected!`);
-        return { ...p, status: "connected" as const, disconnectedAt: undefined };
-      }
-      return p;
-    });
-
-    if (hasChange) {
-      try {
-        const roomSnap = await getDoc(roomRef);
-        if (roomSnap.exists()) {
-          await updateDoc(roomRef, { players: updatedPlayers });
-        } else {
-          console.warn("Heartbeat failed: Room no longer exists.");
-          stopHeartbeat();
-        }
-      } catch (e) {
-        // Silently fail - next heartbeat will retry or user will be kicked by listener
-      }
-    }
+    const pingRef = doc(db, "rooms", activeRoomId, "pings", auth.currentUser.uid);
+    // Use Date.now() for simplicity to avoid serverTimestamp resolution delays
+    await setDoc(pingRef, { lastPing: Date.now() });
   } catch (e) {
     // Silently fail
   }
@@ -115,6 +73,30 @@ function stopHeartbeat() {
   if ((window as any).__tarneb_hb_cleanup) {
     (window as any).__tarneb_hb_cleanup();
     delete (window as any).__tarneb_hb_cleanup;
+  }
+}
+
+let pingUnsubscribe: (() => void) | null = null;
+const hostPingMap: Record<string, number> = {};
+
+function startPingListener(roomId: string) {
+  if (pingUnsubscribe) return;
+  const pingsRef = collection(db, "rooms", roomId, "pings");
+  pingUnsubscribe = onSnapshot(pingsRef, (snapshot) => {
+    snapshot.docs.forEach((doc) => {
+      const data = doc.data();
+      // Only trust the ping if it's recent (compensating for potential clock skew)
+      // Actually, since all clients write Date.now(), clock skew exists. 
+      // It's safer to just record that we RECEIVED a ping right now:
+      hostPingMap[doc.id] = Date.now();
+    });
+  });
+}
+
+function stopPingListener() {
+  if (pingUnsubscribe) {
+    pingUnsubscribe();
+    pingUnsubscribe = null;
   }
 }
 
@@ -189,6 +171,33 @@ function startHostTimer() {
       return;
     }
     
+    // === Host Disconnect Detection ===
+    let playersChanged = false;
+    const updatedPlayers = multiplayerState.players.map(p => {
+       if (p.isBot) return p;
+       const lastPing = hostPingMap[p.uid] || now; // Default to now if never pinged yet
+       const timeSincePing = now - lastPing;
+       
+       if (p.status === "connected" && timeSincePing > DISCONNECT_THRESHOLD) {
+           playersChanged = true;
+           console.log(`Player ${p.name} disconnected!`);
+           return { ...p, status: "disconnected" as const, disconnectedAt: now };
+       }
+       if (p.status === "disconnected" && timeSincePing < DISCONNECT_THRESHOLD) {
+           playersChanged = true;
+           console.log(`Player ${p.name} reconnected!`);
+           return { ...p, status: "connected" as const, disconnectedAt: undefined };
+       }
+       return p;
+    });
+
+    if (playersChanged) {
+        try {
+            const roomRef = doc(db, "rooms", activeRoomId!);
+            updateDoc(roomRef, { players: updatedPlayers }).catch(() => {});
+        } catch(e) {}
+    }
+
     // Only process turn-based phases
     if (G.phase !== "playing" && G.phase !== "bidding" && G.phase !== "swapping") return;
     
@@ -196,7 +205,7 @@ function startHostTimer() {
     const currentPlayerIsBot = isBot(actingPlayer);
     
     // Check if the acting player is disconnected (even if not a bot)
-    const actingPlayerRecord = multiplayerState.players.find(p => p.index === actingPlayer);
+    const actingPlayerRecord = updatedPlayers.find(p => p.index === actingPlayer);
     const isDisconnected = actingPlayerRecord && actingPlayerRecord.status === "disconnected";
     
     if (currentPlayerIsBot) {
@@ -479,61 +488,60 @@ async function takeOverHost() {
   
   try {
     const roomRef = doc(db, "rooms", activeRoomId);
-    const roomSnap = await getDoc(roomRef);
-    if (!roomSnap.exists()) return;
-    const data = roomSnap.data() as RoomData;
     
-    // Determine who should be the new host:
-    // Find the first connected non-bot player (by index order for determinism)
-    const connectedPlayers = data.players
-      .filter(p => !p.isBot && !p.uid.startsWith('bot_') && p.status === "connected")
-      .sort((a, b) => a.index - b.index);
-    
-    // Only take over if I'm the first eligible connected player
-    if (connectedPlayers.length === 0 || connectedPlayers[0].uid !== user.uid) {
-      return; // Someone else should take over, or no one can
-    }
-    
-    console.log("I am taking over as host!");
-    const newHostName = data.players.find(p => p.uid === user.uid)?.name || "لاعب";
-    
-    // Convert the old host to a bot if they are disconnected
-    const deadHostId = data.hostId;
-    const deadHostPlayer = data.players.find(p => p.uid === deadHostId);
-    
-    const updatedPlayers = data.players.map(p => {
-      if (p.uid === deadHostId && deadHostPlayer) {
-        return {
-          ...p,
-          uid: `bot_${p.index}_${Date.now()}`,
-          name: `كمبيوتر ${p.index + 1}`,
-          avatar: "🤖",
-          country: "AI",
-          isBot: true
-        } as Player;
+    await runTransaction(db, async (transaction) => {
+      const roomSnap = await transaction.get(roomRef);
+      if (!roomSnap.exists()) throw new Error("الغرفة غير موجودة");
+      const data = roomSnap.data() as RoomData;
+      
+      // Determine who should be the new host:
+      const connectedPlayers = data.players
+        .filter(p => !p.isBot && !p.uid.startsWith('bot_') && p.status === "connected")
+        .sort((a, b) => a.index - b.index);
+      
+      // Only take over if I'm the first eligible connected player
+      if (connectedPlayers.length === 0 || connectedPlayers[0].uid !== user.uid) {
+        throw new Error("لاعب آخر أحق بالاستضافة");
       }
-      return p;
+      
+      const newHostName = data.players.find(p => p.uid === user.uid)?.name || "لاعب";
+      const deadHostId = data.hostId;
+      const deadHostPlayer = data.players.find(p => p.uid === deadHostId);
+      
+      const updatedPlayers = data.players.map(p => {
+        if (p.uid === deadHostId && deadHostPlayer) {
+          return {
+            ...p,
+            uid: `bot_${p.index}_${Date.now()}`,
+            name: `كمبيوتر ${p.index + 1}`,
+            avatar: "🤖",
+            country: "AI",
+            isBot: true
+          } as Player;
+        }
+        return p;
+      });
+
+      let updatedGameState = data.gameState;
+      if (deadHostPlayer && updatedGameState && updatedGameState.playerNames) {
+        updatedGameState.playerNames[deadHostPlayer.index] = `كمبيوتر ${deadHostPlayer.index + 1}`;
+        updatedGameState.turnStartTime = Date.now();
+      }
+
+      const newMembers = data.memberUids.filter(id => id !== deadHostId);
+
+      transaction.update(roomRef, {
+        hostId: user.uid,
+        hostName: newHostName,
+        memberUids: newMembers,
+        players: updatedPlayers,
+        gameState: updatedGameState,
+        updatedAt: serverTimestamp()
+      });
     });
-
-    let updatedGameState = data.gameState;
-    if (deadHostPlayer && updatedGameState && updatedGameState.playerNames) {
-      updatedGameState.playerNames[deadHostPlayer.index] = `كمبيوتر ${deadHostPlayer.index + 1}`;
-      // Reset turnStartTime so the new host's timer starts fresh
-      updatedGameState.turnStartTime = Date.now();
-    }
-
-    const newMembers = data.memberUids.filter(id => id !== deadHostId);
-
-    await updateDoc(roomRef, {
-      hostId: user.uid,
-      hostName: newHostName,
-      memberUids: newMembers,
-      players: updatedPlayers,
-      gameState: updatedGameState,
-      updatedAt: serverTimestamp()
-    });
+    console.log("I am taking over as host!");
   } catch (e) {
-    console.error("Take over host failed", e);
+    console.log("Take over host skipped/failed:", e);
   }
 }
 
@@ -802,9 +810,11 @@ export function listenToRoom(roomId: string) {
     }
     
     if (!wasHost && multiplayerState.isHost) {
+      startPingListener(roomId);
       startHostTimer();
       startActionsListener(roomId);
     } else if (wasHost && !multiplayerState.isHost) {
+      stopPingListener();
       stopHostTimer();
       stopActionsListener();
     }
@@ -852,8 +862,15 @@ export function listenToRoom(roomId: string) {
     }
     
     // Sync Game State
-    // If we just played an action locally (optimistic UI), ignore incoming state for a short time to prevent rubberbanding.
-    if (!hasSyncedInitialState || (data.lastActionBy !== auth.currentUser?.uid && Date.now() > localActionLockUntil)) {
+    // Rubberbanding fix: Accept the state if we are NOT locked OR if the server just processed OUR action.
+    const isMyAction = data.lastActionBy === auth.currentUser?.uid;
+    const isLockExpired = Date.now() > localActionLockUntil;
+    
+    if (!hasSyncedInitialState || isMyAction || isLockExpired) {
+        if (isMyAction) {
+             localActionLockUntil = 0; // Clear lock instantly if server confirmed our action
+        }
+        
         if (data.gameState) {
           const newState = deserializeGameState(data.gameState);
           const oldPhase = G.phase;
@@ -898,64 +915,59 @@ export function listenToRoom(roomId: string) {
   });
 }
 
-let lastUpdatePromise: Promise<void> | null = null;
-let pendingStateUpdate = false;
+let syncTimeout: any = null;
 let lastSerializedState = "";
 let syncRetryCount = 0;
 const MAX_SYNC_RETRIES = 3;
 
-export async function updateGameState() {
+export function updateGameState() {
   if (!activeRoomId || !multiplayerState.isMultiplayer) return;
-  if (pendingStateUpdate) return; 
 
   // Stability/Anti-Cheat: ONLY THE HOST should push state.
   if (!multiplayerState.isHost) return;  
   
-  const newState = serializeGameState({ ...G });
-  if (newState === lastSerializedState) return;
+  if (syncTimeout) clearTimeout(syncTimeout);
 
-  pendingStateUpdate = true;
-  await new Promise(resolve => setTimeout(resolve, 80));
-  pendingStateUpdate = false;
+  syncTimeout = setTimeout(async () => {
+    const finalState = serializeGameState({ ...G });
+    if (finalState === lastSerializedState) return;
 
-  const finalState = serializeGameState({ ...G });
-  if (finalState === lastSerializedState) return;
+    const roomId = activeRoomId;
+    for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
+      try {
+        lastSerializedState = finalState;
+        const roomRef = doc(db, "rooms", roomId!);
+        
+        const roomSnap = await getDoc(roomRef);
+        if (!roomSnap.exists()) {
+          console.warn("Update Game State failed: Room no longer exists.");
+          leaveRoom();
+          return;
+        }
 
-  const roomId = activeRoomId;
-  for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
-    try {
-      lastSerializedState = finalState;
-      const roomRef = doc(db, "rooms", roomId);
-      
-      const roomSnap = await getDoc(roomRef);
-      if (!roomSnap.exists()) {
-        console.warn("Update Game State failed: Room no longer exists.");
-        leaveRoom();
+        await updateDoc(roomRef, {
+          gameState: finalState,
+          lastActionBy: auth.currentUser?.uid,
+          updatedAt: serverTimestamp()
+        });
+        syncRetryCount = 0;
         return;
-      }
-
-      await updateDoc(roomRef, {
-        gameState: finalState,
-        lastActionBy: auth.currentUser?.uid,
-        updatedAt: serverTimestamp()
-      });
-      syncRetryCount = 0;
-      return;
-    } catch (error: any) {
-      lastSerializedState = "";
-      if (attempt < MAX_SYNC_RETRIES) {
-        const backoffMs = Math.min(200 * Math.pow(2, attempt), 2000);
-        await new Promise(resolve => setTimeout(resolve, backoffMs));
-      } else {
-        syncRetryCount++;
-        if (syncRetryCount >= 3) {
-          G.gameMsg = "⚠️ مشكلة في الاتصال بـ سيرفر المضيف";
-          G.gameMsgClass = "";
-          import("./engine").then(eng => eng.updateUI());
+      } catch (error: any) {
+        lastSerializedState = "";
+        if (attempt < MAX_SYNC_RETRIES) {
+          const backoffMs = Math.min(200 * Math.pow(2, attempt), 2000);
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+        } else {
+          syncRetryCount++;
+          if (syncRetryCount >= 3) {
+            G.gameMsg = "⚠️ مشكلة في الاتصال بـ سيرفر المضيف";
+            G.gameMsgClass = "";
+            import("./engine").then(eng => eng.updateUI());
+          }
         }
       }
     }
-  }
+  }, 100);
 }
 
 export async function sendPlayerAction(action: any) {
@@ -977,6 +989,7 @@ export async function leaveRoom(destroy = false) {
   
   if (roomUnsubscribe) roomUnsubscribe();
   roomUnsubscribe = null;
+  stopPingListener();
   stopHeartbeat();
   stopHostTimer();
   stopAntiHostFreezeTimer();
