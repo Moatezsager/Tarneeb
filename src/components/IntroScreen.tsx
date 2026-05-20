@@ -7,7 +7,7 @@ import { ProfileSetupScreen } from "./ProfileSetupScreen";
 import { SocialModal } from "./SocialModal";
 import { SettingsModal } from "./SettingsModal";
 import { UserProfileModal } from "./UserProfileModal";
-import { Settings, LogOut, Users, Play, Gamepad2, UserCircle, Crown } from "lucide-react";
+import { Settings, LogOut, Users, Play, Gamepad2, UserCircle, Crown, Shield } from "lucide-react";
 import { 
   listenToFriendRequests, 
   listenToAcceptedRequests, 
@@ -332,6 +332,15 @@ export function IntroScreen() {
 
           {/* Quick Shortcuts */}
           <div className="flex gap-1.5 px-2">
+            {profile?.searchId === '01' && (
+              <button 
+                onClick={() => { G.phase = 'admin'; updateUI(); }}
+                className="w-10 h-10 bg-blue-900/10 hover:bg-blue-900/30 rounded-2xl flex items-center justify-center text-blue-400 hover:text-blue-300 transition-all active:scale-90 border border-blue-500/10 shadow-[0_0_15px_rgba(59,130,246,0.2)]"
+                title="لوحة التحكم"
+              >
+                 <Shield className="w-5 h-5" />
+              </button>
+            )}
             <button 
               onClick={() => setShowSettings(true)}
               className="w-10 h-10 bg-white/5 hover:bg-[var(--color-gold)]/20 rounded-2xl flex items-center justify-center text-white/50 hover:text-[var(--color-gold)] transition-all active:scale-90 border border-white/5"

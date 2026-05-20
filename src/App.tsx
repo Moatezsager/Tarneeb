@@ -7,6 +7,7 @@ import { StatsScreen } from './components/StatsScreen';
 import { MultiplayerScreen } from './components/MultiplayerScreen';
 import { AuthWrapper } from './components/AuthWrapper';
 import { ProfileSetupScreen } from './components/ProfileSetupScreen';
+import { AdminDashboard } from './components/AdminDashboard';
 import { getLocalProfile } from './logic/userProfile';
 import { G, updateUI } from './logic/engine';
 import { initPresence } from './services/presenceService';
@@ -25,6 +26,7 @@ export default function App() {
       {gs.phase === 'setup' && <SetupScreen />}
       {gs.phase === 'stats' && <StatsScreen />}
       {gs.phase === 'multiplayer' && <MultiplayerScreen />}
+      {gs.phase === 'admin' && <AdminDashboard />}
       {gs.phase === 'profile' && <ProfileSetupScreen initialData={getLocalProfile()} onComplete={() => { G.phase = 'intro'; updateUI(); }} />}
       {(gs.phase === 'dealing' || gs.phase === 'swapping' || gs.phase === 'bidding' || gs.phase === 'playing' || gs.phase === 'roundEnd') && <GameScreen />}
     </AuthWrapper>

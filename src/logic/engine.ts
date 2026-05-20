@@ -47,7 +47,8 @@ export type Phase =
   | "swapping"
   | "bidding"
   | "playing"
-  | "roundEnd";
+  | "roundEnd"
+  | "admin";
 
 export const G = {
   gameMode: "Teams" as "FFA" | "Teams" | "1v1",
