@@ -1,5 +1,14 @@
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, User } from "firebase/auth";
+import { initializeApp, getApp, getApps } from "firebase/app";
+import { 
+  initializeAuth, 
+  browserLocalPersistence, 
+  browserPopupRedirectResolver, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  onAuthStateChanged, 
+  User,
+  getAuth
+} from "firebase/auth";
 import { 
   getFirestore, 
   doc, 
@@ -16,11 +25,22 @@ import {
 } from "firebase/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
 
-const app = initializeApp(firebaseConfig);
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
+
+let _auth;
+try {
+  _auth = getAuth(app);
+} catch (e) {
+  _auth = initializeAuth(app, {
+    persistence: browserLocalPersistence,
+    popupRedirectResolver: browserPopupRedirectResolver
+  });
+}
+export const auth = _auth;
+
 export const googleProvider = new GoogleAuthProvider();
-export { signInWithPopup };
+export { signInWithPopup, onAuthStateChanged };
 
 // Connection check
 async function testConnection() {
