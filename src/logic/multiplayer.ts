@@ -813,6 +813,9 @@ export function listenToRoom(roomId: string) {
       startPingListener(roomId);
       startHostTimer();
       startActionsListener(roomId);
+      if (hasSyncedInitialState && G.gameStarted) {
+         import("./engine").then(eng => eng.resumeGameLoop());
+      }
     } else if (wasHost && !multiplayerState.isHost) {
       stopPingListener();
       stopHostTimer();
@@ -862,45 +865,47 @@ export function listenToRoom(roomId: string) {
     }
     
     // Sync Game State
-    // Rubberbanding fix: Accept the state if we are NOT locked OR if the server just processed OUR action.
-    const isMyAction = data.lastActionBy === auth.currentUser?.uid;
-    const isLockExpired = Date.now() > localActionLockUntil;
-    
-    if (!hasSyncedInitialState || isMyAction || isLockExpired) {
-        if (isMyAction) {
-             localActionLockUntil = 0; // Clear lock instantly if server confirmed our action
-        }
+    if (multiplayerState.isHost && hasSyncedInitialState) {
+        // As the host, our local state IS the source of truth.
+        // We do not overwrite our local state with the database, because we just pushed it there!
+        // This prevents the infinite resumeGameLoop loops.
+        updateUI(); // Update UI for player status changes
+    } else {
+        // Rubberbanding fix: Accept the state if we are NOT locked OR if the server just processed OUR action.
+        const isMyAction = data.lastActionBy === auth.currentUser?.uid;
+        const isLockExpired = Date.now() > localActionLockUntil;
         
-        if (data.gameState) {
-          const newState = deserializeGameState(data.gameState);
-          const oldPhase = G.phase;
-          
-          if (isDealingAnimationRunning) {
-             const currentHands = G.hands;
-             const currentDealing = G.dealingCards;
-             Object.assign(G, newState);
-             G.hands = currentHands;
-             G.dealingCards = currentDealing;
-          } else {
-             Object.assign(G, newState);
-          }
-          
-          if (G.phase === "dealing" && oldPhase !== "dealing") {
-             dealCardsAnimation();
-          }
-          
-          // Ensure turnStartTime is reasonable (avoid stale timestamps causing instant timeouts)
-          if (G.turnStartTime && Date.now() - G.turnStartTime > 120000) {
-            G.turnStartTime = Date.now();
-          }
-        }
-        hasSyncedInitialState = true;
-        lastSyncedCoreState = getCoreState();
-        updateUI();
-        
-        // Host should resume game loop if it's an AI's turn or needs autonomous processing
-        if (multiplayerState.isHost && !isDealingAnimationRunning && !justPlayedLocalAction) {
-           resumeGameLoop();
+        if (!hasSyncedInitialState || isMyAction || isLockExpired) {
+            if (isMyAction) {
+                 localActionLockUntil = 0; // Clear lock instantly if server confirmed our action
+            }
+            
+            if (data.gameState) {
+              const newState = deserializeGameState(data.gameState);
+              const oldPhase = G.phase;
+              
+              if (isDealingAnimationRunning) {
+                 const currentHands = G.hands;
+                 const currentDealing = G.dealingCards;
+                 Object.assign(G, newState);
+                 G.hands = currentHands;
+                 G.dealingCards = currentDealing;
+              } else {
+                 Object.assign(G, newState);
+              }
+              
+              if (G.phase === "dealing" && oldPhase !== "dealing") {
+                 dealCardsAnimation();
+              }
+              
+              // Ensure turnStartTime is reasonable (avoid stale timestamps causing instant timeouts)
+              if (G.turnStartTime && Date.now() - G.turnStartTime > 120000) {
+                G.turnStartTime = Date.now();
+              }
+            }
+            hasSyncedInitialState = true;
+            lastSyncedCoreState = getCoreState();
+            updateUI();
         }
     }
   }, (error) => {

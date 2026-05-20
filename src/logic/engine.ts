@@ -1325,10 +1325,40 @@ export function resumeGameLoop() {
   } else if (G.phase === "playing") {
     // Make sure we resolve the trick if it's full, else process next play
     const numPlayers = G.gameMode === "1v1" ? 2 : 4;
-    if (G.trickCards.slice(0, numPlayers).every((c) => c !== null)) {
+    // Don't re-resolve if we already picked a winner (meaning resolveTrick is mid-execution!)
+    if (G.trickCards.slice(0, numPlayers).every((c) => c !== null) && G.winnerSlot === null) {
       _resolveTimer = setTimeout(resolveTrick, 700);
-    } else {
+    } else if (G.winnerSlot !== null) {
+      // We are in the middle of showing the winner text delay (1000ms). Restore it.
+      _resolveTimer = setTimeout(() => {
+        G.winnerSlot = null;
+        G.trickCards = [null, null, null, null];
+        G.anyoneTarnebThisTrick = false;
+        G.isGatheringTrick = true;
+        G.leadPlayer = G.lastTrickWinnerIndex;
+        G.currentPlayer = G.lastTrickWinnerIndex;
+        updateUI();
+
+        clearEngineTimers();
+        _resolveTimer = setTimeout(() => {
+          G.isGatheringTrick = false;
+          updateUI();
+          if (!isMyTurnToProcess()) return;
+          if (G.totalTricksPlayed >= 13) endRound();
+          else processNextPlay();
+        }, 600);
+      }, 1000);
+    } else if (G.winnerSlot === null && !G.isGatheringTrick) {
       processNextPlay();
+    } else if (G.isGatheringTrick) {
+      // If gathering trick animation is still playing, don't interrupt it.
+      // But we need to ensure the engine doesn't halt. Wait remainder of time and process:
+      _resolveTimer = setTimeout(() => {
+        G.isGatheringTrick = false;
+        updateUI();
+        if (G.totalTricksPlayed >= 13) endRound();
+        else processNextPlay();
+      }, 600);
     }
   } else if (G.phase === "swapping") {
     if (G.playerWithHighestScore === myPlayerIndex) {
