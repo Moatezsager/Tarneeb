@@ -10,7 +10,7 @@ import {
   getAuth
 } from "firebase/auth";
 import { 
-  getFirestore, 
+  initializeFirestore, 
   doc, 
   getDoc, 
   setDoc, 
@@ -26,7 +26,10 @@ import {
 import firebaseConfig from "../../firebase-applet-config.json";
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true
+}, firebaseConfig.firestoreDatabaseId);
 
 let _auth;
 try {
