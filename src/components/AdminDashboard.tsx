@@ -23,7 +23,8 @@ import {
   ArrowRight,
   Power,
   RefreshCw,
-  Ban
+  Ban,
+  Crown
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -187,6 +188,70 @@ export function AdminDashboard() {
                           >
                              <div className={`w-4 h-4 md:w-6 md:h-6 rounded-full transition-all absolute ${isServerActive ? 'bg-green-400 left-1' : 'bg-red-400 right-1'}`} />
                           </button>
+                       </div>
+
+                       <div className="flex flex-col gap-3 mb-4">
+                          <button 
+                             onClick={() => {
+                               G.phase = 'roundEnd';
+                               G.roundEndOverlayVisible = true;
+                               G.gameWinner = null;
+                               G.gameMode = "Teams";
+                               G.results = [
+                                 { playerLabel: "فريقنا", player: 0, bid: 11, taken: 11, multiplier: "×3", change: 33 },
+                                 { playerLabel: "الخصم", player: 1, bid: 5, taken: 2, multiplier: "-", change: -5 }
+                               ] as any;
+                               G.trapActive = true;
+                               G.trapCaughtBy = 0;
+                               G.playerNames = ["أنت", "الخصم 1", "صديقك", "الخصم 2"];
+                               updateUI();
+                             }}
+                             className="w-full flex items-center justify-center gap-2 p-3 bg-blue-600/20 hover:bg-blue-600/40 text-blue-300 font-bold rounded-xl border border-blue-500/30 transition-all text-xs md:text-sm"
+                          >
+                             <Activity className="w-4 h-4 md:w-5 md:h-5" />
+                             محاكاة (إحصائيات جولة)
+                          </button>
+                          <div className="grid grid-cols-2 gap-3">
+                             <button 
+                                onClick={() => {
+                                  G.phase = 'roundEnd';
+                                  G.roundEndOverlayVisible = true;
+                                  G.gameWinner = 0;
+                                  G.gameMode = "Teams";
+                                  G.scores = [41, -15, 0, 0];
+                                  G.playerNames = ["أنت", "الخصم 1", "صديقك", "الخصم 2"];
+                                  G.roundHistory = [
+                                    { round: 1, teamScores: [11, -5], results: [{player:0,bid:11,taken:11,change:33}, {player:1,bid:5,taken:4,change:-5}], scores: [33, -5, 0, 0] },
+                                    { round: 2, teamScores: [11, 0], results: [{player:0,bid:11,taken:11,change:33}, {player:1,bid:2,taken:2,change:2}], scores: [66, -3, 0, 0] },
+                                    { round: 3, teamScores: [13, -5], results: [{player:0,bid:13,taken:13,change:39}, {player:1,bid:5,taken:0,change:-5}], scores: [105, -8, 0, 0] }
+                                  ];
+                                  updateUI();
+                                }}
+                                className="w-full flex flex-col items-center justify-center gap-1.5 p-3 bg-[var(--color-gold)]/10 hover:bg-[var(--color-gold)]/30 text-[var(--color-gold)] font-bold rounded-xl border border-[var(--color-gold)]/20 transition-all text-xs"
+                             >
+                                <Crown className="w-4 h-4 md:w-5 md:h-5" />
+                                <span>محاكاة تتويج (فرق)</span>
+                             </button>
+                             <button 
+                                onClick={() => {
+                                  G.phase = 'roundEnd';
+                                  G.roundEndOverlayVisible = true;
+                                  G.gameWinner = 1;
+                                  G.gameMode = "FFA";
+                                  G.scores = [30, 42, 10, -5];
+                                  G.playerNames = ["أنت", "سالم", "عمر", "علي"];
+                                  G.roundHistory = [
+                                    { round: 1, teamScores: [0, 0], results: [{player:0,bid:5,taken:5,change:5}, {player:1,bid:13,taken:13,change:39}, {player:2,bid:2,taken:2,change:2}, {player:3,bid:3,taken:2,change:-3}], scores: [5, 39, 2, -3] },
+                                    { round: 2, teamScores: [0, 0], results: [{player:0,bid:6,taken:6,change:12}, {player:1,bid:4,taken:4,change:4}, {player:2,bid:3,taken:3,change:3}, {player:3,bid:5,taken:5,change:5}], scores: [17, 43, 5, 2] }
+                                  ];
+                                  updateUI();
+                                }}
+                                className="w-full flex flex-col items-center justify-center gap-1.5 p-3 bg-[var(--color-gold)]/20 hover:bg-[var(--color-gold)]/40 text-[var(--color-gold)] font-bold rounded-xl border border-[var(--color-gold)]/30 transition-all text-xs"
+                             >
+                                <Crown className="w-4 h-4 md:w-5 md:h-5" />
+                                <span>محاكاة تتويج (فردي)</span>
+                             </button>
+                          </div>
                        </div>
 
                        <div className="grid grid-cols-2 gap-3 md:gap-4">
