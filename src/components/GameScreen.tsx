@@ -599,48 +599,55 @@ function PodiumOverlay() {
     const winnerName1 = gs.playerNames[winningTeam];
     const winnerName2 = gs.playerNames[winningTeam + 2];
     return (
-      <div className="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center p-4 overflow-y-auto no-scrollbar">
-        <Confetti width={width} height={height} recycle={true} numberOfPieces={300} colors={['#C9A84C', '#f9e698', '#aa8d2e', '#ffffff']} />
+      <div className="fixed inset-0 bg-[#0a0a0f]/95 z-[100] flex flex-col items-center p-4 overflow-y-auto no-scrollbar backdrop-blur-xl">
+        <Confetti width={width} height={height} recycle={true} numberOfPieces={400} colors={['#C9A84C', '#f9e698', '#aa8d2e', '#ffffff']} />
         
-        <div className="min-h-screen py-10 flex flex-col items-center w-full max-w-4xl">
-          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring" }} className="flex flex-col items-center z-10 w-full mb-12">
-            <motion.div animate={{ rotate: [0, 5, -5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
-              <Trophy className="w-24 h-24 sm:w-32 sm:h-32 text-[var(--color-gold)] mb-4 drop-shadow-[0_0_50px_rgba(212,175,55,1)]" />
+        <div className="min-h-screen py-10 flex flex-col items-center w-full max-w-5xl">
+          <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 15 }} className="flex flex-col items-center z-10 w-full mb-12">
+            <motion.div animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.05, 1] }} transition={{ repeat: Infinity, duration: 4 }}>
+              <Trophy className="w-28 h-28 sm:w-36 sm:h-36 text-[var(--color-gold)] mb-4 drop-shadow-[0_0_60px_rgba(212,175,55,0.8)] filter brightness-110" />
             </motion.div>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f9e698] to-[#aa8d2e] mb-2 drop-shadow-lg text-center leading-tight">🏆 الفريق الفائز 🏆</h1>
-            <p className="text-[var(--color-gold)] text-sm sm:text-lg mb-8 font-bold tracking-widest uppercase opacity-80 mt-2">نهاية المباراة الأسطورية</p>
+            <h1 className="text-5xl sm:text-6xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#fff7d6] via-[#f9e698] to-[#aa8d2e] mb-2 drop-shadow-[0_4px_10px_rgba(0,0,0,0.8)] text-center leading-tight tracking-tighter">🏆 أبطال الطرنيب 🏆</h1>
+            <p className="text-[var(--color-gold)] text-base sm:text-xl md:text-2xl mb-12 font-bold tracking-[0.2em] sm:tracking-[0.3em] uppercase opacity-90 mt-4">نهاية المباراة الأسطورية</p>
 
-            <div className="bg-gradient-to-b from-[var(--color-gold)]/30 to-black/80 p-8 sm:p-10 rounded-[3rem] border-[3px] border-[var(--color-gold)] flex flex-col items-center shadow-[0_0_80px_rgba(212,175,55,0.4)] backdrop-blur-md w-full max-w-md">
-              <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white text-center mb-6 leading-relaxed">
-                <span className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{winnerName1}</span> 
-                <br />
-                <span className="text-[var(--color-gold)] text-2xl sm:text-3xl font-serif px-4 py-1 bg-black/40 rounded-full border border-[var(--color-gold)]/40 mx-2">&</span>
-                <br /> 
-                <span className="drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">{winnerName2}</span>
-              </div>
-              <div className="text-3xl sm:text-4xl font-black text-white mt-4 bg-gradient-to-r from-[#aa8d2e] via-[#f9e698] to-[#aa8d2e] px-8 py-3 rounded-full shadow-[0_0_30px_rgba(212,175,55,0.6)] border border-white/50 text-black">
-                {gs.scores[winningTeam]} نقطة
+            <div className="relative w-full max-w-lg mb-8">
+              <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)] via-white to-[var(--color-gold)] rounded-[3rem] blur-xl opacity-20 animate-pulse"></div>
+              <div className="relative bg-gradient-to-b from-[#1f1a0f] to-black/90 p-8 sm:p-12 rounded-[3rem] border border-[var(--color-gold)]/40 flex flex-col items-center shadow-2xl backdrop-blur-2xl">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-50"></div>
+                <div className="text-3xl sm:text-4xl md:text-5xl font-black text-white text-center mb-8 leading-relaxed flex flex-col gap-3 w-full">
+                  <span className="drop-shadow-lg truncate text-[var(--color-gold)] w-full">{winnerName1}</span> 
+                  <div className="flex items-center justify-center gap-4 my-2 opacity-60">
+                    <div className="h-[1px] w-12 bg-white/20"></div>
+                    <span className="text-white text-xl sm:text-2xl font-serif italic">&</span>
+                    <div className="h-[1px] w-12 bg-white/20"></div>
+                  </div>
+                  <span className="drop-shadow-lg truncate text-[var(--color-gold)] w-full">{winnerName2}</span>
+                </div>
+                <div className="text-4xl sm:text-5xl font-black text-black mt-2 bg-gradient-to-r from-[#e3c15f] via-[#fdf0bc] to-[#df9d1d] px-10 py-4 rounded-full shadow-[0_0_40px_rgba(212,175,55,0.4)] border-2 border-white/30 transform transition-transform hover:scale-105">
+                  {gs.scores[winningTeam]} <span className="text-xl sm:text-2xl opacity-80">نقطة</span>
+                </div>
               </div>
             </div>
           </motion.div>
 
           {/* Historical Table */}
           {gs.roundHistory && gs.roundHistory.length > 0 && (
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }} className="w-full max-w-2xl bg-[#141423]/90 border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl mb-12 z-10 backdrop-blur-md relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-gold)]/5 rounded-full blur-[50px] pointer-events-none" />
-               <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500/5 rounded-full blur-[60px] pointer-events-none" />
+            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5 }} className="w-full max-w-3xl bg-black/60 border border-[var(--color-gold)]/20 rounded-[2rem] p-4 sm:p-8 shadow-2xl mb-12 z-10 backdrop-blur-xl relative overflow-hidden">
+               <div className="absolute -top-20 -right-20 w-64 h-64 bg-[var(--color-gold)]/10 rounded-full blur-[80px] pointer-events-none" />
+               <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
                
-               <h2 className="text-[var(--color-gold)] font-black text-xl mb-4 sm:mb-6 text-center tracking-widest drop-shadow-md flex items-center justify-center gap-2">
-                 <BarChart2 className="w-5 h-5" /> 
-                 تفاصيل الجولات 
+               <h2 className="text-[var(--color-gold)] font-black text-2xl mb-6 text-center tracking-widest drop-shadow-md flex items-center justify-center gap-3">
+                 <BarChart2 className="w-6 h-6" /> 
+                 الأداء التفصيلي للجولات
                </h2>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-center text-sm md:text-base border-spacing-y-2 border-separate">
+               
+               <div className="overflow-x-auto no-scrollbar">
+                 <table className="w-full text-center border-spacing-0 border-collapse">
                    <thead>
-                     <tr className="text-white/60 font-bold uppercase tracking-wider text-xs sm:text-sm">
-                       <th className="pb-2 w-16">الجولة</th>
-                       <th className="pb-2">{gs.playerNames[0]} & {gs.playerNames[2]}</th>
-                       <th className="pb-2">{gs.playerNames[1]} & {gs.playerNames[3]}</th>
+                     <tr className="border-b border-white/10 uppercase tracking-widest text-[#aaa]">
+                       <th className="px-2 sm:px-4 py-3 font-bold text-xs sm:text-sm">الجولة</th>
+                       <th className="px-2 sm:px-4 py-3 font-bold text-sm sm:text-base text-[var(--color-gold)]">الفريق الأول<br/><span className="text-[10px] sm:text-xs text-[var(--color-gold)]/50 tracking-normal">{gs.playerNames[0]} & {gs.playerNames[2]}</span></th>
+                       <th className="px-2 sm:px-4 py-3 font-bold text-sm sm:text-base text-blue-400">الفريق الثاني<br/><span className="text-[10px] sm:text-xs text-blue-400/50 tracking-normal">{gs.playerNames[1]} & {gs.playerNames[3]}</span></th>
                      </tr>
                    </thead>
                    <tbody>
@@ -649,36 +656,38 @@ function PodiumOverlay() {
                        const res1 = rh.results.find((r: any) => r.player === 1) || {};
                        const change0 = res0.change || 0;
                        const change1 = res1.change || 0;
+                       const isLast = index === gs.roundHistory.length - 1;
+                       
                        return (
-                         <tr key={index} className="bg-black/40 hover:bg-white/5 transition-colors group">
-                           <td className="py-3 px-2 rounded-r-xl font-bold text-white/50">{rh.round}</td>
-                           <td className="py-3 px-2">
-                             <div className="flex flex-col items-center">
-                               <div className="flex items-center gap-2">
-                                 <span className="font-black text-white text-lg">{rh.teamScores[0]}</span>
-                                 <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md leading-none ${change0 > 0 ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_10px_rgba(74,222,128,0.2)]' : change0 < 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-white/30'}`}>
+                         <tr key={index} className={`bg-gradient-to-r from-transparent via-white/[0.02] to-transparent hover:via-white/[0.05] transition-colors ${!isLast ? 'border-b border-white/5' : ''}`}>
+                           <td className="px-2 sm:px-4 py-4 text-white/60 font-black text-lg">{rh.round}</td>
+                           <td className="px-2 sm:px-4 py-4">
+                             <div className="flex flex-col items-center justify-center">
+                               <div className="flex items-center gap-2 sm:gap-3">
+                                 <span className="font-black text-white text-xl sm:text-2xl tracking-tighter">{rh.teamScores[0]}</span>
+                                 <span className={`text-xs sm:text-sm font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md sm:rounded-lg ${change0 > 0 ? 'bg-green-500/20 text-green-400 border border-green-500/30' : change0 < 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/10 text-white/50'}`}>
                                    {change0 > 0 ? '+' : ''}{change0}
                                  </span>
                                </div>
-                               <div className="text-[10px] text-white/40 mt-1 uppercase tracking-wider flex gap-2">
-                                 <span>طلب: {res0.bid}</span>
-                                 <span className="opacity-50">|</span>
-                                 <span>أكل: {res0.taken}</span>
+                               <div className="text-[10px] sm:text-[11px] text-white/40 mt-2 uppercase font-mono tracking-widest flex items-center justify-center gap-1 sm:gap-2 bg-black/30 px-2 sm:px-3 py-1 rounded-full border border-white/5">
+                                 <span>طلب: <b className="text-white/80">{res0.bid}</b></span>
+                                 <span className="opacity-30">|</span>
+                                 <span>أكل: <b className="text-[var(--color-gold)]">{res0.taken}</b></span>
                                </div>
                              </div>
                            </td>
-                           <td className="py-3 px-2 rounded-l-xl">
-                             <div className="flex flex-col items-center">
-                               <div className="flex items-center gap-2">
-                                 <span className="font-black text-white text-lg">{rh.teamScores[1]}</span>
-                                 <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md leading-none ${change1 > 0 ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_10px_rgba(74,222,128,0.2)]' : change1 < 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-white/30'}`}>
+                           <td className="px-2 sm:px-4 py-4 border-l border-white/5">
+                             <div className="flex flex-col items-center justify-center">
+                               <div className="flex items-center gap-2 sm:gap-3">
+                                 <span className="font-black text-white text-xl sm:text-2xl tracking-tighter">{rh.teamScores[1]}</span>
+                                 <span className={`text-xs sm:text-sm font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md sm:rounded-lg ${change1 > 0 ? 'bg-green-500/20 text-green-400 border border-green-500/30' : change1 < 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/10 text-white/50'}`}>
                                    {change1 > 0 ? '+' : ''}{change1}
                                  </span>
                                </div>
-                               <div className="text-[10px] text-white/40 mt-1 uppercase tracking-wider flex gap-2">
-                                 <span>طلب: {res1.bid}</span>
-                                 <span className="opacity-50">|</span>
-                                 <span>أكل: {res1.taken}</span>
+                               <div className="text-[10px] sm:text-[11px] text-white/40 mt-2 uppercase font-mono tracking-widest flex items-center justify-center gap-1 sm:gap-2 bg-black/30 px-2 sm:px-3 py-1 rounded-full border border-white/5">
+                                 <span>طلب: <b className="text-white/80">{res1.bid}</b></span>
+                                 <span className="opacity-30">|</span>
+                                 <span>أكل: <b className="text-blue-400">{res1.taken}</b></span>
                                </div>
                              </div>
                            </td>
@@ -711,97 +720,110 @@ function PodiumOverlay() {
     const third = sortedPlayers[2];
 
     return (
-      <div className="fixed inset-0 bg-[#0a0a12] z-[100] flex flex-col items-center p-4 overflow-y-auto no-scrollbar">
-        <Confetti width={width} height={height} recycle={true} numberOfPieces={300} colors={['#C9A84C', '#f9e698', '#aa8d2e', '#ffffff']} />
+      <div className="fixed inset-0 bg-[#0a0a0f]/95 z-[100] flex flex-col items-center p-4 overflow-y-auto no-scrollbar backdrop-blur-xl">
+        <Confetti width={width} height={height} recycle={true} numberOfPieces={400} colors={['#C9A84C', '#f9e698', '#aa8d2e', '#ffffff']} />
         
-        <div className="min-h-screen py-10 flex flex-col items-center w-full max-w-4xl">
-          <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2 }} className="text-center mb-8 z-10 w-full">
-            <h1 className="text-4xl md:text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-[#f9e698] to-[#aa8d2e] drop-shadow-lg">🎉 نهاية اللعبة 🎉</h1>
-            <p className="text-white/50 text-sm mt-2">منصة التتويج الأسطورية</p>
+        <div className="min-h-screen py-10 flex flex-col items-center w-full max-w-5xl">
+          <motion.div initial={{ y: -50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.2, type: "spring" }} className="text-center mb-12 z-10 w-full mt-4">
+            <h1 className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-b from-[#fff7d6] via-[#f9e698] to-[#aa8d2e] drop-shadow-[0_4px_20px_rgba(212,175,55,0.4)] tracking-tighter">🏆 أبطال الطرنيب 🏆</h1>
+            <p className="text-[var(--color-gold)] text-base md:text-xl font-bold tracking-[0.3em] uppercase mt-4 opacity-90 drop-shadow-md">منصة التتويج الأسطورية</p>
           </motion.div>
 
-          <div className="flex items-end justify-center gap-3 sm:gap-6 h-[220px] md:h-[280px] mt-4 mb-16 z-10 w-full">
+          <div className="flex items-end justify-center gap-4 sm:gap-8 h-[240px] md:h-[320px] mt-4 mb-24 z-10 w-full max-w-3xl">
             {/* Second Place */}
-            <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.8, type: "spring" }} className="flex flex-col items-center relative z-10 w-[80px] sm:w-[100px] md:w-[120px]">
-              <div className="text-sm md:text-base text-white/90 font-bold mb-2 truncate w-full text-center px-1 drop-shadow-md">{second.name}</div>
-              <div className="bg-gradient-to-t from-[#9ca3af] to-[#e5e7eb] w-full h-[120px] md:h-[150px] rounded-t-xl flex flex-col items-center pt-3 shadow-[0_0_30px_rgba(156,163,175,0.4)] border-t-4 border-white/80">
-                <Medal className="w-8 h-8 text-[#6b7280] mb-1" />
-                <span className="text-4xl md:text-5xl font-black text-[#4b5563] drop-shadow-sm">2</span>
+            {second && (
+            <motion.div initial={{ y: 150, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.8, type: "spring", damping: 15 }} className="flex flex-col items-center relative z-10 w-[90px] sm:w-[120px] md:w-[150px]">
+              <div className="text-sm md:text-lg text-white/90 font-black mb-3 truncate w-full text-center px-1 drop-shadow-lg">{second.name}</div>
+              <div className="relative bg-gradient-to-t from-[#4b5563] to-[#e5e7eb] w-full h-[140px] md:h-[180px] rounded-t-2xl flex flex-col items-center pt-4 shadow-[0_10px_40px_rgba(156,163,175,0.3)] border-t-[6px] border-white/80 overflow-hidden">
+                <div className="absolute inset-0 bg-white/20 blur-xl"></div>
+                <Medal className="w-10 h-10 md:w-12 md:h-12 text-[#4b5563] mb-2 drop-shadow-md relative z-10" />
+                <span className="text-5xl md:text-7xl font-black text-[#374151] drop-shadow-md relative z-10">2</span>
               </div>
-              <div className="absolute bottom-4 text-sm md:text-base font-black text-[#4b5563] drop-shadow-sm bg-white/40 px-3 py-1 rounded-full backdrop-blur-sm">{second.score}</div>
+              <div className="absolute bottom-6 text-base md:text-xl font-black text-[#1f2937] shadow-lg bg-white/60 px-5 py-2 rounded-full backdrop-blur-md transform transition-transform hover:scale-110">{second.score}</div>
             </motion.div>
+            )}
 
             {/* First Place */}
-            <motion.div initial={{ y: 150, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 1.2, type: "spring" }} className="flex flex-col items-center relative z-20 w-[100px] sm:w-[120px] md:w-[140px]">
-              <Crown className="w-12 h-12 md:w-16 md:h-16 text-[var(--color-gold)] mb-2 drop-shadow-[0_0_20px_rgba(212,175,55,1)] animate-bounce" />
-              <div className="text-base md:text-lg text-[var(--color-gold)] font-black mb-2 truncate w-full text-center px-1 drop-shadow-lg">{first.name}</div>
-              <div className="bg-gradient-to-t from-[#ca8a04] to-[#fde047] w-full h-[170px] md:h-[210px] rounded-t-xl flex flex-col items-center pt-4 shadow-[0_0_50px_rgba(234,179,8,0.6)] border-t-4 border-[#fef08a]">
-                <Trophy className="w-10 h-10 text-[#713f12] mb-1 drop-shadow-md" />
-                <span className="text-5xl md:text-6xl font-black text-[#713f12] drop-shadow-md">1</span>
+            {first && (
+            <motion.div initial={{ y: 200, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 1.2, type: "spring", damping: 15 }} className="flex flex-col items-center relative z-20 w-[110px] sm:w-[140px] md:w-[180px]">
+              <motion.div animate={{ y: [0, -10, 0] }} transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}>
+                <Crown className="w-14 h-14 md:w-20 md:h-20 text-[var(--color-gold)] mb-3 drop-shadow-[0_0_30px_rgba(212,175,55,0.8)] filter brightness-110" />
+              </motion.div>
+              <div className="text-base md:text-2xl text-[var(--color-gold)] font-black mb-3 truncate w-full text-center px-1 drop-shadow-xl">{first.name}</div>
+              <div className="relative bg-gradient-to-t from-[#854d0e] via-[#eab308] to-[#fde047] w-full h-[190px] md:h-[240px] rounded-t-2xl flex flex-col items-center pt-5 shadow-[0_10px_60px_rgba(234,179,8,0.5)] border-t-[8px] border-[#fef08a] overflow-hidden">
+                <div className="absolute inset-0 bg-white/30 blur-2xl"></div>
+                <Trophy className="w-12 h-12 md:w-16 md:h-16 text-[#713f12] mb-2 drop-shadow-lg relative z-10" />
+                <span className="text-6xl md:text-8xl font-black text-[#713f12] drop-shadow-lg relative z-10">1</span>
               </div>
-              <div className="absolute bottom-6 text-base md:text-lg font-black text-[#854d0e] drop-shadow-sm bg-white/40 px-4 py-1.5 rounded-full backdrop-blur-sm">{first.score}</div>
+              <div className="absolute bottom-8 text-lg md:text-2xl font-black text-[#713f12] shadow-xl bg-white/70 px-6 py-2.5 rounded-full backdrop-blur-md transform transition-transform hover:scale-110">{first.score}</div>
             </motion.div>
+            )}
 
             {/* Third Place */}
-            <motion.div initial={{ y: 100, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5, type: "spring" }} className="flex flex-col items-center relative z-10 w-[80px] sm:w-[100px] md:w-[120px]">
-              <div className="text-sm md:text-base text-white/90 font-bold mb-2 truncate w-full text-center px-1 drop-shadow-md">{third.name}</div>
-              <div className="bg-gradient-to-t from-[#b45309] to-[#fb923c] w-full h-[90px] md:h-[110px] rounded-t-xl flex flex-col items-center pt-3 shadow-[0_0_30px_rgba(217,119,6,0.4)] border-t-4 border-[#fdba74]">
-                <Medal className="w-8 h-8 text-[#78350f] mb-1" />
-                <span className="text-4xl md:text-5xl font-black text-[#78350f] drop-shadow-sm">3</span>
+            {third && (
+            <motion.div initial={{ y: 150, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.5, type: "spring", damping: 15 }} className="flex flex-col items-center relative z-10 w-[90px] sm:w-[120px] md:w-[150px]">
+              <div className="text-sm md:text-lg text-white/90 font-black mb-3 truncate w-full text-center px-1 drop-shadow-lg">{third.name}</div>
+              <div className="relative bg-gradient-to-t from-[#78350f] to-[#fb923c] w-full h-[100px] md:h-[140px] rounded-t-2xl flex flex-col items-center pt-4 shadow-[0_10px_30px_rgba(217,119,6,0.3)] border-t-[6px] border-[#fdba74] overflow-hidden">
+                <div className="absolute inset-0 bg-white/10 blur-xl"></div>
+                <Medal className="w-10 h-10 md:w-12 md:h-12 text-[#78350f] mb-2 drop-shadow-sm relative z-10" />
+                <span className="text-5xl md:text-7xl font-black text-[#78350f] drop-shadow-sm relative z-10">3</span>
               </div>
-              <div className="absolute bottom-4 text-sm md:text-base font-black text-[#78350f] drop-shadow-sm bg-white/40 px-3 py-1 rounded-full backdrop-blur-sm">{third.score}</div>
+              <div className="absolute bottom-5 text-base md:text-xl font-black text-[#78350f] shadow-lg bg-white/60 px-5 py-2 rounded-full backdrop-blur-md transform transition-transform hover:scale-110">{third.score}</div>
             </motion.div>
+            )}
           </div>
 
           {/* Historical Table - FFA / 1v1 */}
           {gs.roundHistory && gs.roundHistory.length > 0 && (
-            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 2.0 }} className="w-full max-w-4xl bg-[#141423]/90 border border-white/10 rounded-3xl p-4 sm:p-6 shadow-2xl mb-12 z-10 backdrop-blur-md relative overflow-hidden">
-               <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-gold)]/5 rounded-full blur-[50px] pointer-events-none" />
-               <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/5 rounded-full blur-[60px] pointer-events-none" />
+            <motion.div initial={{ y: 50, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 2.0 }} className="w-full max-w-4xl bg-black/60 border border-white/10 rounded-[2rem] p-4 sm:p-8 shadow-2xl mb-12 z-10 backdrop-blur-xl relative overflow-hidden">
+               <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-gold)]/10 rounded-full blur-[80px] pointer-events-none" />
+               <div className="absolute bottom-0 left-0 w-40 h-40 bg-blue-500/10 rounded-full blur-[80px] pointer-events-none" />
                
-               <h2 className="text-[var(--color-gold)] font-black text-xl mb-4 sm:mb-6 text-center tracking-widest drop-shadow-md flex items-center justify-center gap-2">
-                 <BarChart2 className="w-5 h-5" /> 
-                 تفاصيل الجولات 
+               <h2 className="text-[var(--color-gold)] font-black text-2xl mb-6 text-center tracking-widest drop-shadow-md flex items-center justify-center gap-3">
+                 <BarChart2 className="w-6 h-6" /> 
+                 الأداء التفصيلي للجولات
                </h2>
-               <div className="overflow-x-auto">
-                 <table className="w-full text-center text-sm md:text-base border-spacing-y-2 border-separate">
+               <div className="overflow-x-auto no-scrollbar">
+                 <table className="w-full text-center border-spacing-0 border-collapse">
                    <thead>
-                     <tr className="text-white/60 font-bold uppercase tracking-wider text-xs sm:text-sm">
-                       <th className="pb-2 w-16">الجولة</th>
+                     <tr className="border-b border-white/10 uppercase tracking-widest text-[#aaa]">
+                       <th className="px-2 sm:px-4 py-3 font-bold text-xs sm:text-sm">الجولة</th>
                        {gs.playerNames.map((name, i) => (
-                         (gs.gameMode === "1v1" && i >= 2) ? null : <th key={i} className="pb-2 min-w-[80px] truncate max-w-[100px]">{name}</th>
+                         (gs.gameMode === "1v1" && i >= 2) ? null : <th key={i} className={`px-2 sm:px-4 py-3 font-bold text-sm sm:text-base ${i === gs.gameWinner ? 'text-[var(--color-gold)]' : 'text-white/80'}`}>{name}</th>
                        ))}
                      </tr>
                    </thead>
                    <tbody>
-                     {gs.roundHistory.map((rh, index) => (
-                       <tr key={index} className="bg-black/40 hover:bg-white/5 transition-colors group">
-                         <td className="py-3 px-2 rounded-r-xl font-bold text-white/50">{rh.round}</td>
+                     {gs.roundHistory.map((rh, index) => {
+                       const isLast = index === gs.roundHistory.length - 1;
+                       return (
+                       <tr key={index} className={`bg-gradient-to-r from-transparent via-white/[0.02] to-transparent hover:via-white/[0.05] transition-colors ${!isLast ? 'border-b border-white/5' : ''}`}>
+                         <td className="px-2 sm:px-4 py-4 text-white/60 font-black text-lg">{rh.round}</td>
                          {gs.playerNames.map((_, i) => {
                            if (gs.gameMode === "1v1" && i >= 2) return null;
                            const res = rh.results.find((r: any) => r.player === i) || {};
                            const change = res.change || 0;
                            const score = rh.scores[i];
                            return (
-                             <td key={i} className={`py-3 px-2 ${i === (gs.gameMode === "1v1" ? 1 : 3) ? 'rounded-l-xl' : ''}`}>
-                               <div className="flex flex-col items-center">
-                                 <div className="flex items-center gap-2">
-                                   <span className="font-black text-white text-lg">{score}</span>
-                                   <span className={`text-xs font-bold px-1.5 py-0.5 rounded-md leading-none ${change > 0 ? 'bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_10px_rgba(74,222,128,0.2)]' : change < 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'text-white/30'}`}>
+                             <td key={i} className={`px-2 sm:px-4 py-4 ${i !== 0 ? 'border-r border-white/5' : ''}`}>
+                               <div className="flex flex-col items-center justify-center">
+                                 <div className="flex items-center gap-2 sm:gap-3">
+                                   <span className="font-black text-white text-xl md:text-2xl tracking-tighter">{score}</span>
+                                   <span className={`text-xs sm:text-sm font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md sm:rounded-lg ${change > 0 ? 'bg-green-500/20 text-green-400 border border-green-500/30' : change < 0 ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/10 text-white/50'}`}>
                                      {change > 0 ? '+' : ''}{change}
                                    </span>
                                  </div>
-                                 <div className="text-[10px] text-white/40 mt-1 uppercase tracking-wider flex gap-2">
-                                   <span>طلب: {res.bid}</span>
-                                   <span className="opacity-50">|</span>
-                                   <span>أكل: {res.taken}</span>
+                                 <div className="text-[9px] sm:text-[10px] text-white/40 mt-1.5 uppercase font-mono tracking-widest flex items-center justify-center gap-1.5 bg-black/30 px-2 py-1 rounded-full border border-white/5">
+                                   <span>ط: <b className="text-white/80">{res.bid}</b></span>
+                                   <span className="opacity-30">|</span>
+                                   <span>أ: <b className={i === gs.gameWinner ? "text-[var(--color-gold)]" : "text-white/80"}>{res.taken}</b></span>
                                  </div>
                                </div>
                              </td>
                            );
                          })}
                        </tr>
-                     ))}
+                     )})}
                    </tbody>
                  </table>
                </div>
