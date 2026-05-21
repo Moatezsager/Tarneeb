@@ -50,6 +50,8 @@ export function AdminDashboard() {
       const q = query(collection(db, "rooms"), orderBy("createdAt", "desc"), limit(50));
       const unsub = onSnapshot(q, (snap) => {
         setRooms(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (error) => {
+        console.warn("Rooms list restricted by Firebase rules. Only active public rooms can be queried by non-admins. Switch to 'Public Rooms' filter if needed. Error:", error);
       });
       return () => unsub();
     }
@@ -58,6 +60,8 @@ export function AdminDashboard() {
       const q = query(collection(db, "users"), orderBy("createdAt", "desc"), limit(50));
       const unsub = onSnapshot(q, (snap) => {
         setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      }, (error) => {
+        console.error("Error fetching users:", error);
       });
       return () => unsub();
     }

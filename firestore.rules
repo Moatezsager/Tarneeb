@@ -170,6 +170,15 @@ service cloud.firestore {
         allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids);
         allow delete: if isSignedIn() && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid;
       }
+      
+      match /pings/{pingId} {
+        // Any member can read/write pings
+        allow read: if isSignedIn() && 
+                      (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids);
+        allow write: if isSignedIn() && 
+                      (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids) &&
+                      pingId == request.auth.uid;
+      }
     }
   }
 }

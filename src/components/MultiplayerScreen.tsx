@@ -112,6 +112,8 @@ export function MultiplayerScreen() {
           }
         }
         setOnlineFriends(friendsWithStatus);
+      }, (error) => {
+        console.error("Error fetching friends list:", error);
       });
       return unsubFriends;
     }

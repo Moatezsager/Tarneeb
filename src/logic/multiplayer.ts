@@ -90,6 +90,8 @@ function startPingListener(roomId: string) {
       // It's safer to just record that we RECEIVED a ping right now:
       hostPingMap[doc.id] = Date.now();
     });
+  }, (error) => {
+    console.log("Ignore pings listener error:", error);
   });
 }
 
@@ -98,6 +100,7 @@ function stopPingListener() {
     pingUnsubscribe();
     pingUnsubscribe = null;
   }
+  Object.keys(hostPingMap).forEach(uid => delete hostPingMap[uid]);
 }
 
 let lastSyncedCoreState = "";
@@ -340,17 +343,12 @@ function startActionsListener(roomId: string) {
   const actionsRef = collection(db, "rooms", roomId, "actions");
   actionsUnsubscribe = onSnapshot(actionsRef, (snapshot) => {
     snapshot.docChanges().forEach((change) => {
-      if (change.type === "added") {
-        const action = change.doc.data();
-        if (multiplayerState.isHost) {
-           processPlayerAction(action);
-        }
-        // Only host deletes the action, or actually we can let anyone delete if it's their action? No, host deletes it to confirm it was processed.
-        if (multiplayerState.isHost) {
-           deleteDoc(change.doc.ref).catch(e => console.error("Failed to delete action", e));
-        }
+      if (change.type === "added" && multiplayerState.isHost) {
+        enqueuePlayerAction(change.doc.id, change.doc.data(), change.doc.ref);
       }
     });
+  }, (error) => {
+    console.log("Ignore actions listener error:", error);
   });
 }
 
@@ -359,12 +357,44 @@ function stopActionsListener() {
      actionsUnsubscribe();
      actionsUnsubscribe = null;
   }
+  actionQueue = Promise.resolve();
+  processedActionSet.clear();
+  processedActionIds.length = 0;
+}
+
+let actionQueue: Promise<void> = Promise.resolve();
+const processedActionIds: string[] = [];
+const processedActionSet = new Set<string>();
+const MAX_PROCESSED_ACTIONS = 80;
+
+function rememberProcessedAction(id: string) {
+  processedActionSet.add(id);
+  processedActionIds.push(id);
+  while (processedActionIds.length > MAX_PROCESSED_ACTIONS) {
+    const oldId = processedActionIds.shift();
+    if (oldId) processedActionSet.delete(oldId);
+  }
+}
+
+function enqueuePlayerAction(actionId: string, action: any, actionRef: any) {
+  if (processedActionSet.has(actionId)) return;
+
+  actionQueue = actionQueue
+    .then(async () => {
+      if (processedActionSet.has(actionId)) return;
+      rememberProcessedAction(actionId);
+      await processPlayerAction(action);
+    })
+    .catch(e => console.error("Action queue error", e))
+    .finally(() => {
+      deleteDoc(actionRef).catch(e => console.error("Failed to delete action", e));
+    });
 }
 
 async function processPlayerAction(action: any) {
   try {
     const engine = await import("./engine");
-    
+
     if (action.type === "PLAY_CARD") {
        engine.executePlay(action.cardIdx, action.playerIdx);
     } else if (action.type === "BID") {
@@ -376,7 +406,7 @@ async function processPlayerAction(action: any) {
     }
     
     engine.updateUI();
-    updateGameState();
+    updateGameState(action.sentBy || auth.currentUser?.uid);
   } catch(e) {
     console.error("Error processing action", e);
   }
@@ -596,6 +626,7 @@ export async function createRoom(playerName: string, isPublic = true, password =
     setMultiplayerMode(true, true);
     
     startHeartbeat();
+    startPingListener(roomId);
     startAntiHostFreezeTimer();
     listenToRoom(roomId);
     startHostTimer();
@@ -738,6 +769,7 @@ export async function joinRoom(code: string, playerName: string, passwordAttempt
     setMultiplayerMode(true, multiplayerState.isHost);
     
     startHeartbeat();
+    if (multiplayerState.isHost) startPingListener(roomId);
     startAntiHostFreezeTimer();
     listenToRoom(roomId);
     if (multiplayerState.isHost) startHostTimer();
@@ -824,6 +856,7 @@ export function listenToRoom(roomId: string) {
     
     // Safety check in case we join as Host immediately
     if (multiplayerState.isHost && !actionsUnsubscribe) {
+      startPingListener(roomId);
       startActionsListener(roomId);
     }
     
@@ -924,8 +957,9 @@ let syncTimeout: any = null;
 let lastSerializedState = "";
 let syncRetryCount = 0;
 const MAX_SYNC_RETRIES = 3;
+const SYNC_DEBOUNCE_MS = 120;
 
-export function updateGameState() {
+export function updateGameState(lastActionBy = auth.currentUser?.uid) {
   if (!activeRoomId || !multiplayerState.isMultiplayer) return;
 
   // Stability/Anti-Cheat: ONLY THE HOST should push state.
@@ -935,30 +969,29 @@ export function updateGameState() {
 
   syncTimeout = setTimeout(async () => {
     const finalState = serializeGameState({ ...G });
-    if (finalState === lastSerializedState) return;
+    const finalStateKey = JSON.stringify(finalState);
+    if (finalStateKey === lastSerializedState) return;
 
     const roomId = activeRoomId;
     for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
       try {
-        lastSerializedState = finalState;
+        lastSerializedState = finalStateKey;
         const roomRef = doc(db, "rooms", roomId!);
-        
-        const roomSnap = await getDoc(roomRef);
-        if (!roomSnap.exists()) {
-          console.warn("Update Game State failed: Room no longer exists.");
-          leaveRoom();
-          return;
-        }
 
         await updateDoc(roomRef, {
           gameState: finalState,
-          lastActionBy: auth.currentUser?.uid,
+          lastActionBy,
           updatedAt: serverTimestamp()
         });
         syncRetryCount = 0;
         return;
       } catch (error: any) {
         lastSerializedState = "";
+        if (error?.code === "not-found") {
+          console.warn("Update Game State failed: Room no longer exists.");
+          leaveRoom();
+          return;
+        }
         if (attempt < MAX_SYNC_RETRIES) {
           const backoffMs = Math.min(200 * Math.pow(2, attempt), 2000);
           await new Promise(resolve => setTimeout(resolve, backoffMs));
@@ -972,15 +1005,18 @@ export function updateGameState() {
         }
       }
     }
-  }, 100);
+  }, SYNC_DEBOUNCE_MS);
 }
 
 export async function sendPlayerAction(action: any) {
   if (!activeRoomId || !auth.currentUser) return;
   try {
-     const actionRef = doc(collection(db, "rooms", activeRoomId, "actions"));
+     const actionId = `${auth.currentUser.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+     const actionRef = doc(db, "rooms", activeRoomId, "actions", actionId);
      await setDoc(actionRef, {
         ...action,
+        sentBy: auth.currentUser.uid,
+        clientTime: Date.now(),
         timestamp: serverTimestamp()
      });
   } catch (error) {

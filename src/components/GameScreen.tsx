@@ -66,24 +66,21 @@ function useTurnTimer(turnStartTime: number, turnTimeout: number) {
   const [timeLeft, setTimeLeft] = React.useState(turnTimeout);
 
   React.useEffect(() => {
-    // Save local start time when turnStartTime from server changes, but account for real elapsed if reasonable
-    const estimatedElapsed = (Date.now() - turnStartTime) / 1000;
-    const validElapsed = (estimatedElapsed >= 0 && estimatedElapsed <= turnTimeout) ? estimatedElapsed : 0;
+    const estimatedElapsed = turnStartTime ? (Date.now() - turnStartTime) / 1000 : 0;
+    const validElapsed = estimatedElapsed >= 0 && estimatedElapsed <= turnTimeout ? estimatedElapsed : 0;
     const localStart = Date.now() - (validElapsed * 1000);
 
-    let frameId: number;
     const update = () => {
       const elapsed = (Date.now() - localStart) / 1000;
       let remaining = Math.ceil(turnTimeout - elapsed);
       if (remaining < 0) remaining = 0;
       if (remaining > turnTimeout) remaining = turnTimeout;
-      setTimeLeft(remaining);
-      if (remaining > 0) {
-        frameId = requestAnimationFrame(update);
-      }
+      setTimeLeft(prev => prev === remaining ? prev : remaining);
     };
+
     update();
-    return () => cancelAnimationFrame(frameId);
+    const intervalId = window.setInterval(update, 250);
+    return () => window.clearInterval(intervalId);
   }, [turnStartTime, turnTimeout]);
 
   return timeLeft;
