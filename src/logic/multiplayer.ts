@@ -312,6 +312,8 @@ export interface RoomData {
   status: "waiting" | "playing" | "finished";
   isPublic: boolean;
   password?: string;
+  mode?: "FFA" | "Teams" | "1v1";
+  winLimit?: number;
   hostName: string;
   players: Player[];
   spectators: Spectator[];
@@ -391,8 +393,54 @@ function enqueuePlayerAction(actionId: string, action: any, actionRef: any) {
     });
 }
 
+function isValidQueuedAction(action: any) {
+  if (!action || typeof action !== "object") return false;
+  if (!action.sentBy || typeof action.sentBy !== "string") return false;
+  if (!Number.isInteger(action.playerIdx) || action.playerIdx < 0 || action.playerIdx > 3) return false;
+
+  const sender = multiplayerState.players.find(p => p.uid === action.sentBy && !p.isBot);
+  if (!sender || sender.index !== action.playerIdx) return false;
+
+  if (action.type === "PLAY_CARD") {
+    return Number.isInteger(action.cardIdx) &&
+      action.cardIdx >= 0 &&
+      action.cardIdx < (G.hands[action.playerIdx]?.length || 0) &&
+      G.phase === "playing" &&
+      G.currentPlayer === action.playerIdx;
+  }
+
+  if (action.type === "BID") {
+    const validBids = [2, 3, 4, 5, 6, 7, 8, 9, 10, 13];
+    return Number.isInteger(action.bid) &&
+      validBids.includes(action.bid) &&
+      G.phase === "bidding" &&
+      G.currentPlayer === action.playerIdx;
+  }
+
+  if (action.type === "SWAP") {
+    return Number.isInteger(action.target) &&
+      action.target >= 0 &&
+      action.target <= 3 &&
+      action.target !== action.playerIdx &&
+      G.phase === "swapping" &&
+      G.playerWithHighestScore === action.playerIdx;
+  }
+
+  if (action.type === "SKIP_SWAP") {
+    return G.phase === "swapping" &&
+      G.playerWithHighestScore === action.playerIdx;
+  }
+
+  return false;
+}
+
 async function processPlayerAction(action: any) {
   try {
+    if (!isValidQueuedAction(action)) {
+      console.warn("Ignored invalid multiplayer action", action?.type);
+      return;
+    }
+
     const engine = await import("./engine");
 
     if (action.type === "PLAY_CARD") {
@@ -590,6 +638,8 @@ export async function createRoom(playerName: string, isPublic = true, password =
     status: "waiting",
     isPublic,
     password,
+    mode,
+    winLimit,
     players: [
       { 
         uid: user.uid, 

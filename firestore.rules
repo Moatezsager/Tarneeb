@@ -11,6 +11,9 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
+    function roomData(roomId) { return get(/databases/$(database)/documents/rooms/$(roomId)).data; }
+    function isRoomMember(roomId) { return isSignedIn() && request.auth.uid in roomData(roomId).memberUids; }
+    function isRoomHost(roomId) { return isSignedIn() && roomData(roomId).hostId == request.auth.uid; }
 
     function isValidRoom(data) {
       return data.code is string && 
@@ -31,6 +34,20 @@ service cloud.firestore {
              data.roomCode is string &&
              data.status in ['pending', 'accepted', 'rejected'] &&
              data.createdAt is timestamp;
+    }
+
+    function isValidRoomAction(data) {
+      return data.sentBy == request.auth.uid &&
+             data.type in ['PLAY_CARD', 'BID', 'SWAP', 'SKIP_SWAP'] &&
+             data.playerIdx is int &&
+             data.playerIdx >= 0 &&
+             data.playerIdx <= 3 &&
+             data.clientTime is number &&
+             data.timestamp is timestamp;
+    }
+
+    function isValidPing(data) {
+      return data.lastPing is number;
     }
 
     function isValidUser(data) {
@@ -166,18 +183,18 @@ service cloud.firestore {
       
       match /actions/{actionId} {
         allow create: if isSignedIn() && 
-                      (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids);
-        allow read: if isSignedIn() && (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids);
-        allow delete: if isSignedIn() && get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid;
+                      isRoomMember(roomId) &&
+                      isValidRoomAction(incoming());
+        allow read: if isRoomMember(roomId);
+        allow delete: if isRoomHost(roomId);
       }
-      
-      match /pings/{pingId} {
-        // Any member can read/write pings
-        allow read: if isSignedIn() && 
-                      (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids);
-        allow write: if isSignedIn() && 
-                      (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.memberUids) &&
-                      pingId == request.auth.uid;
+
+      match /pings/{userId} {
+        allow read: if isRoomMember(roomId);
+        allow create, update: if isRoomMember(roomId) &&
+                              request.auth.uid == userId &&
+                              isValidPing(incoming());
+        allow delete: if isRoomHost(roomId) || request.auth.uid == userId;
       }
     }
   }
