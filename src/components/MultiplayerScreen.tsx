@@ -112,8 +112,6 @@ export function MultiplayerScreen() {
           }
         }
         setOnlineFriends(friendsWithStatus);
-      }, (error) => {
-        console.error("Error fetching friends list:", error);
       });
       return unsubFriends;
     }
@@ -223,8 +221,8 @@ export function MultiplayerScreen() {
             </div>
          </div>
 
-         <div className="w-full max-w-[420px] p-6 mt-4">
-            <div className="p-6 bg-[#151522] border-2 border-[var(--color-gold)]/30 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden mb-6">
+         <div className="lobby-room-container w-full max-w-[420px] p-6 mt-4">
+            <div className="p-4 sm:p-6 bg-[#151522] border-2 border-[var(--color-gold)]/30 rounded-[24px] sm:rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.5)] relative overflow-hidden mb-6">
             <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-50" />
             
             <h2 className="text-2xl font-black text-[var(--color-gold)] mb-6 drop-shadow-md">غرفة اللعب</h2>
@@ -399,7 +397,7 @@ export function MultiplayerScreen() {
     <div className="flex flex-col min-h-[100dvh] bg-[#0a0a0f] text-center relative overflow-hidden" dir="rtl">
       <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-[var(--color-gold)] blur-[150px] opacity-10 rounded-full animate-pulse" />
       
-      <div className="flex-1 flex flex-col w-full max-w-md mx-auto relative z-10 p-4">
+      <div className="lobby-shell flex-1 flex flex-col w-full max-w-md mx-auto relative z-10 p-4">
         
         {/* Header Content */}
         <div className="flex items-center justify-between mb-6 pt-2">
@@ -421,18 +419,18 @@ export function MultiplayerScreen() {
         )}
 
         {/* Join by Code Section */}
-        <div className="flex gap-2 mb-6">
+        <div className="lobby-join-row flex gap-2 mb-6">
            <input 
              value={joinCode}
              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
              placeholder="رمز غرفـة"
              maxLength={4}
-             className="flex-1 p-4 bg-black/40 border border-[var(--color-gold)]/20 rounded-2xl text-white text-center font-black tracking-[0.2em] text-xl focus:outline-none focus:border-[var(--color-gold)] placeholder:text-white/20 shadow-inner"
+             className="min-w-0 flex-1 p-4 bg-black/40 border border-[var(--color-gold)]/20 rounded-2xl text-white text-center font-black tracking-[0.2em] text-xl focus:outline-none focus:border-[var(--color-gold)] placeholder:text-white/20 shadow-inner"
            />
            <button 
              onClick={() => handleJoin()}
              disabled={loading || !joinCode}
-             className="px-6 bg-gradient-to-b from-[var(--color-gold)] to-[#cca628] text-black font-black rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center gap-2"
+             className="shrink-0 px-5 sm:px-6 bg-gradient-to-b from-[var(--color-gold)] to-[#cca628] text-black font-black rounded-2xl shadow-lg active:scale-95 transition-all disabled:opacity-50 disabled:grayscale flex items-center justify-center gap-2"
            >
              <span>انضمام</span>
              <Play className="w-4 h-4 fill-black" />
@@ -440,7 +438,7 @@ export function MultiplayerScreen() {
         </div>
 
         {/* Create Section */}
-        <div className="mb-6 p-5 bg-gradient-to-b from-black/60 to-black/40 rounded-[24px] border border-white/5 shadow-xl text-right backdrop-blur-md">
+        <div className="mb-6 p-4 sm:p-5 bg-gradient-to-b from-black/60 to-black/40 rounded-[20px] sm:rounded-[24px] border border-white/5 shadow-xl text-right backdrop-blur-md">
            <div className="flex items-center gap-2 mb-4">
                <div className="w-8 h-8 rounded-full bg-[var(--color-gold)]/20 flex items-center justify-center border border-[var(--color-gold)]/30">
                    <Plus className="w-4 h-4 text-[var(--color-gold)]" />
@@ -483,7 +481,7 @@ export function MultiplayerScreen() {
                   <h4 className="text-[#888] text-[11px] font-bold uppercase tracking-wider">حد الفوز (النقاط)</h4>
                   <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-white/50 font-mono">pts</span>
               </div>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-2">
                  {[31, 61, 121].map(limit => (
                    <button 
                      key={limit}
@@ -510,7 +508,7 @@ export function MultiplayerScreen() {
                    <button 
                      key={val}
                      onClick={() => setMode(val as any)}
-                     className={`flex-1 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold border transition-all ${mode === val ? 'bg-[var(--color-gold)] text-black border-[var(--color-gold)] shadow-md' : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'}`}
+                  className={`min-w-0 py-3 rounded-xl flex flex-col items-center justify-center gap-1 font-bold border transition-all ${mode === val ? 'bg-[var(--color-gold)] text-black border-[var(--color-gold)] shadow-md' : 'bg-white/5 text-white/50 border-white/5 hover:bg-white/10'}`}
                    >
                      {icon}
                      <span className="text-xs">{label}</span>
@@ -547,7 +545,7 @@ export function MultiplayerScreen() {
                 </div>
               ) : (
                 publicRooms.map(room => (
-                  <div key={room.code} className="group p-4 bg-black/40 border border-white/5 rounded-[20px] flex gap-3 cursor-pointer hover:bg-white/5 hover:border-[var(--color-gold)]/30 transition-all active:scale-[0.98]">
+                  <div key={room.code} className="group p-3 sm:p-4 bg-black/40 border border-white/5 rounded-[18px] sm:rounded-[20px] flex gap-3 cursor-pointer hover:bg-white/5 hover:border-[var(--color-gold)]/30 transition-all active:scale-[0.98] min-w-0">
                     <div className="w-12 h-12 shrink-0 bg-gradient-to-br from-[var(--color-gold)]/20 to-[var(--color-gold)]/5 rounded-[14px] flex items-center justify-center border border-[var(--color-gold)]/20 shadow-inner group-hover:from-[var(--color-gold)]/30 transition-colors relative overflow-hidden">
                         <div className="absolute inset-0 bg-[var(--color-gold)]/10 blur-xl rounded-full" />
                         {room.password ? <Lock className="w-6 h-6 text-[var(--color-gold)] relative z-10 drop-shadow-md" /> : <Home className="w-6 h-6 text-[var(--color-gold)] relative z-10 drop-shadow-md" />}
@@ -561,7 +559,7 @@ export function MultiplayerScreen() {
                               <Hash className="w-3 h-3" /> {room.code}
                             </div>
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col xs:flex-row xs:items-center xs:justify-between gap-2">
                             <div className="flex flex-col gap-1">
                               <div className="text-[10px] text-white/50 font-bold flex items-center gap-1.5">
                                   <Users className="w-3 h-3 text-[var(--color-gold)]" />
@@ -571,7 +569,7 @@ export function MultiplayerScreen() {
                                 {room.mode === "Teams" ? "فرق 2v2" : room.mode === "FFA" ? "فردي" : "1ضد1"} • {room.winLimit} نقطة
                               </div>
                             </div>
-                            <div className="flex gap-1.5 shrink-0">
+                            <div className="flex gap-1.5 shrink-0 justify-end">
                                 <button 
                                   onClick={(e) => { e.stopPropagation(); room.password ? setShowPasswordInput({code: room.code, asSpectator: false}) : handleJoin(room.code); }}
                                   className="text-[10px] bg-gradient-to-b from-[var(--color-gold)] to-[#cca628] text-black px-3 py-1.5 rounded-lg font-black shadow-lg active:scale-95 flex items-center gap-1.5 transition-transform"

@@ -129,7 +129,7 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
   return (
     <div
       onClick={() => onProfileClick(index)}
-      className={`absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isDisconnected ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : isActive ? activeClass : teamBorder} overflow-hidden transition-all min-w-[95px] max-w-[120px] cursor-pointer active:scale-95`}
+      className={`player-badge absolute ${positionClass} flex flex-col bg-[#141423]/95 backdrop-blur-md rounded-xl border-2 ${isDisconnected ? 'border-red-500/60 shadow-[0_0_10px_rgba(239,68,68,0.3)]' : isActive ? activeClass : teamBorder} overflow-hidden transition-all min-w-[95px] max-w-[120px] cursor-pointer active:scale-95`}
     >
 
       {/* Header (Avatar, Name, Status) */}
@@ -295,13 +295,13 @@ function TableArea({ onProfileClick }: { onProfileClick: (index: number) => void
   const leftIdx = numPlayers === 4 ? pIdx(3) : -1;
 
   return (
-    <div className="flex-1 relative flex items-center justify-center min-h-0 py-1 w-full my-2">
+    <div className="game-table-area flex-1 relative flex items-center justify-center min-h-0 py-1 w-full my-2">
       {topIdx !== -1 && <PlayerBadge index={topIdx} positionClass="top-1 sm:top-2 left-1 sm:left-2 z-20" onProfileClick={onProfileClick} />}
       {rightIdx !== -1 && <PlayerBadge index={rightIdx} positionClass="top-1 sm:top-2 right-1 sm:right-2 z-20" onProfileClick={onProfileClick} />}
       {leftIdx !== -1 && <PlayerBadge index={leftIdx} positionClass="bottom-1 sm:bottom-2 left-1 sm:left-2 z-20" onProfileClick={onProfileClick} />}
       {bottomIdx !== -1 && <PlayerBadge index={bottomIdx} positionClass="bottom-1 sm:bottom-2 right-1 sm:right-2 z-20" onProfileClick={onProfileClick} />}
 
-      <div className="relative w-[190px] xs:w-[230px] sm:w-[320px] aspect-square flex items-center justify-center">
+      <div className="table-board relative w-[190px] xs:w-[230px] sm:w-[320px] aspect-square flex items-center justify-center">
         <div className="absolute inset-[8%] sm:inset-[10%] table-felt rounded-full shadow-[inset_0_0_20px_rgba(0,0,0,0.5)] flex items-center justify-center">
           <div className="text-center opacity-10 pointer-events-none select-none">
             <div className="text-[var(--color-gold)] text-[10px] font-black uppercase tracking-widest leading-none mb-1">الهدف</div>
@@ -364,11 +364,11 @@ function PlayerHand() {
   const hand = gs.hands[myPlayerIndex];
 
   return (
-    <div className="bg-black/50 rounded-t-2xl p-1 border-t-2 border-[var(--color-gold)]/30 mx-1">
+    <div className="player-hand bg-black/50 rounded-t-2xl p-1 border-t-2 border-[var(--color-gold)]/30 mx-1">
       <div className="flex justify-center items-center px-2 mb-1">
         <span className="font-bold text-[var(--color-gold)] text-[0.65rem] drop-shadow-md">🎴 أوراقك</span>
       </div>
-      <div className="flex justify-center items-end h-[90px] sm:h-[110px] px-1 pt-2 pb-1 flex-nowrap overflow-visible">
+      <div className="hand-row flex justify-center items-end h-[90px] sm:h-[110px] px-1 pt-2 pb-1 flex-nowrap overflow-visible">
         <AnimatePresence mode="popLayout">
           {hand.map((card, i) => {
             const isSelected = gs.selectedCardIdx === i;
@@ -404,7 +404,7 @@ function PlayerHand() {
                   damping: 35,
                   mass: 0.8
                 }}
-                className={`w-[54px] h-[78px] xs:w-[58px] xs:h-[84px] sm:w-[72px] sm:h-[104px] relative cursor-pointer flex-shrink-0 select-none
+                className={`hand-card w-[54px] h-[78px] xs:w-[58px] xs:h-[84px] sm:w-[72px] sm:h-[104px] relative cursor-pointer flex-shrink-0 select-none
                   ${i > 0 ? '-ml-[34px] xs:-ml-[36px] sm:-ml-[46px]' : ''}
                   ${isSelected ? 'drop-shadow-[0_0_20px_rgba(212,175,55,0.8)] z-30' : 'drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]'}
                   ${notPlayable ? 'opacity-40 grayscale-[0.8] brightness-[0.5] cursor-not-allowed pointer-events-none' : 'opacity-100 brightness-110 z-10'}
@@ -1133,7 +1133,7 @@ export function GameScreen() {
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] pt-1 pb-1 px-1 overflow-hidden gap-[4px] relative">
+    <div className="game-screen flex flex-col h-[100dvh] pt-1 pb-1 px-1 overflow-hidden gap-[4px] relative">
       {isOffline && (
         <div className="absolute inset-0 z-[10000] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-4">
           <WifiOff size={48} className="text-red-500 mb-4 animate-pulse" />
@@ -1143,7 +1143,7 @@ export function GameScreen() {
           </p>
         </div>
       )}
-      <div className="flex justify-between items-center py-2 px-3 mx-1 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl shrink-0 mt-1 z-50 overflow-hidden relative">
+      <div className="game-header flex justify-between items-center py-2 px-3 mx-1 bg-black/60 backdrop-blur-md rounded-2xl border border-white/10 shadow-xl shrink-0 mt-1 z-50 overflow-hidden relative">
         <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-gold)]/5 to-transparent pointer-events-none" />
 
         <div className="flex gap-3 items-center relative z-10">
