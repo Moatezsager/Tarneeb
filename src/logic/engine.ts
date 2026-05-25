@@ -75,6 +75,7 @@ export const G = {
   trapActive: false,
   exposedCards: [null, null, null, null] as (Card | null)[],
   playerWithHighestScore: -1,
+  swapEvent: null as { king: number; target: number; cardGiven: Card | null; cardTaken: Card | null; isSkip: boolean } | null,
   playerNames: ["أنت", "كمبيوتر 1", "كمبيوتر 2", "كمبيوتر 3"],
   gameStarted: false,
   gameMsg: "",
@@ -340,6 +341,7 @@ export async function startNewRound() {
   G.roundNumber++;
   G.tricksTaken = [0, 0, 0, 0];
   G.bids = [0, 0, 0, 0];
+  G.swapEvent = null;
   G.trickCards = [null, null, null, null];
   G.totalTricksPlayed = 0;
   G.selectedCardIdx = -1;
@@ -394,7 +396,7 @@ export async function startNewRound() {
     G.playerWithHighestScore = highestPlayers[0];
 
     G.phase = "swapping";
-    G.turnTimeout = isBot(G.playerWithHighestScore) ? 3 : 15;
+    G.turnTimeout = isBot(G.playerWithHighestScore) ? 4 : 30;
     G.turnStartTime = Date.now();
     G.gameMsg = `الكنق 👑 ${G.playerNames[G.playerWithHighestScore]} يفكر في التبديل...`;
     updateUI();
@@ -403,7 +405,7 @@ export async function startNewRound() {
     if (isBot(G.playerWithHighestScore)) {
       setTimeout(() => {
         executeAISwap();
-      }, 2000);
+      }, 3500);
     }
   } else {
     if (G.roundNumber === 1) {
@@ -449,20 +451,24 @@ export function executeAISwap() {
   }
 
   if (bestTarget !== -1) {
+    sfxSelect();
     let c1 = G.exposedCards[p];
     let c2 = G.exposedCards[bestTarget];
     swapCards(p, bestTarget);
     if (c1 && c2) {
-      G.gameMsg = `الكنق 👑 ${G.playerNames[p]} إستبدل ورقته (${c1.rank}${c1.rank}) بـ (${c2.rank}${c2.rank}) من ${G.playerNames[bestTarget]}`;
+      G.gameMsg = `الكنق 👑 ${G.playerNames[p]} إستبدل ورقته (${c1.suit}${c1.rank}) بـ (${c2.suit}${c2.rank}) من ${G.playerNames[bestTarget]}`;
+      G.swapEvent = { king: p, target: bestTarget, cardGiven: c1, cardTaken: c2, isSkip: false };
     }
   } else {
+    sfxSelect();
     G.gameMsg = `الكنق 👑 ${G.playerNames[p]} قرر عدم التبديل (محتفظ بورقته)`;
+    G.swapEvent = { king: p, target: p, cardGiven: null, cardTaken: null, isSkip: true };
   }
   updateUI();
 
   setTimeout(() => {
     startBidding();
-  }, 3500);
+  }, 4500);
 }
 
 export function swapCards(p1: number, p2: number) {
@@ -522,18 +528,22 @@ export function humanSwap(target: number, forcePlayerIdx?: number) {
     return;
   }
 
-  if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
+  if (forcePlayerIdx === undefined) {
+    justPlayedLocalAction = true;
+    sfxSelect();
+  }
   let c1 = G.exposedCards[actPlayer];
   let c2 = G.exposedCards[target];
   swapCards(actPlayer, target);
   if (c1 && c2) {
-    G.gameMsg = `الكنق 👑 إستبدل ورقته المكشوفة (${c1.rank}${c1.rank}) بـ (${c2.rank}${c2.rank}) مع ${G.playerNames[target]}`;
+    G.gameMsg = `الكنق 👑 إستبدل ورقته المكشوفة (${c1.suit}${c1.rank}) بـ (${c2.suit}${c2.rank}) مع ${G.playerNames[target]}`;
+    G.swapEvent = { king: actPlayer, target: target, cardGiven: c1, cardTaken: c2, isSkip: false };
   }
   updateUI();
 
   setTimeout(() => {
     startBidding();
-  }, 3500);
+  }, 4500);
 
   if (forcePlayerIdx === undefined)
     setTimeout(() => {
@@ -556,13 +566,17 @@ export function humanSkipSwap(forcePlayerIdx?: number) {
     return;
   }
 
-  if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
+  if (forcePlayerIdx === undefined) {
+    justPlayedLocalAction = true;
+    sfxSelect();
+  }
   G.gameMsg = `الكنق 👑 قرر عدم التبديل (محتفظ بورقته)`;
+  G.swapEvent = { king: actPlayer, target: actPlayer, cardGiven: null, cardTaken: null, isSkip: true };
   updateUI();
 
   setTimeout(() => {
     startBidding();
-  }, 2500);
+  }, 4500);
 
   if (forcePlayerIdx === undefined)
     setTimeout(() => {
@@ -1368,7 +1382,7 @@ export function resumeGameLoop() {
       clearEngineTimers();
       _botPlayTimer = setTimeout(() => {
         executeAISwap();
-      }, 1000);
+      }, 3500);
     }
   }
 }

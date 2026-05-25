@@ -25,9 +25,13 @@ export function beep(f: number, d: number, t: OscillatorType = 'sine', v = 0.05)
 
 export const sfxSelect = () => beep(700, 0.06);
 export const sfxPlay = () => beep(500, 0.08);
-export const sfxWin = () => { beep(900, 0.1); setTimeout(() => beep(1100, 0.1), 100); };
+export const sfxWin = () => { 
+  [440, 554, 659, 880, 1108].forEach((f, i) => setTimeout(() => beep(f, 0.25, 'triangle', 0.1), i * 150)); 
+};
 export const sfxBid = () => beep(350, 0.08, 'square');
-export const sfxTrap = () => beep(180, 0.35, 'sawtooth', 0.12);
+export const sfxTrap = () => { 
+  [300, 250, 200, 150].forEach((f, i) => setTimeout(() => beep(f, 0.4, 'sawtooth', 0.15), i * 100)); 
+};
 export const sfxTarneb = () => { beep(600, 0.15, 'triangle', 0.08); setTimeout(() => beep(800, 0.2, 'triangle', 0.1), 150); };
 export const sfxDeal = () => beep(800 + Math.random() * 400, 0.03 + Math.random() * 0.02, 'sine', 0.02);
 export const sfxRoundEnd = () => [500, 600, 700, 900].forEach((f, i) => setTimeout(() => beep(f, 0.15, 'triangle', 0.07), i * 120));
@@ -39,3 +43,4 @@ export const sfxKubaCapture = () => {
 export const sfxRoundSuccess = () => {
     [700, 900, 1100, 1300].forEach((f, i) => setTimeout(() => beep(f, 0.2, 'triangle', 0.08), i * 100));
 };
+export const sfxWarningTick = () => beep(800, 0.05, 'square', 0.05);

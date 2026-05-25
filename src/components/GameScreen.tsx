@@ -8,6 +8,7 @@ import { multiplayerState } from "../logic/multiplayer";
 import { UserProfileModal } from "./UserProfileModal";
 import { UserProfile } from "../logic/userProfile";
 import { ShieldAlert, ShieldCheck, Home, Settings, Eye, Users, Info, RotateCcw, LogOut, Wifi, WifiOff, Volume2, VolumeX, BarChart2, Trophy, Crown, Medal, Menu } from "lucide-react";
+import { sfxWin, sfxTrap, sfxRoundSuccess, sfxWarningTick } from "../lib/audio";
 
 function getCardImageUrl(card: Card | null) {
   if (!card) return '/cards/back.svg';
@@ -64,6 +65,13 @@ function DealingAnimation() {
 
 function useTurnTimer(turnStartTime: number, turnTimeout: number) {
   const [timeLeft, setTimeLeft] = React.useState(turnTimeout);
+  const [lastTurnStartTime, setLastTurnStartTime] = React.useState(turnStartTime);
+
+  // Synchronous state update during render for derived state
+  if (turnStartTime !== lastTurnStartTime) {
+    setLastTurnStartTime(turnStartTime);
+    setTimeLeft(turnTimeout);
+  }
 
   React.useEffect(() => {
     const estimatedElapsed = turnStartTime ? (Date.now() - turnStartTime) / 1000 : 0;
@@ -104,6 +112,20 @@ function PlayerBadge({ index, positionClass, onProfileClick }: { index: number, 
 
   const realPlayer = multiplayerState.players.find(p => p.index === index);
   const isDisconnected = realPlayer && realPlayer.status === "disconnected";
+
+  React.useEffect(() => {
+    if (showTimer && timeLeft < 5 && timeLeft > 0) {
+      const beepsPerSecond = 6 - timeLeft; 
+      const intervalMs = 1000 / beepsPerSecond;
+      
+      sfxWarningTick();
+      const intervalId = setInterval(() => {
+         sfxWarningTick();
+      }, intervalMs);
+      
+      return () => clearInterval(intervalId);
+    }
+  }, [timeLeft, showTimer]);
 
   let teamBorder = 'border-[#333] shadow-xl z-20 hover:border-[var(--color-gold)]/50';
   let teamHeaderBg = 'bg-[#222] text-white';
@@ -488,10 +510,31 @@ function BiddingOverlay() {
 function RoundEndOverlay() {
   const gs = useGameState();
   const [timeLeft, setTimeLeft] = React.useState(15);
+  const playedAudioRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (!gs.roundEndOverlayVisible) return;
+    if (!gs.roundEndOverlayVisible) {
+       playedAudioRef.current = false;
+       return;
+    }
     if (gs.gameWinner !== null) return; // Don't auto close if game ended
+
+    if (!playedAudioRef.current) {
+       playedAudioRef.current = true;
+       if (gs.trapActive) {
+         sfxTrap();
+       } else {
+         // Check if my team or myself won points
+         const myResult = gs.results?.find((r: any) => 
+           gs.gameMode === "Teams" ? r.player === (myPlayerIndex % 2) : r.player === myPlayerIndex
+         );
+         if (myResult && myResult.change > 0) {
+           sfxWin();
+         } else {
+           sfxRoundSuccess();
+         }
+       }
+    }
 
     setTimeLeft(15);
     const interval = setInterval(() => {
@@ -1353,17 +1396,79 @@ function SwapOverlay() {
   const isMe = gs.playerWithHighestScore === myPlayerIndex;
 
   React.useEffect(() => {
-    if (gs.phase === "swapping" && isMe && timeLeft === 0 && !isBot(myPlayerIndex)) {
+    if (gs.phase === "swapping" && isMe && timeLeft === 0 && !isBot(myPlayerIndex) && !gs.swapEvent) {
       humanSkipSwap();
     }
-  }, [gs.phase, isMe, timeLeft]);
+  }, [gs.phase, isMe, timeLeft, gs.swapEvent]);
 
   if (gs.phase !== "swapping" || myPlayerIndex === -1) return null;
+
+  if (gs.swapEvent) {
+    const { king, target, cardGiven, cardTaken, isSkip } = gs.swapEvent;
+    const kingName = gs.playerNames[king];
+    const targetName = gs.playerNames[target];
+
+    return (
+      <div className="absolute inset-0 z-50 flex items-center justify-center p-2 bg-black/60 pointer-events-auto backdrop-blur-[2px] transition-opacity duration-300">
+        <div className="bg-gradient-to-b from-[#1a1a2e]/95 to-[#10101d]/95 backdrop-blur-xl p-4 sm:p-6 rounded-[24px] border border-[var(--color-gold)]/40 w-full max-w-[340px] text-center shadow-[0_20px_50px_rgba(0,0,0,1)] relative overflow-hidden">
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[var(--color-gold)] to-transparent opacity-50" />
+          <div className="text-[var(--color-gold)] text-lg sm:text-xl font-black mb-4 drop-shadow-md">
+            👑 قرار الكنق
+          </div>
+          
+          {isSkip ? (
+             <div className="py-6 flex flex-col items-center gap-3">
+               <div className="text-3xl text-white/80">🛡️</div>
+               <div className="text-sm font-bold text-white leading-relaxed">
+                 {king === myPlayerIndex ? (
+                   <>لقد قررت<br/>الاحتفاظ بورقتك دون تبديل</>
+                 ) : (
+                   <>الكنق <span className="text-[var(--color-gold)]">{kingName}</span> قرر<br/>الاحتفاظ بورقته دون تبديل</>
+                 )}
+               </div>
+             </div>
+          ) : (
+             <div className="flex flex-col items-center gap-4 py-2">
+               <div className="text-sm font-bold text-white mb-2 leading-relaxed">
+                 {king === myPlayerIndex ? (
+                   <>لقد قمت بالتبديل <br/>مع <span className="text-[var(--color-gold)]">{targetName}</span></>
+                 ) : target === myPlayerIndex ? (
+                   <>الكنق <span className="text-[var(--color-gold)]">{kingName}</span> قام بالتبديل <br/>معك</>
+                 ) : (
+                   <>الكنق <span className="text-[var(--color-gold)]">{kingName}</span> قام بالتبديل <br/>مع <span className="text-[var(--color-gold)]">{targetName}</span></>
+                 )}
+               </div>
+               
+               <div className="flex items-center justify-center gap-6">
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-[0.65rem] text-[var(--color-gold)] font-bold px-2 py-0.5 bg-[var(--color-gold)]/10 rounded-full">ورقته الجديدة</span>
+                    <div className="transform scale-110 drop-shadow-[0_0_15px_rgba(212,175,55,0.4)]">
+                      {cardTaken && <MiniCard card={cardTaken} isKuba={cardTaken.suit === '♥'} />}
+                    </div>
+                  </div>
+                  
+                  <div className="text-[var(--color-gold)] animate-pulse flex flex-col items-center">
+                    <div className="text-2xl mt-4">⟵</div>
+                  </div>
+                  
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-[0.65rem] text-[#aaa] font-bold">ورقته السابقة</span>
+                    <div className="transform scale-95 opacity-80 brightness-75">
+                      {cardGiven && <MiniCard card={cardGiven} isKuba={cardGiven.suit === '♥'} />}
+                    </div>
+                  </div>
+               </div>
+             </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const kingName = gs.playerNames[gs.playerWithHighestScore];
 
   return (
-    <div className="absolute inset-0 z-50 flex items-center justify-center p-2 bg-black/40 pointer-events-auto backdrop-blur-[1px]">
+    <div className="absolute inset-0 z-[60] flex items-center justify-center p-2 bg-black/40 pointer-events-auto backdrop-blur-[1px]">
       <div className="bg-[#1a1a2e]/95 backdrop-blur-xl p-3 sm:p-5 rounded-2xl border-2 border-[var(--color-gold)] w-full max-w-[320px] text-center shadow-[0_15px_40px_rgba(0,0,0,0.8)]">
         <div className="flex justify-between items-center mb-3">
           <div className="text-[var(--color-gold)] text-sm sm:text-base font-black flex items-center justify-center w-full gap-2 relative">
