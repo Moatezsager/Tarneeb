@@ -518,14 +518,20 @@ export function humanSwap(target: number, forcePlayerIdx?: number) {
     forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
   if (G.phase !== "swapping" || G.playerWithHighestScore !== actPlayer) return;
 
-  if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
+  const isBotPlay = isBot(actPlayer);
+  const amIHostAndItsBot = isHostMode && isBotPlay;
+  const amIMe = actPlayer === myPlayerIndex && forcePlayerIdx === undefined;
+
+  if (isMultiplayerMode && (amIHostAndItsBot || amIMe)) {
+    const gBackup = JSON.stringify(G);
     import("./multiplayer").then((m) => {
-      m.sendPlayerAction({ type: "SWAP", target, playerIdx: actPlayer });
-      m.setLocalActionLock(1500);
+      m.sendPlayerAction({ type: "SWAP", target, playerIdx: actPlayer }, gBackup);
+      if (amIMe) m.setLocalActionLock(1500);
     });
-    // Optimistic Execution:
-    humanSwap(target, actPlayer);
-    return;
+    if (amIMe && !isHostMode) {
+        humanSwap(target, actPlayer);
+        return;
+    }
   }
 
   if (forcePlayerIdx === undefined) {
@@ -556,14 +562,20 @@ export function humanSkipSwap(forcePlayerIdx?: number) {
     forcePlayerIdx !== undefined ? forcePlayerIdx : myPlayerIndex;
   if (G.phase !== "swapping" || G.playerWithHighestScore !== actPlayer) return;
 
-  if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
+  const isBotPlay = isBot(actPlayer);
+  const amIHostAndItsBot = isHostMode && isBotPlay;
+  const amIMe = actPlayer === myPlayerIndex && forcePlayerIdx === undefined;
+
+  if (isMultiplayerMode && (amIHostAndItsBot || amIMe)) {
+    const gBackup = JSON.stringify(G);
     import("./multiplayer").then((m) => {
-      m.sendPlayerAction({ type: "SKIP_SWAP", playerIdx: actPlayer });
-      m.setLocalActionLock(1500);
+      m.sendPlayerAction({ type: "SKIP_SWAP", playerIdx: actPlayer }, gBackup);
+      if (amIMe) m.setLocalActionLock(1500);
     });
-    // Optimistic Execution:
-    humanSkipSwap(actPlayer);
-    return;
+    if (amIMe && !isHostMode) {
+        humanSkipSwap(actPlayer);
+        return;
+    }
   }
 
   if (forcePlayerIdx === undefined) {
@@ -729,15 +741,21 @@ export function confirmBid(forceBid?: number, forcePlayerIdx?: number) {
   const theBid = forceBid !== undefined ? forceBid : G.pendingBid;
 
   if (theBid !== null) {
-    if (isMultiplayerMode && !isHostMode && forcePlayerIdx === undefined) {
+    const isBotPlay = isBot(actPlayer);
+    const amIHostAndItsBot = isHostMode && isBotPlay;
+    const amIMe = actPlayer === myPlayerIndex && forcePlayerIdx === undefined;
+    
+    if (isMultiplayerMode && (amIHostAndItsBot || amIMe)) {
+      const gBackup = JSON.stringify(G);
       import("./multiplayer").then((m) => {
-        m.sendPlayerAction({ type: "BID", bid: theBid, playerIdx: actPlayer });
-        m.setLocalActionLock(1500);
+        m.sendPlayerAction({ type: "BID", bid: theBid, playerIdx: actPlayer }, gBackup);
+        if (amIMe) m.setLocalActionLock(1500);
       });
-      G.bidOverlayVisible = false;
-      // Optimistic Execution:
-      confirmBid(theBid, actPlayer);
-      return;
+      if (amIMe) G.bidOverlayVisible = false;
+      if (amIMe && !isHostMode) {
+          confirmBid(theBid, actPlayer);
+          return;
+      }
     }
 
     if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
@@ -915,15 +933,21 @@ export function executePlay(forceIdx?: number, forcePlayerIdx?: number) {
 
   if (cIdx < 0 || G.currentPlayer !== pIdx || G.isGatheringTrick) return;
 
-  if (isMultiplayerMode && !isHostMode && forceIdx === undefined) {
+  const isBotPlay = isBot(pIdx);
+  const amIHostAndItsBot = isHostMode && isBotPlay;
+  const amIMe = pIdx === myPlayerIndex && forceIdx === undefined;
+
+  if (isMultiplayerMode && (amIHostAndItsBot || amIMe)) {
+    const gBackup = JSON.stringify(G);
     import("./multiplayer").then((m) => {
-      m.sendPlayerAction({ type: "PLAY_CARD", cardIdx: cIdx, playerIdx: pIdx });
-      m.setLocalActionLock(2000); // Lock for 2 seconds to ensure trick resolves locally without jitter
+      m.sendPlayerAction({ type: "PLAY_CARD", cardIdx: cIdx, playerIdx: pIdx }, gBackup);
+      if (amIMe) m.setLocalActionLock(2000);
     });
-    G.selectedCardIdx = -1;
-    // Optimistic Execution:
-    executePlay(cIdx, pIdx);
-    return;
+    if (amIMe) G.selectedCardIdx = -1;
+    if (amIMe && !isHostMode) {
+        executePlay(cIdx, pIdx);
+        return;
+    }
   }
 
   if (forcePlayerIdx === undefined) justPlayedLocalAction = true;
@@ -1305,7 +1329,6 @@ export function getTrickWinner() {
 }
 
 function advanceTurn() {
-  if (!isMyTurnToProcess()) return;
   if (G.phase !== "playing") return;
 
   const numPlayers = G.gameMode === "1v1" ? 2 : 4;
@@ -1316,12 +1339,16 @@ function advanceTurn() {
     G.lastTrickCards = [...G.trickCards];
     updateUI();
 
-    clearEngineTimers();
-    _resolveTimer = setTimeout(resolveTrick, 900);
+    if (isMyTurnToProcess()) {
+      clearEngineTimers();
+      _resolveTimer = setTimeout(resolveTrick, 900);
+    }
     return;
   }
 
   G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
+
+  if (!isMyTurnToProcess()) return;
 
   // Set timer for next player
   const botPlayer = isBot(G.currentPlayer);
@@ -1388,10 +1415,9 @@ export function resumeGameLoop() {
 }
 
 function processNextPlay() {
-  if (!isMyTurnToProcess()) return;
   if (G.phase !== "playing") return;
   if (G.totalTricksPlayed >= 13) {
-    endRound();
+    if (isMyTurnToProcess()) endRound();
     return;
   }
 
@@ -1429,13 +1455,15 @@ function processNextPlay() {
     G.playHint = "";
     updateUI();
 
-    clearEngineTimers();
-    if (bot) {
-      _botPlayTimer = setTimeout(() => {
-        if (!isMyTurnToProcess()) return;
-        computerPlay(G.currentPlayer);
-        advanceTurn();
-      }, 400);
+    if (isMyTurnToProcess()) {
+      clearEngineTimers();
+      if (bot) {
+        _botPlayTimer = setTimeout(() => {
+          if (!isMyTurnToProcess()) return;
+          computerPlay(G.currentPlayer);
+          advanceTurn();
+        }, 400);
+      }
     }
   }
 }

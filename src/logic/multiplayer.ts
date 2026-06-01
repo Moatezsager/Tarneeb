@@ -134,13 +134,28 @@ window.addEventListener('beforeunload', () => {
    }
 });
 
+let lastPhaseSync = "";
+let lastTrickCountSync = -1;
+
 setOnSyncNeeded(() => {
   if (multiplayerState.isMultiplayer) {
+    let isMajorSync = false;
+    
+    // Check if phase changed or trick count changed (e.g. start of round, end of trick, end of round)
+    if (G.phase !== lastPhaseSync || G.totalTricksPlayed !== lastTrickCountSync) {
+       isMajorSync = true;
+       lastPhaseSync = G.phase;
+       lastTrickCountSync = G.totalTricksPlayed;
+    }
+
     const coreState = getCoreState();
-    if (coreState !== lastSyncedCoreState) {
+    if (coreState !== lastSyncedCoreState || isMajorSync) {
       lastSyncedCoreState = coreState;
-      if (multiplayerState.isHost || justPlayedLocalAction) {
-         updateGameState();
+      if (multiplayerState.isHost) {
+         // No longer push gameState on every card play, ONLY rely on transactions and Major Syncs!
+         if (isMajorSync) {
+             updateGameState(undefined, true);
+         }
       }
     }
   }
@@ -326,7 +341,6 @@ export interface RoomData {
 
 let activeRoomId: string | null = null;
 let roomUnsubscribe: (() => void) | null = null;
-let actionsUnsubscribe: (() => void) | null = null;
 
 export const multiplayerState = {
   isMultiplayer: false,
@@ -339,26 +353,7 @@ export const multiplayerState = {
   isPublic: true,
 };
 
-function startActionsListener(roomId: string) {
-  if (actionsUnsubscribe) return; // already listening
-
-  const actionsRef = collection(db, "rooms", roomId, "actions");
-  actionsUnsubscribe = onSnapshot(actionsRef, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === "added" && multiplayerState.isHost) {
-        enqueuePlayerAction(change.doc.id, change.doc.data(), change.doc.ref);
-      }
-    });
-  }, (error) => {
-    console.log("Ignore actions listener error:", error);
-  });
-}
-
 function stopActionsListener() {
-  if (actionsUnsubscribe) {
-     actionsUnsubscribe();
-     actionsUnsubscribe = null;
-  }
   actionQueue = Promise.resolve();
   processedActionSet.clear();
   processedActionIds.length = 0;
@@ -378,7 +373,7 @@ function rememberProcessedAction(id: string) {
   }
 }
 
-function enqueuePlayerAction(actionId: string, action: any, actionRef: any) {
+function enqueuePlayerAction(actionId: string, action: any) {
   if (processedActionSet.has(actionId)) return;
 
   actionQueue = actionQueue
@@ -387,10 +382,7 @@ function enqueuePlayerAction(actionId: string, action: any, actionRef: any) {
       rememberProcessedAction(actionId);
       await processPlayerAction(action);
     })
-    .catch(e => console.error("Action queue error", e))
-    .finally(() => {
-      deleteDoc(actionRef).catch(e => console.error("Failed to delete action", e));
-    });
+    .catch(e => console.error("Action queue error", e));
 }
 
 function isValidQueuedAction(action: any) {
@@ -894,20 +886,17 @@ export function listenToRoom(roomId: string) {
     if (!wasHost && multiplayerState.isHost) {
       startPingListener(roomId);
       startHostTimer();
-      startActionsListener(roomId);
       if (hasSyncedInitialState && G.gameStarted) {
          import("./engine").then(eng => eng.resumeGameLoop());
       }
     } else if (wasHost && !multiplayerState.isHost) {
       stopPingListener();
       stopHostTimer();
-      stopActionsListener();
     }
     
     // Safety check in case we join as Host immediately
-    if (multiplayerState.isHost && !actionsUnsubscribe) {
+    if (multiplayerState.isHost && !pingUnsubscribe) {
       startPingListener(roomId);
-      startActionsListener(roomId);
     }
     
     G.spectators = data.spectators || [];
@@ -947,48 +936,57 @@ export function listenToRoom(roomId: string) {
        }
     }
     
-    // Sync Game State
+    // Process Delta Action if available
+    if (data.lastActionDelta) {
+       const action = data.lastActionDelta;
+       if (!processedActionSet.has(action.actionId)) {
+          console.log(`[Delta Time] Received action ${action.type} after ${Date.now() - action.clientTime}ms (ActionID: ${action.actionId})`);
+          // Only process it locally if it wasn't SentBy us (since we already optimistically executed it!)
+          if (action.sentBy !== auth.currentUser?.uid) {
+             enqueuePlayerAction(action.actionId, action);
+          } else {
+             // We just mark it as processed so we don't process our own action twice
+             rememberProcessedAction(action.actionId);
+          }
+       }
+    }
+
+    // Sync Game State (Only on initial load or Major Sync)
     if (multiplayerState.isHost && hasSyncedInitialState) {
         // As the host, our local state IS the source of truth.
-        // We do not overwrite our local state with the database, because we just pushed it there!
-        // This prevents the infinite resumeGameLoop loops.
         updateUI(); // Update UI for player status changes
     } else {
-        // Rubberbanding fix: Accept the state if we are NOT locked OR if the server just processed OUR action.
-        const isMyAction = data.lastActionBy === auth.currentUser?.uid;
-        const isLockExpired = Date.now() > localActionLockUntil;
+        const isMajorSyncTriggered = data.majorSyncId && data.majorSyncId !== localMajorSyncId;
         
-        if (!hasSyncedInitialState || isMyAction || isLockExpired) {
-            if (isMyAction) {
-                 localActionLockUntil = 0; // Clear lock instantly if server confirmed our action
-            }
-            
-            if (data.gameState) {
-              const newState = deserializeGameState(data.gameState);
-              const oldPhase = G.phase;
-              
-              if (isDealingAnimationRunning) {
-                 const currentHands = G.hands;
-                 const currentDealing = G.dealingCards;
-                 Object.assign(G, newState);
-                 G.hands = currentHands;
-                 G.dealingCards = currentDealing;
-              } else {
-                 Object.assign(G, newState);
-              }
-              
-              if (G.phase === "dealing" && oldPhase !== "dealing") {
-                 dealCardsAnimation();
-              }
-              
-              // Ensure turnStartTime is reasonable (avoid stale timestamps causing instant timeouts)
-              if (G.turnStartTime && Date.now() - G.turnStartTime > 120000) {
-                G.turnStartTime = Date.now();
-              }
-            }
-            hasSyncedInitialState = true;
-            lastSyncedCoreState = getCoreState();
-            updateUI();
+        if (!hasSyncedInitialState || isMajorSyncTriggered) {
+             localMajorSyncId = data.majorSyncId || "";
+             
+             if (data.gameState) {
+               const newState = deserializeGameState(data.gameState);
+               const oldPhase = G.phase;
+               
+               if (isDealingAnimationRunning) {
+                  const currentHands = G.hands;
+                  const currentDealing = G.dealingCards;
+                  Object.assign(G, newState);
+                  G.hands = currentHands;
+                  G.dealingCards = currentDealing;
+               } else {
+                  Object.assign(G, newState);
+               }
+               
+               if (G.phase === "dealing" && oldPhase !== "dealing") {
+                  dealCardsAnimation();
+               }
+               
+               // Ensure turnStartTime is reasonable (avoid stale timestamps causing instant timeouts)
+               if (G.turnStartTime && Date.now() - G.turnStartTime > 120000) {
+                 G.turnStartTime = Date.now();
+               }
+             }
+             hasSyncedInitialState = true;
+             lastSyncedCoreState = getCoreState();
+             updateUI();
         }
     }
   }, (error) => {
@@ -1009,18 +1007,20 @@ let syncRetryCount = 0;
 const MAX_SYNC_RETRIES = 3;
 const SYNC_DEBOUNCE_MS = 120;
 
-export function updateGameState(lastActionBy = auth.currentUser?.uid) {
+let localMajorSyncId = "";
+
+export function updateGameState(lastActionBy = auth.currentUser?.uid, isMajorSync = false) {
   if (!activeRoomId || !multiplayerState.isMultiplayer) return;
 
   // Stability/Anti-Cheat: ONLY THE HOST should push state.
-  if (!multiplayerState.isHost) return;  
+  if (!multiplayerState.isHost && !isMajorSync) return;  
   
   if (syncTimeout) clearTimeout(syncTimeout);
 
   syncTimeout = setTimeout(async () => {
     const finalState = serializeGameState({ ...G });
     const finalStateKey = JSON.stringify(finalState);
-    if (finalStateKey === lastSerializedState) return;
+    if (!isMajorSync && finalStateKey === lastSerializedState) return;
 
     const roomId = activeRoomId;
     for (let attempt = 0; attempt <= MAX_SYNC_RETRIES; attempt++) {
@@ -1028,15 +1028,22 @@ export function updateGameState(lastActionBy = auth.currentUser?.uid) {
         lastSerializedState = finalStateKey;
         const roomRef = doc(db, "rooms", roomId!);
 
-        await updateDoc(roomRef, {
-          gameState: finalState,
-          lastActionBy,
-          updatedAt: serverTimestamp()
-        });
+        const updatePayload: any = {
+           lastActionBy,
+           updatedAt: serverTimestamp()
+        };
+
+        if (isMajorSync) {
+           updatePayload.gameState = finalState;
+           updatePayload.majorSyncId = `${Date.now()}_${Math.random()}`;
+           localMajorSyncId = updatePayload.majorSyncId;
+        }
+
+        await updateDoc(roomRef, updatePayload);
         syncRetryCount = 0;
         return;
       } catch (error: any) {
-        lastSerializedState = "";
+        if (!isMajorSync) lastSerializedState = "";
         if (error?.code === "not-found") {
           console.warn("Update Game State failed: Room no longer exists.");
           leaveRoom();
@@ -1058,19 +1065,39 @@ export function updateGameState(lastActionBy = auth.currentUser?.uid) {
   }, SYNC_DEBOUNCE_MS);
 }
 
-export async function sendPlayerAction(action: any) {
+export async function sendPlayerAction(action: any, gBackupJson?: string) {
   if (!activeRoomId || !auth.currentUser) return;
   try {
      const actionId = `${auth.currentUser.uid}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-     const actionRef = doc(db, "rooms", activeRoomId, "actions", actionId);
-     await setDoc(actionRef, {
-        ...action,
-        sentBy: auth.currentUser.uid,
-        clientTime: Date.now(),
-        timestamp: serverTimestamp()
+     const roomRef = doc(db, "rooms", activeRoomId);
+
+     const sendStart = Date.now();
+     await runTransaction(db, async (t) => {
+        const snap = await t.get(roomRef);
+        if (!snap.exists()) throw new Error("Room not found");
+        
+        t.update(roomRef, {
+           lastActionDelta: {
+              ...action,
+              actionId,
+              sentBy: auth.currentUser.uid,
+              clientTime: Date.now() // Record strictly before sending
+           },
+           lastActionBy: auth.currentUser.uid,
+           updatedAt: serverTimestamp()
+        });
      });
+     console.log(`[Delta Time] Send took: ${Date.now() - sendStart}ms (Action: ${action.type})`);
   } catch (error) {
-     console.error("Failed to send action", error);
+     console.error("Failed to send action via transaction", error);
+     if (gBackupJson) {
+         console.log("Rolling back optimistic UI due to delta error");
+         import("./engine").then(eng => {
+             Object.assign(eng.G, JSON.parse(gBackupJson));
+             eng.updateUI();
+             eng.G.gameMsg = "حدث خطأ أثناء الاتصال - تم التراجع";
+         });
+     }
   }
 }
 

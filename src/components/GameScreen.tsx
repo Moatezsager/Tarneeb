@@ -280,6 +280,7 @@ function Spot({ index, position }: { index: number, position: string }) {
           {playedCard ? (
             <motion.div
               key={playedCard.uid || `${playedCard?.suit}${playedCard?.rank}`}
+              layoutId={playedCard.uid || `${playedCard?.suit}${playedCard?.rank}`}
               initial={{ scale: 0.2, opacity: 0, y: isYou ? 50 : 20, rotate: isYou ? 0 : Math.random() * 30 - 15 }}
               animate={{ scale: 1, opacity: 1, y: 0, rotate: isYou ? 0 : Math.random() * 10 - 5 }}
               exit={{ scale: 0.5, opacity: 0, transition: { duration: 0.15 } }}
@@ -409,6 +410,7 @@ function PlayerHand() {
             return (
               <motion.div
                 key={card.uid || `${card?.suit}${card?.rank}-${i}`}
+                layoutId={card.uid || `${card?.suit}${card?.rank}`}
                 layout
                 initial={{ opacity: 0, y: 50, scale: 0.8 }}
                 animate={{
