@@ -383,9 +383,11 @@ export async function startNewRound() {
   await dealCardsAnimation();
 
   // Expose one random card per player
-  for (let p = 0; p < 4; p++) {
-    let randIdx = Math.floor(Math.random() * 13);
-    G.exposedCards[p] = G.hands[p][randIdx];
+  if (!isMultiplayerMode || isHostMode) {
+    for (let p = 0; p < 4; p++) {
+      let randIdx = Math.floor(Math.random() * 13);
+      G.exposedCards[p] = G.hands[p][randIdx];
+    }
   }
   updateUI();
 
@@ -451,24 +453,10 @@ export function executeAISwap() {
   }
 
   if (bestTarget !== -1) {
-    sfxSelect();
-    let c1 = G.exposedCards[p];
-    let c2 = G.exposedCards[bestTarget];
-    swapCards(p, bestTarget);
-    if (c1 && c2) {
-      G.gameMsg = `الكنق 👑 ${G.playerNames[p]} إستبدل ورقته (${c1.suit}${c1.rank}) بـ (${c2.suit}${c2.rank}) من ${G.playerNames[bestTarget]}`;
-      G.swapEvent = { king: p, target: bestTarget, cardGiven: c1, cardTaken: c2, isSkip: false };
-    }
+    humanSwap(bestTarget, p);
   } else {
-    sfxSelect();
-    G.gameMsg = `الكنق 👑 ${G.playerNames[p]} قرر عدم التبديل (محتفظ بورقته)`;
-    G.swapEvent = { king: p, target: p, cardGiven: null, cardTaken: null, isSkip: true };
+    humanSkipSwap(p);
   }
-  updateUI();
-
-  setTimeout(() => {
-    startBidding();
-  }, 4500);
 }
 
 export function swapCards(p1: number, p2: number) {
@@ -661,7 +649,6 @@ export function forceAiAction(playerIdx: number) {
 }
 
 function processNextBid() {
-  if (!isMyTurnToProcess()) return;
   const numPlayers = G.gameMode === "1v1" ? 2 : 4;
 
   const relevantBids = G.bids.slice(0, numPlayers);
@@ -683,15 +670,17 @@ function processNextBid() {
   } else {
     G.gameMsg = `⏳ دور ${G.playerNames[G.currentPlayer]}...`;
     updateUI();
-    clearEngineTimers();
-    if (bot) {
-      _botPlayTimer = setTimeout(() => {
-        if (!isMyTurnToProcess()) return;
-        computerBid(G.currentPlayer);
-        const numPlayers = G.gameMode === "1v1" ? 2 : 4;
-        G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
-        processNextBid();
-      }, 400);
+    if (isMyTurnToProcess()) {
+      clearEngineTimers();
+      if (bot) {
+        _botPlayTimer = setTimeout(() => {
+          if (!isMyTurnToProcess()) return;
+          computerBid(G.currentPlayer);
+          const nPlayers = G.gameMode === "1v1" ? 2 : 4;
+          G.currentPlayer = (G.currentPlayer + 1) % nPlayers;
+          processNextBid();
+        }, 400);
+      }
     }
   }
 }
@@ -844,7 +833,8 @@ function computerBid(p: number) {
       best = bid;
     }
   }
-  G.bids[p] = best;
+  
+  confirmBid(best, p);
 }
 
 function finishBidding() {
@@ -1034,37 +1024,9 @@ function computerPlay(p: number) {
   let valid = getValidCards(hand, leadSuit, isLeading, G.anyoneTarnebThisTrick);
   let card = selectBestCardAI(p, valid, leadSuit, isLeading);
 
-  let isTarneb = false;
-  // Set Tarneb as played/broken if any heart is played
-  if (card.suit === "♥") {
-    G.tarnebPlayed = true;
-  }
-
-  if (!isLeading && leadSuit && card.suit === "♥" && leadSuit !== "♥") {
-    isTarneb = true;
-    G.anyoneTarnebThisTrick = true;
-    setTimeout(() => sfxTarneb(), 200);
-  } else {
-    sfxValidPlay();
-  }
-
   let idx = hand.findIndex((c) => c.suit === card.suit && c.rank === card.rank);
   if (idx >= 0) {
-    G.trickCards[p] = hand[idx];
-    if (
-      G.exposedCards[p] &&
-      G.exposedCards[p]!.suit === hand[idx].suit &&
-      G.exposedCards[p]!.rank === hand[idx].rank
-    )
-      G.exposedCards[p] = null;
-    hand.splice(idx, 1);
-    sfxPlay();
-
-    if (isTarneb) {
-      G.gameMsg = `🔪 ${G.playerNames[p]} قطع بالكبة!`;
-      G.gameMsgClass = "tarneb-msg";
-      triggerParticle("tarneb");
-    }
+    executePlay(idx, p);
   }
 }
 
@@ -1339,16 +1301,12 @@ function advanceTurn() {
     G.lastTrickCards = [...G.trickCards];
     updateUI();
 
-    if (isMyTurnToProcess()) {
-      clearEngineTimers();
-      _resolveTimer = setTimeout(resolveTrick, 900);
-    }
+    clearEngineTimers();
+    _resolveTimer = setTimeout(resolveTrick, 900);
     return;
   }
 
   G.currentPlayer = (G.currentPlayer + 1) % numPlayers;
-
-  if (!isMyTurnToProcess()) return;
 
   // Set timer for next player
   const botPlayer = isBot(G.currentPlayer);
@@ -1385,7 +1343,6 @@ export function resumeGameLoop() {
         _resolveTimer = setTimeout(() => {
           G.isGatheringTrick = false;
           updateUI();
-          if (!isMyTurnToProcess()) return;
           if (G.totalTricksPlayed >= 13) endRound();
           else processNextPlay();
         }, 600);
@@ -1417,7 +1374,7 @@ export function resumeGameLoop() {
 function processNextPlay() {
   if (G.phase !== "playing") return;
   if (G.totalTricksPlayed >= 13) {
-    if (isMyTurnToProcess()) endRound();
+    endRound();
     return;
   }
 
@@ -1469,7 +1426,6 @@ function processNextPlay() {
 }
 
 function resolveTrick() {
-  if (!isMyTurnToProcess()) return;
   if (G.phase !== "playing") return;
 
   G.isGatheringTrick = false;
@@ -1532,7 +1488,6 @@ function resolveTrick() {
     _resolveTimer = setTimeout(() => {
       G.isGatheringTrick = false;
       updateUI();
-      if (!isMyTurnToProcess()) return;
       if (G.totalTricksPlayed >= 13) {
         endRound();
       } else {
